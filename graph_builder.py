@@ -1,108 +1,121 @@
 from langgraph.graph import StateGraph, END
+from langgraph.prebuilt import ToolNode
 from langgraph.checkpoint.memory import MemorySaver
-from harness_state import HarnessState
+from langchain_core.messages import AIMessage
+from schema import HarnessState
+from tools import ALL_TOOLS
 from agent_nodes import (
-    router_node, tu_van_node, cho_duyet_node, 
-    hop_dong_node, bao_duong_node, tools_node
+    intent_classifier_node,
+    business_router_node,
+    consultation_node,
+    maintenance_node,
+    contract_node,
+    pending_approval_node,
+    policy_guard_node,
 )
 
-def route_by_stage(state: HarnessState): # route the node appropriately
-    # if no appropriate state is found, default to TU_VAN
-    """Router định tuyến dựa trên Stage của State Machine"""
+def route_business_stage(state: HarnessState) -> str:
     stage = state.get("stage", "TU_VAN")
-    if stage == "TU_VAN":
-        return "tu_van_node"
-    elif stage == "CHO_DUYET":
-        return "cho_duyet_node"
+    if stage == "BAO_DUONG":
+        return "maintenance_node"
     elif stage == "HOP_DONG":
-        return "hop_dong_node"
-    elif stage == "HO_TRO_BAO_DUONG":
-        return "bao_duong_node"
-    return "tu_van_node"
+        return "contract_node"
+    elif stage == "CHO_DUYET":
+        return "pending_approval_node"
+    return "consultation_node"
 
-def check_tu_van_tools(state: HarnessState):
-    """Kiểm tra xem LLM có muốn gọi Tool hay không"""
-    # route to tools node
-    last_message = state["messages"][-1]
-    if last_message.type == "ai": 
-        if hasattr(last_message, "tool_calls") and last_message.tool_calls:
+def check_consultation_tool_calls(state: HarnessState) -> str:
+    last_msg = state["messages"][-1]
+    if isinstance(last_msg, AIMessage):
+        if last_msg.tool_calls:
             return "tools_node"
-        
     return END
 
-def post_tool_policy_guard(state: HarnessState):
-    """
-    Sau khi thực thi Tool:
-    - Nếu phát hiện POLICY_DISCOUNT_TRIGGERED (> 5% chiết khấu), lập tức chuyển sang CHO_DUYET
-    """
-    for msg in reversed(state["messages"]):
-        if msg.type == "tool":
-            if "POLICY_DISCOUNT_TRIGGERED" in msg.content:
-                # Trích xuất mã ticket
-                import re
-                match = re.search(r"DISC-\d+", str(msg.content))
-                disc_id = match.group(0) if match else "UNKNOWN"
-                return {
-                    "stage": "CHO_DUYET",
-                    "pending_discount_id": disc_id
-                }
-    return {"stage": "TU_VAN"}
+def evaluate_policy_guard_branch(state: HarnessState) -> str:
+    if state.get("stage") == "CHO_DUYET":
+        return "pending_approval_node"
+    return "consultation_node"
 
-def build_agent_harness():
+def route_after_tools(state: HarnessState) -> str:
+    stage = state.get("stage")
+    if stage == "BAO_DUONG":
+        return "maintenance_node"   # Quay lại để model đọc kết quả tool và trả lời khách
+    return "policy_guard_node"     # Nếu là TU_VAN thì đi qua kiểm tra chiết khấu
+
+# 1. Hàm kiểm tra maintenance_node có gọi tool không
+def check_maintenance_tool_calls(state: HarnessState) -> str:
+    last_msg = state["messages"][-1]
+    if isinstance(last_msg, AIMessage): 
+        if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
+            return "tools_node"
+    return END
+
+
+def build_graph():
     workflow = StateGraph(HarnessState)
 
-    # Thêm các Node
-    workflow.add_node("router_node", router_node)
-    workflow.add_node("tu_van_node", tu_van_node)
-    workflow.add_node("cho_duyet_node", cho_duyet_node)
-    workflow.add_node("hop_dong_node", hop_dong_node)
-    workflow.add_node("bao_duong_node", bao_duong_node)
-    workflow.add_node("tools_node", tools_node)
+    # 1. Register Nodes
+    workflow.add_node("intent_classifier_node", intent_classifier_node)
+    workflow.add_node("business_router_node", business_router_node)
+    workflow.add_node("consultation_node", consultation_node)
+    workflow.add_node("maintenance_node", maintenance_node)
+    workflow.add_node("contract_node", contract_node)
+    workflow.add_node("pending_approval_node", pending_approval_node)
+    workflow.add_node("tools_node", ToolNode(ALL_TOOLS))
+    workflow.add_node("policy_guard_node", policy_guard_node)
 
-    # Cấu hình Edges
-    workflow.set_entry_point("router_node")
+    # 2. Graph Wiring
+    workflow.set_entry_point("intent_classifier_node")
+    workflow.add_edge("intent_classifier_node", "business_router_node")
+
+    # Conditional router edge
     workflow.add_conditional_edges(
-        "router_node",
-        route_by_stage,
+        "business_router_node",
+        route_business_stage,
         {
-            "tu_van_node": "tu_van_node",
-            "cho_duyet_node": "cho_duyet_node",
-            "hop_dong_node": "hop_dong_node",
-            "bao_duong_node": "bao_duong_node"
+            "consultation_node": "consultation_node",
+            "maintenance_node": "maintenance_node",
+            "contract_node": "contract_node",
+            "pending_approval_node": "pending_approval_node",
         }
     )
 
-    # Vòng lặp Tools trong Tư vấn
+    # Consultation tool loop
     workflow.add_conditional_edges(
-        "tu_van_node",
-        check_tu_van_tools,
+        "consultation_node",
+        check_consultation_tool_calls,
+        {
+            "tools_node": "tools_node",
+            END: END
+        }
+    )
+    
+    workflow.add_conditional_edges(
+        "maintenance_node",
+        check_maintenance_tool_calls,
         {
             "tools_node": "tools_node",
             END: END
         }
     )
 
-    # Sau khi chạy tools xong, kiểm tra policy guard
-    def evaluate_after_tool(state: HarnessState):
-        decision = post_tool_policy_guard(state)
-        if decision.get("stage") == "CHO_DUYET":
-            return "cho_duyet_node"
-        return "tu_van_node"
+    # Tools execution flows directly into Policy Guard
+    workflow.add_edge("tools_node", "policy_guard_node")
 
+    # Policy Guard branches to either TU_VAN (continue loop) or CHO_DUYET
     workflow.add_conditional_edges(
-        "tools_node",
-        evaluate_after_tool,
+        "policy_guard_node",
+        evaluate_policy_guard_branch,
         {
-            "cho_duyet_node": "cho_duyet_node",
-            "tu_van_node": "tu_van_node"
+            "consultation_node": "consultation_node",
+            "pending_approval_node": "pending_approval_node"
         }
     )
 
-    workflow.add_edge("cho_duyet_node", END)
-    workflow.add_edge("hop_dong_node", END)
-    workflow.add_edge("bao_duong_node", END)
+    workflow.add_edge("maintenance_node", END)
+    workflow.add_edge("contract_node", END)
+    workflow.add_edge("pending_approval_node", END)
 
-    # Sử dụng MemorySaver Checkpointer để lưu State theo session_id (Thread ID)
+    # State checkpointing
     checkpointer = MemorySaver()
-    app = workflow.compile(checkpointer=checkpointer)
-    return app
+    return workflow.compile(checkpointer=checkpointer)
