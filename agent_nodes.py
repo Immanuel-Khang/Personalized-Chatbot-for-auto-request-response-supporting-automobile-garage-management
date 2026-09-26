@@ -85,9 +85,14 @@ def consultation_node(state: HarnessState) -> dict:
         content=(
             "You are a car dealership sales assistant. "
             "Always fetch official car prices using 'get_car_price'. Never guess prices. "
-            f"Current session_id is '{state['session_id']}'. Pass it when calling 'request_discount'."
+            f"""
+            Current session_id is '{state['session_id']}'. Pass it when calling 'request_discount'.
+            If the discount is AUTO_APPROVED, confirm that the discount has been applied, 
+            calculate the updated price and resend it 
+            """
         )
     )
+    
     response = bound_llm.invoke([system_prompt] + state["messages"])
     return {"messages": [response]}
 
@@ -95,7 +100,10 @@ def consultation_node(state: HarnessState) -> dict:
 def maintenance_node(state: HarnessState) -> dict:
     bound_llm = llm.bind_tools([lookup_maintenance_schedule])
     system_prompt = SystemMessage(
-        content="You are a car service advisor. Assist customers with maintenance schedules, tasks, and costs."
+        content=(
+        "You are a car service advisor." 
+        "Assist customers with maintenance schedules, tasks, and costs."
+        )
     )
     response = bound_llm.invoke([system_prompt] + state["messages"])
     return {"messages": [response]}
@@ -129,17 +137,18 @@ def policy_guard_node(state: HarnessState) -> dict:
     Inspects tool execution outputs.
     If 'requires_manager_approval' == True (Discount > 5%), transition stage to 'CHO_DUYET'.
     """
-    latest_tool_messages = [m for m in reversed(state["messages"]) if m.type == "tool"]
+    tool_messages = [m for m in reversed(state["messages"]) if m.type == "tool"]
+    latest__tool_message = tool_messages[-1]
     
-    for tool_msg in latest_tool_messages:
-        try:
-            payload = json.loads(str(tool_msg.content))
-            if isinstance(payload, dict) and payload.get("requires_manager_approval") is True:
-                return {
-                    "stage": "CHO_DUYET",
-                    "pending_discount_id": payload.get("request_id")
-                }
-        except (json.JSONDecodeError, TypeError):
-            continue
+    try:
+        payload = json.loads(str(latest__tool_message.content))
+        print("Here are the messages: ", payload)
+        if isinstance(payload, dict) and payload.get("requires_manager_approval") is True:
+            return {
+                "stage": "CHO_DUYET",
+                "pending_discount_id": payload.get("request_id")
+            }
+    except (json.JSONDecodeError, TypeError) as e:
+        raise ValueError(f"Invalid JSON result: {e}") from e
 
     return {"stage": "TU_VAN"}

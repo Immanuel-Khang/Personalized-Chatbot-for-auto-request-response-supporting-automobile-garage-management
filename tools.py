@@ -17,6 +17,9 @@ def get_car_price(car_name: str) -> str:
     car = db_container.cars.get_car_by_name(car_name)
     if not car:
         return f"Car '{car_name}' not found in official stock."
+        print(f"Car '{car_name}' not found in official stock.")
+    
+    
     return json.dumps({"car": car.name, "official_price_vnd": car.price}, ensure_ascii=False)
 
 @tool

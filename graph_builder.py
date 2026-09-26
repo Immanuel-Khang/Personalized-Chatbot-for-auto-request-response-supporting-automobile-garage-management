@@ -45,7 +45,7 @@ def route_after_tools(state: HarnessState) -> str:
 # 1. Hàm kiểm tra maintenance_node có gọi tool không
 def check_maintenance_tool_calls(state: HarnessState) -> str:
     last_msg = state["messages"][-1]
-    if isinstance(last_msg, AIMessage): 
+    if last_msg.type == "ai": 
         if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
             return "tools_node"
     return END
@@ -112,7 +112,6 @@ def build_graph():
         }
     )
 
-    workflow.add_edge("maintenance_node", END)
     workflow.add_edge("contract_node", END)
     workflow.add_edge("pending_approval_node", END)
 
