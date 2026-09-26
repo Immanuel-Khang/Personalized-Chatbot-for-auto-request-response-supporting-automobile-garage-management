@@ -1,7 +1,7 @@
 from langchain_core.messages import HumanMessage
 from graph_builder import build_agent_harness
 from db_repositories import db
-
+from dotenv import load_dotenv
 
 def run_chat_turn(app, session_id: str, user_text: str):
     config = {"configurable": {"thread_id": session_id}}

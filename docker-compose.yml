@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: garage_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-garage_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-garage_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-garage_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - garage_pg_data:/var/lib/postgresql/data
+      # Tự động chạy schema.sql lần đầu tiên container được tạo (chỉ chạy khi volume rỗng)
+      - ./schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-garage_admin} -d ${POSTGRES_DB:-garage_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  garage_pg_data:
