@@ -2,10 +2,9 @@ import os
 from abc import ABC, abstractmethod
 from typing import Optional, List, Dict
 from contextlib import contextmanager
+from datetime import datetime, timezone
 
 from pydantic import BaseModel, Field
-from datetime import datetime
-
 import psycopg2
 import psycopg2.extras
 from psycopg2.pool import SimpleConnectionPool
@@ -13,7 +12,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# --- Entity Models (giữ nguyên field so với bản in-memory cũ) ---
+# --- Entity Models ---
 
 class Car(BaseModel):
     id: str
@@ -41,7 +40,7 @@ class DiscountRequest(BaseModel):
     car_id: str
     requested_percent: float
     status: str = "PENDING"
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class MaintenanceItem(BaseModel):
@@ -51,7 +50,15 @@ class MaintenanceItem(BaseModel):
     estimated_cost: float
 
 
-# --- Interfaces (Contracts) - KHÔNG đổi so với bản cũ để tools.py/agent_nodes.py không phải sửa ---
+class ChatMessage(BaseModel):
+    id: Optional[int] = None
+    session_id: str
+    role: str
+    content: str
+    ts: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+# --- Interfaces (Contracts) ---
 
 class ICarRepository(ABC):
     @abstractmethod
@@ -84,9 +91,6 @@ class IMaintenanceRepository(ABC):
 
 
 class ICustomerRepository(ABC):
-    """Chưa được tools.py/agent_nodes.py dùng ở Việc 1 này.
-    Để sẵn cho bước tiếp theo (nạp hồ sơ khách vào context)."""
-
     @abstractmethod
     def get_or_create(self, session_id: str) -> Customer:
         pass
@@ -96,7 +100,17 @@ class ICustomerRepository(ABC):
         pass
 
 
-# --- Kết nối Postgres: 1 connection pool dùng chung cho cả app (FastAPI nhiều request cùng lúc) ---
+class IMessageRepository(ABC):
+    @abstractmethod
+    def log(self, session_id: str, role: str, content: str) -> None:
+        pass
+
+    @abstractmethod
+    def get_history(self, session_id: str, limit: int = 20) -> List[ChatMessage]:
+        pass
+
+
+# --- Kết nối Connection Pool ---
 
 _DB_HOST = os.getenv("POSTGRES_HOST", "localhost")
 _DB_PORT = os.getenv("POSTGRES_PORT", "5432")
@@ -117,8 +131,6 @@ _pool = SimpleConnectionPool(
 
 @contextmanager
 def get_cursor(commit: bool = False):
-    """Lấy connection từ pool, tự trả lại pool sau khi dùng xong.
-    commit=True cho các câu lệnh INSERT/UPDATE."""
     conn = _pool.getconn()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -132,11 +144,12 @@ def get_cursor(commit: bool = False):
         _pool.putconn(conn)
 
 
-# --- Postgres Implementations ---
+# --- Postgres Implementations (Đã map đúng 6 bảng trong ảnh) ---
 
 class PostgresCarRepository(ICarRepository):
     def search(self, keyword: Optional[str] = None, max_price: Optional[float] = None) -> List[Car]:
-        query = "SELECT id, name, car_type, price, video_url, stock FROM vehicle_models WHERE 1=1"
+        # Truy vấn trực tiếp vào bảng `cars`
+        query = "SELECT id, name, car_type, price, video_url, stock FROM cars WHERE 1=1"
         params: list = []
         if keyword:
             query += " AND (name ILIKE %s OR car_type ILIKE %s)"
@@ -152,7 +165,7 @@ class PostgresCarRepository(ICarRepository):
     def get_by_name(self, name: str) -> Optional[Car]:
         with get_cursor() as cur:
             cur.execute(
-                "SELECT id, name, car_type, price, video_url, stock FROM vehicle_models "
+                "SELECT id, name, car_type, price, video_url, stock FROM cars "
                 "WHERE name ILIKE %s ORDER BY name LIMIT 1",
                 [f"%{name}%"],
             )
@@ -161,13 +174,9 @@ class PostgresCarRepository(ICarRepository):
 
 
 class PostgresDiscountRepository(IDiscountRepository):
-    def __init__(self):
-        # counter đơn giản để sinh mã DISC-xxxx giống bản cũ, lấy max hiện có trong bảng
-        pass
-
     def _next_id(self, cur) -> str:
         cur.execute(
-            "SELECT id FROM escalations WHERE id LIKE 'DISC-%' ORDER BY id DESC LIMIT 1"
+            "SELECT id FROM discount_requests WHERE id LIKE 'DISC-%' ORDER BY id DESC LIMIT 1"
         )
         row = cur.fetchone()
         if not row:
@@ -180,7 +189,7 @@ class PostgresDiscountRepository(IDiscountRepository):
             req_id = self._next_id(cur)
             cur.execute(
                 """
-                INSERT INTO escalations (id, session_id, car_id, requested_percent, status)
+                INSERT INTO discount_requests (id, session_id, car_id, requested_percent, status)
                 VALUES (%s, %s, %s, %s, 'PENDING')
                 RETURNING id, session_id, car_id, requested_percent, status, created_at
                 """,
@@ -194,7 +203,7 @@ class PostgresDiscountRepository(IDiscountRepository):
             cur.execute(
                 """
                 SELECT id, session_id, car_id, requested_percent, status, created_at
-                FROM escalations WHERE session_id = %s
+                FROM discount_requests WHERE session_id = %s
                 ORDER BY created_at DESC LIMIT 1
                 """,
                 [session_id],
@@ -205,7 +214,7 @@ class PostgresDiscountRepository(IDiscountRepository):
     def update_status(self, request_id: str, status: str) -> bool:
         with get_cursor(commit=True) as cur:
             cur.execute(
-                "UPDATE escalations SET status = %s WHERE id = %s",
+                "UPDATE discount_requests SET status = %s WHERE id = %s",
                 [status, request_id],
             )
             return cur.rowcount > 0
@@ -213,11 +222,11 @@ class PostgresDiscountRepository(IDiscountRepository):
 
 class PostgresMaintenanceRepository(IMaintenanceRepository):
     def get_milestone_tasks(self, model: str, km: int) -> Optional[MaintenanceItem]:
-        # Lấy mốc km gần nhất trong DB cho đúng dòng xe (khớp lỏng bằng ILIKE, giống get_by_name)
+        # Cột `items` trong SQL được đổi tên thành `tasks` khi trả về Pydantic
         with get_cursor() as cur:
             cur.execute(
                 """
-                SELECT model, km_milestone, tasks, estimated_cost
+                SELECT model, km_milestone, items AS tasks, estimated_cost
                 FROM maintenance_items
                 WHERE model ILIKE %s
                 ORDER BY ABS(km_milestone - %s) ASC
@@ -273,13 +282,34 @@ class PostgresCustomerRepository(ICustomerRepository):
         return Customer(**row) if row else None
 
 
-# --- Dependency Injection Container - CÙNG TÊN BIẾN `db` như bản cũ ---
+class PostgresMessageRepository(IMessageRepository):
+    """Triển khai cho Tool 8: Message Logger trong ảnh"""
+    def log(self, session_id: str, role: str, content: str) -> None:
+        with get_cursor(commit=True) as cur:
+            cur.execute(
+                "INSERT INTO messages (session_id, role, content) VALUES (%s, %s, %s)",
+                [session_id, role, content],
+            )
+
+    def get_history(self, session_id: str, limit: int = 20) -> List[ChatMessage]:
+        with get_cursor() as cur:
+            cur.execute(
+                "SELECT id, session_id, role, content, ts FROM messages "
+                "WHERE session_id = %s ORDER BY ts ASC LIMIT %s",
+                [session_id, limit],
+            )
+            rows = cur.fetchall()
+        return [ChatMessage(**row) for row in rows]
+
+
+# --- Dependency Injection Container ---
 
 class DatabaseContext:
     cars: ICarRepository = PostgresCarRepository()
     discounts: IDiscountRepository = PostgresDiscountRepository()
     maintenance: IMaintenanceRepository = PostgresMaintenanceRepository()
     customers: ICustomerRepository = PostgresCustomerRepository()
+    messages: IMessageRepository = PostgresMessageRepository() # Thêm sẵn cho Tool 8
 
 
 db = DatabaseContext()
