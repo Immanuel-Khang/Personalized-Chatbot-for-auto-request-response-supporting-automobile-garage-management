@@ -4,7 +4,7 @@ import json
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
-from schema import HarnessState, IntentClassificationResult, IntentType
+from schema import HarnessState, IntentAndSlotExtraction, IntentType, CustomerSlots
 from typing import cast 
 from pydantic import SecretStr
 from database import db_container
@@ -25,7 +25,8 @@ llm = ChatOpenAI(
 
 # 1. Intent Classifier Node
 def intent_classifier_node(state: HarnessState) -> dict:
-    classifier = llm.with_structured_output(IntentClassificationResult)
+    # LLM vừa phân loại Intent, vừa nhặt thông tin điền vào Slots
+    extractor = llm.with_structured_output(IntentAndSlotExtraction)
     
     system_prompt = (
         "Classify the customer's latest request into exactly one intent category:\n"
@@ -34,20 +35,35 @@ def intent_classifier_node(state: HarnessState) -> dict:
         "- CONTRACT: Ready to purchase, deposit, sign agreement, provide KYC.\n"
         "- DISCOUNT: Asking for special deals, negotiations, price cuts.\n"
         "- GENERAL: Greetings, thanks, or general inquiry."
+        "Phân loại Intent và trích xuất mọi thông tin chi tiết (nếu có) từ tin nhắn của khách: "
+        "Dòng xe, ngân sách, số km, tên, số điện thoại..."
     )
     
-    # Optimize: send only system prompt and the last customer message
     latest_user_messages = [m for m in state["messages"] if isinstance(m, HumanMessage)]
     last_msg = latest_user_messages[-1] if latest_user_messages else state["messages"][-1]
     
     result = cast(
-        IntentClassificationResult,
-        classifier.invoke([
-            SystemMessage(content=system_prompt),
-            last_msg
-        ])
+        IntentAndSlotExtraction, 
+        extractor.invoke([system_prompt] + [last_msg])
     )
-    return {"intent": result.intent.value}
+    # 1. LẤY SLOTS CŨ TỪ STATE (KHÔNG ĐƯỢC XÓA)
+    raw_slots = state.get("slots")
+    if isinstance(raw_slots, CustomerSlots):
+        merged_slots = raw_slots.model_dump()
+    elif isinstance(raw_slots, dict):
+        merged_slots = raw_slots.copy()
+    else:
+        merged_slots = CustomerSlots().model_dump()
+    # 2. CHỈ CẬP NHẬT TRƯỜNG NÀO CÓ DỮ LIỆU MỚI (Tránh ghi đè None lên giá trị cũ)
+    if result.extracted_slots:
+        new_data = result.extracted_slots.model_dump(exclude_unset=True)
+        for key, value in new_data.items():
+            if value is not None and value != "":
+                merged_slots[key] = value  # Giữ lại car_model cũ, thêm mileage_km mới!
+    return {
+        "intent": result.intent.value,
+        "slots": CustomerSlots(**merged_slots)
+    }
 
 # 2. Business Router Node
 def business_router_node(state: HarnessState) -> dict:
@@ -90,6 +106,9 @@ def consultation_node(state: HarnessState) -> dict:
             If the discount is AUTO_APPROVED, confirm that the discount has been applied, 
             calculate the updated price and resend it 
             """
+            f"The customer's related information: {state['slots'].model_dump_json()}\n"
+            f"Rule: Use the above information for personalized consultation, "
+            f"Do not reask the already provided information."
         )
     )
     
@@ -132,23 +151,37 @@ def pending_approval_node(state: HarnessState) -> dict:
     return {"messages": [response]}
 
 # 7. Policy Guard Node
+
 def policy_guard_node(state: HarnessState) -> dict:
     """
-    Inspects tool execution outputs.
-    If 'requires_manager_approval' == True (Discount > 5%), transition stage to 'CHO_DUYET'.
+    Kiểm tra kết quả thực thi của các Tool gần nhất:
+    - Nếu phát hiện yêu cầu giảm giá vượt thẩm quyền (> 5%), chuyển stage -> 'CHO_DUYET'.
+    - Ngược lại, tiếp tục ở stage -> 'TU_VAN'.
     """
-    tool_messages = [m for m in reversed(state["messages"]) if m.type == "tool"]
-    latest__tool_message = tool_messages[-1]
+    # 1. Lọc lấy các tool messages theo thứ tự TỪ MỚI ĐẾN CŨ
+    recent_tool_messages = [m for m in reversed(state["messages"]) if m.type == "tool"]
     
-    try:
-        payload = json.loads(str(latest__tool_message.content))
-        print("Here are the messages: ", payload)
-        if isinstance(payload, dict) and payload.get("requires_manager_approval") is True:
-            return {
-                "stage": "CHO_DUYET",
-                "pending_discount_id": payload.get("request_id")
-            }
-    except (json.JSONDecodeError, TypeError) as e:
-        raise ValueError(f"Invalid JSON result: {e}") from e
-
+    if not recent_tool_messages:
+        return {"stage": "TU_VAN"}
+    # 2. Quét qua các tool vừa chạy trong lượt này
+    for tool_msg in recent_tool_messages:
+        content = tool_msg.content
+        if not content:
+            continue
+            
+        try:
+            # Parse JSON an toàn
+            payload = json.loads(str(content))
+            
+            # Kiểm tra cờ duyệt chiết khấu
+            if isinstance(payload, dict) and payload.get("requires_manager_approval") is True:
+                print(f"🚨 [POLICY GUARD]: Kích hoạt duyệt cho Ticket {payload.get('request_id')}")
+                return {
+                    "stage": "CHO_DUYET",
+                    "pending_discount_id": payload.get("request_id")
+                }
+        except (json.JSONDecodeError, TypeError):
+            # Nếu tool trả về chuỗi text thường (không phải JSON), bỏ qua êm đẹp, KHÔNG ĐƯỢC CRASH!
+            continue
+    # 3. Mặc định: Nếu không có vi phạm policy nào, tiếp tục ở TU_VAN
     return {"stage": "TU_VAN"}
