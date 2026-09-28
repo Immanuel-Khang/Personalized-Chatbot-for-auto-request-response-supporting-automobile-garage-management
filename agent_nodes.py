@@ -23,7 +23,7 @@ llm = ChatOpenAI(
     api_key=SecretStr(api_key)
 )
 
-# 1. Intent Classifier Node
+# 1. Intent Classifier and Slot Filling Node
 def intent_classifier_node(state: HarnessState) -> dict:
     # LLM vừa phân loại Intent, vừa nhặt thông tin điền vào Slots
     extractor = llm.with_structured_output(IntentAndSlotExtraction)
@@ -35,8 +35,17 @@ def intent_classifier_node(state: HarnessState) -> dict:
         "- CONTRACT: Ready to purchase, deposit, sign agreement, provide KYC.\n"
         "- DISCOUNT: Asking for special deals, negotiations, price cuts.\n"
         "- GENERAL: Greetings, thanks, or general inquiry."
-        "Phân loại Intent và trích xuất mọi thông tin chi tiết (nếu có) từ tin nhắn của khách: "
-        "Dòng xe, ngân sách, số km, tên, số điện thoại..."
+        """
+        Phân loại Intent và trích xuất mọi thông tin chi tiết (nếu có) từ tin nhắn của khách: 
+        - car_model: Tên dòng xe\n
+        - budget_vnd: Ngân sách dự kiến\n
+        - intended_use: Mục đích mua xe\n
+        - current_mileage_km: Số km bảo dưỡng\n
+        - customer_name: Họ tên khách hàng\n
+        - customer_phone: Số điện thoại\n
+        - customer_address: Địa chỉ, quận/huyện, tỉnh thành nơi khách ở\n
+        - decided_price: Mức giá khách hàng đồng ý chốt mua (VNĐ)
+        """
     )
     
     latest_user_messages = [m for m in state["messages"] if isinstance(m, HumanMessage)]
@@ -47,13 +56,8 @@ def intent_classifier_node(state: HarnessState) -> dict:
         extractor.invoke([system_prompt] + [last_msg])
     )
     # 1. LẤY SLOTS CŨ TỪ STATE (KHÔNG ĐƯỢC XÓA)
-    raw_slots = state.get("slots")
-    if isinstance(raw_slots, CustomerSlots):
-        merged_slots = raw_slots.model_dump()
-    elif isinstance(raw_slots, dict):
-        merged_slots = raw_slots.copy()
-    else:
-        merged_slots = CustomerSlots().model_dump()
+    merged_slots = dict(state.get("slots") or {})
+
     # 2. CHỈ CẬP NHẬT TRƯỜNG NÀO CÓ DỮ LIỆU MỚI (Tránh ghi đè None lên giá trị cũ)
     if result.extracted_slots:
         new_data = result.extracted_slots.model_dump(exclude_unset=True)
@@ -62,7 +66,7 @@ def intent_classifier_node(state: HarnessState) -> dict:
                 merged_slots[key] = value  # Giữ lại car_model cũ, thêm mileage_km mới!
     return {
         "intent": result.intent.value,
-        "slots": CustomerSlots(**merged_slots)
+        "slots": merged_slots
     }
 
 # 2. Business Router Node
@@ -71,7 +75,6 @@ def business_router_node(state: HarnessState) -> dict:
     intent = state.get("intent")
     pending_discount_id = state.get("pending_discount_id")
 
-    # --- Scenario A: Session is locked in CHO_DUYET ---
     if current_stage == "CHO_DUYET" and pending_discount_id:
         discount_req = db_container.discounts.get_by_id(pending_discount_id)
         if discount_req:
@@ -80,17 +83,21 @@ def business_router_node(state: HarnessState) -> dict:
             elif discount_req.status == "REJECTED":
                 return {"stage": "TU_VAN", "pending_discount_id": None}
             else:
+                # Nếu khách muốn đàm phán con số khác -> Cho qua TU_VAN để chạy lại tool!
+                if intent == "DISCOUNT":
+                    return {"stage": "TU_VAN"}
+                if intent == "MAINTENANCE":
+                    return {"stage": "BAO_DUONG"}
+                # Chỉ khi nào khách hỏi vu vơ/chờ đợi mới giữ ở CHO_DUYET
                 return {"stage": "CHO_DUYET"}
 
-    # --- Scenario B: Standard Intent-driven Transition ---
-    if intent == IntentType.MAINTENANCE.value:
+    # Các trường hợp thông thường
+    if intent == "MAINTENANCE":
         return {"stage": "BAO_DUONG"}
-    elif intent == IntentType.CONTRACT.value:
+    elif intent == "CONTRACT":
         return {"stage": "HOP_DONG"}
-    elif intent in [IntentType.SALES.value, IntentType.DISCOUNT.value, IntentType.GENERAL.value]:
+    else:
         return {"stage": "TU_VAN"}
-    
-    return {"stage": "TU_VAN"}
 
 # 3. Consultation Node (TU_VAN)
 def consultation_node(state: HarnessState) -> dict:
@@ -106,7 +113,7 @@ def consultation_node(state: HarnessState) -> dict:
             If the discount is AUTO_APPROVED, confirm that the discount has been applied, 
             calculate the updated price and resend it 
             """
-            f"The customer's related information: {state['slots'].model_dump_json()}\n"
+            f"The customer's related information: {state['slots'].copy()}\n"
             f"Rule: Use the above information for personalized consultation, "
             f"Do not reask the already provided information."
         )
@@ -127,14 +134,34 @@ def maintenance_node(state: HarnessState) -> dict:
     response = bound_llm.invoke([system_prompt] + state["messages"])
     return {"messages": [response]}
 
-# 5. Contract Node (HOP_DONG)
+# 5 Contract Node (HOP_DONG)
 def contract_node(state: HarnessState) -> dict:
+    slots = state.get("slots") or {}
+    
+    # Liệt kê các thông tin cần thiết làm hợp đồng
+    required_fields = {
+        "customer_name": "Họ và tên",
+        "customer_phone": "Số điện thoại",
+        "customer_address": "Địa chỉ nhận xe / hộ khẩu",
+        "car_model": "Dòng xe chọn mua",
+        "decided_price": "Mức giá chốt hợp đồng"
+    }
+    
+    # Tìm xem còn thiếu trường nào
+    missing_fields = [label for key, label in required_fields.items() if not slots.get(key)]
+    
     system_prompt = SystemMessage(
         content=(
-            "The customer is finalizing their purchase! "
-            "Congratulate them and collect their legal details (Full Name, Phone, National ID) to prepare the contract."
+            "Bạn là chuyên viên pháp lý và thủ tục hợp đồng mua xe.\n"
+            f"📋 THÔNG TIN ĐÃ CÓ: {json.dumps(slots, ensure_ascii=False)}\n\n"
+            f"⚠️ CÁC THÔNG TIN CÒN THIẾU CẦN THU THẬP: {missing_fields}\n\n"
+            "QUY TẮC:\n"
+            "1. Nếu còn thông tin thiếu, hãy chúc mừng khách đã chốt xe và nhẹ nhàng xin nốt các thông tin còn thiếu trên.\n"
+            "2. Nếu đã ĐỦ TẤT CẢ thông tin, hãy tóm tắt lại toàn bộ hợp đồng (Tên, SĐT, Địa chỉ, Dòng xe, Giá chốt) "
+            "và hẹn ngày ký kết/bàn giao xe."
         )
     )
+    
     response = llm.invoke([system_prompt] + state["messages"])
     return {"messages": [response]}
 
@@ -151,37 +178,33 @@ def pending_approval_node(state: HarnessState) -> dict:
     return {"messages": [response]}
 
 # 7. Policy Guard Node
-
 def policy_guard_node(state: HarnessState) -> dict:
     """
-    Kiểm tra kết quả thực thi của các Tool gần nhất:
-    - Nếu phát hiện yêu cầu giảm giá vượt thẩm quyền (> 5%), chuyển stage -> 'CHO_DUYET'.
-    - Ngược lại, tiếp tục ở stage -> 'TU_VAN'.
+    Chỉ kiểm tra Tool vừa thực thi ở lượt chat hiện tại (tin nhắn cuối cùng trong messages).
     """
-    # 1. Lọc lấy các tool messages theo thứ tự TỪ MỚI ĐẾN CŨ
-    recent_tool_messages = [m for m in reversed(state["messages"]) if m.type == "tool"]
+    latest_msg = state["messages"][-1]
     
-    if not recent_tool_messages:
-        return {"stage": "TU_VAN"}
-    # 2. Quét qua các tool vừa chạy trong lượt này
-    for tool_msg in recent_tool_messages:
-        content = tool_msg.content
-        if not content:
-            continue
-            
+    # 1. Nếu tin nhắn vừa rồi là ToolMessage
+    if latest_msg.type == "tool":
         try:
-            # Parse JSON an toàn
-            payload = json.loads(str(content))
+            payload = json.loads(str(latest_msg.content))
             
-            # Kiểm tra cờ duyệt chiết khấu
+            # Nếu lượt này khách xin mức mới > 5% -> Sang CHO_DUYET
             if isinstance(payload, dict) and payload.get("requires_manager_approval") is True:
                 print(f"🚨 [POLICY GUARD]: Kích hoạt duyệt cho Ticket {payload.get('request_id')}")
                 return {
                     "stage": "CHO_DUYET",
                     "pending_discount_id": payload.get("request_id")
                 }
+            
+            # Nếu lượt này khách xin mức <= 5% (Đã được duyệt tự động) -> XÓA pending_discount_id cũ!
+            elif isinstance(payload, dict) and payload.get("status") == "AUTO_APPROVED":
+                print(f"✅ [POLICY GUARD]: Mức giảm {payload.get('discount_percent')}% được tự động duyệt.")
+                return {
+                    "stage": "TU_VAN",
+                    "pending_discount_id": None  # 🟢 HỦY BỎ TICKET CHỜ DUYỆT CŨ
+                }
         except (json.JSONDecodeError, TypeError):
-            # Nếu tool trả về chuỗi text thường (không phải JSON), bỏ qua êm đẹp, KHÔNG ĐƯỢC CRASH!
-            continue
-    # 3. Mặc định: Nếu không có vi phạm policy nào, tiếp tục ở TU_VAN
+            pass
+
     return {"stage": "TU_VAN"}

@@ -23,6 +23,8 @@ class CustomerSlots(BaseModel):
     # Dữ liệu khách hàng chốt hợp đồng
     customer_name: Optional[str] = Field(default=None, description="Họ tên khách hàng")
     customer_phone: Optional[str] = Field(default=None, description="Số điện thoại liên hệ")
+    customer_address: Optional[str] = Field(default=None, description="Địa chỉ nơi ở, tỉnh/thành phố hoặc địa chỉ nhận xe của khách")
+    decided_price: Optional[float] = Field(default=None, description="Mức giá cuối cùng mà khách hàng chốt mua hoặc đồng ý mua (VNĐ)")
 
 class IntentAndSlotExtraction(BaseModel):
     intent: IntentType = Field(description="The primary intent of the customer's latest message.")
@@ -34,4 +36,4 @@ class HarnessState(TypedDict):
     stage: Literal["IDLE", "TU_VAN", "BAO_DUONG", "HOP_DONG", "CHO_DUYET"]
     intent: Optional[str]
     pending_discount_id: Optional[str]
-    slots: CustomerSlots
+    slots: dict  
