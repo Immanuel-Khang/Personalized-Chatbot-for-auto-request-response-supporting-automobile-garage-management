@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional, List, Dict, Literal
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, timezone
 
 # --- Domain Entities ---
 class CarEntity(BaseModel):
@@ -17,7 +17,7 @@ class DiscountRequestEntity(BaseModel):
     car_name: str
     discount_percent: float
     status: Literal["PENDING", "APPROVED", "REJECTED"] = "PENDING"
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class MaintenanceItemEntity(BaseModel):
     km_milestone: int

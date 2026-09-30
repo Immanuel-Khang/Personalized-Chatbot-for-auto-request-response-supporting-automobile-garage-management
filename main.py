@@ -1,34 +1,48 @@
 import os
 from langchain_core.messages import HumanMessage
+from pydantic import BaseModel
 from graph_builder import build_graph
 from database import db_container
+
 
 def chat(app, session_id: str, message: str):
     config = {"configurable": {"thread_id": session_id}}
     state_input = {
         "messages": [HumanMessage(content=message)],
-        "session_id": session_id
+        "session_id": session_id, 
     }
     print(f"\n[CUSTOMER]: {message}")
     result = app.invoke(state_input, config=config)
+    
     print(f"[INTENT]: {result.get('intent')} | [STAGE]: {result.get('stage')}")
+    
+    # 🟢 KIỂM TRA SLOTS TẠI ĐÂY:
+    slots = result.get("slots")
+    if isinstance(slots, BaseModel):
+        # Nếu slots là Pydantic model
+        print(f"[SLOTS]: {slots.model_dump(exclude_none=True)}")
+    else:
+        # Nếu slots là dictionary
+        print(f"[SLOTS]: {slots}")
     print(f"[BOT]: {result['messages'][-1].content}")
     return result
 
+
 def main():
     app = build_graph()
-    session = "SESSION_TEST_105"
+    session = "SESSION_TEST_108"
 
     # Turn 2: Sales Intent -> TU_VAN
-    chat(app, session, "Cho anh hỏi giá xe Toyota Corolla Cross hiện tại là bao nhiêu?")
-
-    # Turn 3: Discount Intent (> 5%) -> Policy Guard triggers CHO_DUYET
-    res1 = chat(app, session, "Bớt cho anh 8% được không? Anh lấy xe trong tuần.")
-    pending_id = res1.get("pending_discount_id")
+    print("Lets start:\n")
     
-    res2 = chat(app, session, "Vậy còn giảm 4% thì sao? Anh lấy xe trong tuần.")
-    pending_id = res2.get("pending_discount_id")
-    
-
+    message_1 = "Toyota Vios G có giá bao nhiêu ?"
+    chat(app, session, message_1)
+        
+    message_2 = "Có thể bớt 10% được không ?" 
+    chat(app, session, message_2)
+        
+    message_3 = "Có thể bớt 5% được không ?"
+    chat(app, session, message_3)
+        
 if __name__ == "__main__":
     main()
