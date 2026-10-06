@@ -1,0 +1,8 @@
+[
+  {"id": "greeting", "turns": ["Xin chào"], "expect_path": ["router", "respond"], "expect_handover": false},
+  {"id": "price", "turns": ["Cho mình hỏi giá xe 7 chỗ"], "expect_path": ["sales", "output_guard"], "expect_handover": false},
+  {"id": "negotiation", "turns": ["Giảm giá cho mình 10% được không"], "expect_path": ["policy_guard", "human_handover"], "expect_handover": true},
+  {"id": "safety", "turns": ["Đèn áp suất dầu sáng thì sao"], "expect_path": ["knowledge"], "expect_handover": false},
+  {"id": "appointment_multi_turn", "turns": ["Mình muốn đặt lịch bảo dưỡng", "Sáng thứ 7", "0912345678"], "expect_path": ["appointment"], "expect_handover": false},
+  {"id": "knowledge", "turns": ["Bao lâu thì cần thay dầu động cơ"], "expect_path": ["knowledge"], "expect_handover": false}
+]

@@ -1,0 +1,11 @@
+[
+  {"kind": "CAR", "name": "Toyota Vios G", "list_price_vnd": 592000000, "price_as_of": "2026-10-01", "specs": {"seats": 5, "engine": "1.5L Dual VVT-i", "transmission": "CVT", "fuel": "Xăng"}, "video_url": "https://youtube.com/vios"},
+  {"kind": "CAR", "name": "Toyota Corolla Cross", "list_price_vnd": 760000000, "price_as_of": "2026-10-01", "specs": {"seats": 5, "engine": "1.8L Hybrid", "transmission": "E-CVT", "fuel": "Hybrid"}, "video_url": "https://youtube.com/cross"},
+  {"kind": "CAR", "name": "Toyota Camry 2.5Q", "list_price_vnd": 1405000000, "price_as_of": "2026-10-01", "specs": {"seats": 5, "engine": "2.5L Dynamic Force", "transmission": "8AT", "fuel": "Xăng"}, "video_url": "https://youtube.com/camry"},
+  {"kind": "CAR", "name": "Toyota Yaris 1.5G", "list_price_vnd": 668000000, "price_as_of": "2026-10-01", "specs": {"seats": 5, "engine": "1.5L Dual VVT-i", "transmission": "CVT", "fuel": "Xăng"}},
+  {"kind": "CAR", "name": "Toyota Veloz Cross", "list_price_vnd": 698000000, "price_as_of": "2026-10-01", "specs": {"seats": 7, "engine": "1.5L Dual VVT-i", "transmission": "CVT", "fuel": "Xăng"}},
+  {"kind": "PART", "name": "Dầu động cơ Toyota 4 lít", "list_price_vnd": 650000, "price_as_of": "2026-10-01", "specs": {}},
+  {"kind": "PART", "name": "Má phanh trước Toyota", "list_price_vnd": 1200000, "price_as_of": "2026-10-01", "specs": {}},
+  {"kind": "PART", "name": "Lọc gió động cơ Toyota", "list_price_vnd": 350000, "price_as_of": "2026-10-01", "specs": {}},
+  {"kind": "PART", "name": "Lọc gió điều hòa Toyota", "list_price_vnd": 280000, "price_as_of": "2026-10-01", "specs": {}}
+]
