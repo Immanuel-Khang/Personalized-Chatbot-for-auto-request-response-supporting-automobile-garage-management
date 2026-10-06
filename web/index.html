@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trợ lý xưởng xe</title>
+<style>
+ body{font-family:system-ui,sans-serif;max-width:560px;margin:24px auto;padding:0 12px}
+ #log{border:1px solid #ccc;border-radius:8px;padding:12px;height:420px;overflow:auto;white-space:pre-wrap}
+ .u{color:#0b57d0;margin:8px 0}.b{margin:8px 0}.t{color:#888;font-size:12px}
+ form{display:flex;gap:8px;margin-top:8px}input{flex:1;padding:8px}button{padding:8px 14px}
+</style></head><body>
+<h3>Trợ lý xưởng xe (bản khung)</h3>
+<div id="log"></div>
+<form id="f"><input id="m" placeholder="Nhập tin nhắn..." autocomplete="off"><button>Gửi</button></form>
+<script>
+const token = localStorage.getItem("vt") || (crypto.randomUUID()); localStorage.setItem("vt", token);
+let convId = null; const log = document.getElementById("log");
+function add(cls, text){const d=document.createElement("div");d.className=cls;d.textContent=text;log.appendChild(d);log.scrollTop=log.scrollHeight;return d}
+document.getElementById("f").onsubmit = async (e) => {
+  e.preventDefault(); const i = document.getElementById("m"); const msg = i.value.trim(); if(!msg) return; i.value="";
+  add("u","Bạn: "+msg);
+  const r = await fetch("/chat",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({visitor_token:token,message:msg,conversation_id:convId})});
+  const j = await r.json(); convId = j.conversation_id;
+  add("b","Bot: "+j.reply); add("t","["+j.mode+"] "+j.trace.join(" → "));
+};
+</script></body></html>
