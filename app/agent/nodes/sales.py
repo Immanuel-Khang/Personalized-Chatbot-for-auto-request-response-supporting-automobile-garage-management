@@ -1,11 +1,16 @@
 """[TRACK B] Sales Agent: tra cứu giá từ DB, dùng LLM sinh câu trả lời tự nhiên.
-Chỉ báo giá niêm yết kèm ngày hiệu lực. Nếu discount auto-approved thì hiển thị giá đã giảm."""
+Chỉ đọc, không có quyền về giá: chỉ báo giá niêm yết kèm ngày hiệu lực.
+Mặc cả giữa luồng -> chuyển người; muốn lái thử -> chuyển sang appointment."""
 from app.agent.llm import generate
 from app.agent.nodes.common import step
+from app.agent.nodes.preprocess import KEYWORDS
 from app.agent.state import AgentState
+from app.contracts.schemas import Intent, ServiceType
 from app.services import get_services
 from app.utils import fmt_vnd
 
+NEGOTIATION = KEYWORDS[Intent.DISCOUNT]
+TEST_DRIVE = ["lái thử", "chạy thử"]
 
 SALES_SYSTEM_PROMPT = """\
 Bạn là trợ lý tư vấn xe Toyota chuyên nghiệp, thân thiện.
@@ -13,7 +18,7 @@ QUY TẮC:
 1. Luôn trả lời bằng tiếng Việt.
 2. Khi nêu giá, PHẢI dùng đúng số liệu được cung cấp, KHÔNG ĐƯỢC tự bịa giá.
 3. Kèm ngày hiệu lực giá (price_as_of) khi báo giá.
-4. Nếu khách đã được giảm giá, thông báo mức giảm và giá mới.
+4. KHÔNG hứa giảm giá, quà tặng hay cam kết nào.
 5. Gợi ý đặt lịch lái thử hoặc hỏi thêm nhu cầu.
 6. Sử dụng thông tin về khách hàng (slots) để tư vấn cá nhân hóa, KHÔNG hỏi lại thông tin đã có.
 """
@@ -21,25 +26,11 @@ QUY TẮC:
 
 def sales(state: AgentState) -> dict:
     slots = state.get("slots", {})
+    text = state["user_text"].lower()
 
-    # Nếu discount vừa được auto-approve → trả lời xác nhận giảm giá
-    if slots.get("discount_result_status") == "AUTO_APPROVED":
-        discount_msg = slots.get("discount_result_message", "")
-        discounted_price = slots.get("discounted_price", 0)
-        car_model = slots.get("car_model", "xe")
-        amounts = [fmt_vnd(int(discounted_price))] if discounted_price else []
-
-        llm_reply = generate(
-            SALES_SYSTEM_PROMPT,
-            f"Khách đã được giảm giá cho xe {car_model}. {discount_msg}\n"
-            f"Hãy xác nhận mức giảm giá đã được áp dụng và hỏi khách có muốn chốt mua không.\n"
-            f"Thông tin khách: {slots}"
-        )
-        reply = llm_reply or f"✅ {discount_msg}\nBạn có muốn tiến hành chốt mua không?"
-
-        # Xóa discount result khỏi slots sau khi xử lý
-        clean_slots = {k: v for k, v in slots.items() if not k.startswith("discount_result")}
-        return {"draft_reply": reply, "allowed_amounts": amounts, "slots": clean_slots,
+    # Mặc cả xuất hiện giữa luồng (preprocess phân loại SALES nhưng câu có ý mặc cả) → chuyển người
+    if any(k in text for k in NEGOTIATION):
+        return {"needs_human": True, "handover_reason": "NEGOTIATION", "negotiation_active": True,
                 "trace": step(state, "sales")}
 
     # Tra cứu sản phẩm từ DB qua service interface
@@ -81,4 +72,8 @@ def sales(state: AgentState) -> dict:
         reply = "Mình gửi bạn một vài lựa chọn:\n" + product_info + \
                 "\nBạn muốn mình tư vấn kỹ hơn hay đặt lịch lái thử không?"
 
-    return {"draft_reply": reply, "allowed_amounts": amounts, "trace": step(state, "sales")}
+    update = {"draft_reply": reply, "allowed_amounts": amounts, "trace": step(state, "sales")}
+    if any(k in text for k in TEST_DRIVE):  # muốn lái thử → appointment hỏi tiếp slot
+        update["handoff_to"] = "appointment"
+        update["slots"] = {**slots, "service_type": ServiceType.TEST_DRIVE.value}
+    return update

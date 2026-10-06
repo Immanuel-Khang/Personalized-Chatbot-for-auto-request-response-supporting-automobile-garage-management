@@ -1,5 +1,6 @@
 """[TRACK C] Contract Agent: slot-filling hợp đồng mua xe.
-Port từ codebase hiện tại: thu thập name, phone, address, car_model, decided_price."""
+Port từ codebase hiện tại: thu thập name, phone, address, car_model, decided_price.
+Chỉ gửi template: mọi yêu cầu thay đổi hợp đồng hoặc hỏi về giá -> chuyển người."""
 import json
 
 from app.agent.llm import generate
@@ -15,6 +16,8 @@ REQUIRED_FIELDS = {
     "decided_price": "Mức giá chốt hợp đồng (VNĐ)",
 }
 
+ESCALATE = ["sửa hợp đồng", "thay đổi", "đổi điều khoản", "điều khoản", "giá", "bao nhiêu", "chi phí", "phí"]
+
 CONTRACT_SYSTEM_PROMPT = """\
 Bạn là chuyên viên pháp lý và thủ tục hợp đồng mua xe Toyota.
 QUY TẮC:
@@ -27,6 +30,9 @@ QUY TẮC:
 
 def contract(state: AgentState) -> dict:
     slots = state.get("slots", {})
+    if any(k in state["user_text"].lower() for k in ESCALATE):
+        return {"needs_human": True, "handover_reason": "CONTRACT_CHANGE_OR_PRICE",
+                "active_flow": "contract", "trace": step(state, "contract")}
 
     # Tìm thông tin còn thiếu
     missing_fields = [label for key, label in REQUIRED_FIELDS.items() if not slots.get(key)]

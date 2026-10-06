@@ -6,7 +6,7 @@ Nhờ vậy mỗi người viết phần của mình độc lập, ghép lại k
 from typing import Optional, Protocol
 
 from app.contracts.schemas import (
-    BookingResult, DiscountResult, HandoverResult, KnowledgeChunk,
+    BookingResult, HandoverResult, KnowledgeChunk,
     MaintenanceResult, Product, ServiceType,
 )
 
@@ -28,16 +28,7 @@ class BookingService(Protocol):
 
 class HandoverService(Protocol):
     def create(self, conversation_id: int, reason: str, summary: str) -> HandoverResult: ...
-
-
-class DiscountService(Protocol):
-    def request_discount(
-        self, session_id: str, car_name: str, percent: float, max_auto_approve: float = 5.0
-    ) -> DiscountResult: ...
-
-    def get_request(self, request_id: str) -> Optional[DiscountResult]: ...
-
-    def update_status(self, request_id: str, status: str) -> bool: ...
+    def append(self, conversation_id: int, reason: str, note: str) -> HandoverResult: ...  # ghi thêm vào ticket đang mở
 
 
 class MaintenanceService(Protocol):

@@ -2,7 +2,8 @@
 [TRACK B] Lắp ráp LangGraph. Sơ đồ luồng:
 preprocess -> policy_guard -> {human_handover | knowledge | router}
 router -> {sales | contract | appointment | knowledge | respond}
-agent -> output_guard -> {respond | human_handover};  human_handover -> respond -> END
+sales/contract/knowledge -> {human_handover (needs_human) | appointment (handoff) | output_guard}
+appointment -> output_guard -> {respond | human_handover};  human_handover -> respond -> END
 Thêm node mới: viết file trong nodes/, add_node + add_edge ở đây. Không sửa chỗ khác.
 """
 from functools import lru_cache
@@ -21,6 +22,15 @@ from app.agent.nodes.respond import respond
 from app.agent.nodes.router import pick_agent, router
 from app.agent.nodes.sales import sales
 from app.agent.state import AgentState
+
+
+def after_agent(state: AgentState) -> str:
+    """Agent tự yêu cầu chuyển người -> human_handover; muốn đặt lịch -> appointment; còn lại -> output_guard."""
+    if state.get("needs_human"):
+        return "human_handover"
+    if state.get("handoff_to") == "appointment":
+        return "appointment"
+    return "output_guard"
 
 
 def build_graph():
@@ -44,8 +54,19 @@ def build_graph():
         {"sales": "sales", "contract": "contract", "appointment": "appointment",
          "knowledge": "knowledge", "respond": "respond"},
     )
-    for agent in ("sales", "contract", "appointment", "knowledge"):
-        g.add_edge(agent, "output_guard")
+    g.add_conditional_edges(
+        "sales", after_agent,
+        {"human_handover": "human_handover", "appointment": "appointment", "output_guard": "output_guard"},
+    )
+    g.add_conditional_edges(
+        "knowledge", after_agent,
+        {"human_handover": "human_handover", "appointment": "appointment", "output_guard": "output_guard"},
+    )
+    g.add_conditional_edges(
+        "contract", after_agent,
+        {"human_handover": "human_handover", "output_guard": "output_guard"},
+    )
+    g.add_edge("appointment", "output_guard")
     g.add_conditional_edges(
         "output_guard", lambda s: "human_handover" if s.get("needs_human") else "respond",
         {"human_handover": "human_handover", "respond": "respond"},

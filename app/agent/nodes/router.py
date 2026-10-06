@@ -1,10 +1,10 @@
 """[TRACK B] Intent Router. Có nhánh mặc định (greeting/ngoài phạm vi -> trả lời thẳng).
-Thêm DISCOUNT, MAINTENANCE routing từ codebase hiện tại."""
+DISCOUNT không tới đây (policy_guard đã chuyển người). MAINTENANCE -> knowledge."""
 from app.agent.nodes.common import step
 from app.agent.state import AgentState
 from app.contracts.schemas import Intent
 
-PRIORITY = [Intent.CONTRACT, Intent.APPOINTMENT, Intent.DISCOUNT, Intent.MAINTENANCE, Intent.SALES, Intent.KNOWLEDGE]
+PRIORITY = [Intent.CONTRACT, Intent.APPOINTMENT, Intent.MAINTENANCE, Intent.SALES, Intent.KNOWLEDGE]
 GREETING_REPLY = "Chào bạn! Mình là trợ lý của xưởng Toyota. Mình có thể tư vấn xe, báo giá, đặt lịch bảo dưỡng/lái thử hoặc giải đáp thắc mắc kỹ thuật."
 OUT_OF_SCOPE_REPLY = "Mình chưa hiểu rõ ý bạn. Bạn có thể hỏi về giá xe, đặt lịch bảo dưỡng/lái thử, hoặc kiến thức kỹ thuật nhé."
 
@@ -21,9 +21,6 @@ def pick_agent(state: AgentState) -> str:
     intents = state.get("intents", [])
     for i in PRIORITY:
         if i.value in intents:
-            # DISCOUNT đã qua policy_guard auto-approve → route vào sales
-            if i == Intent.DISCOUNT:
-                return "sales"
             # MAINTENANCE → route vào knowledge (kiến thức bảo dưỡng)
             if i == Intent.MAINTENANCE:
                 return "knowledge"

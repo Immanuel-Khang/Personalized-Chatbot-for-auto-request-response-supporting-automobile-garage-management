@@ -16,8 +16,8 @@ class Settings:
     openai_model: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     openai_temperature: float = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
     max_react_iterations: int = int(os.getenv("MAX_REACT_ITERATIONS", "3"))
-    max_discount_auto_approve: float = float(os.getenv("MAX_DISCOUNT_AUTO_APPROVE", "5.0"))
     hotline: str = os.getenv("HOTLINE", "0900 000 000")
+    handover_timeout_minutes: float = float(os.getenv("HANDOVER_TIMEOUT_MINUTES", "10"))
 
 
 settings = Settings()

@@ -6,7 +6,7 @@ Dùng SQLite lúc dev; đổi DATABASE_URL sang Postgres là chạy tiếp, khô
 import json
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
@@ -37,7 +37,7 @@ class Message(Base):
     __tablename__ = "messages"
     id: Mapped[int] = mapped_column(primary_key=True)
     conversation_id: Mapped[int] = mapped_column(ForeignKey("conversations.id"), index=True)
-    role: Mapped[str] = mapped_column(String(10))  # user | bot | staff
+    role: Mapped[str] = mapped_column(String(10))  # user | bot | staff | system (thông báo chuyển người/trả về bot)
     content: Mapped[str] = mapped_column(Text)
     trace: Mapped[str] = mapped_column(Text, default="[]")  # JSON list
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
@@ -87,16 +87,3 @@ class HumanTask(Base):
     assignee: Mapped[str | None] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 
-
-class DiscountRequest(Base):
-    """Yêu cầu giảm giá từ khách hàng. Port từ codebase hiện tại."""
-    __tablename__ = "discount_requests"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    request_code: Mapped[str] = mapped_column(String(50), unique=True, index=True)
-    session_id: Mapped[str] = mapped_column(String(100))
-    car_name: Mapped[str] = mapped_column(String(200))
-    discount_percent: Mapped[float] = mapped_column(Float)
-    original_price: Mapped[float] = mapped_column(Float, default=0)
-    discounted_price: Mapped[float] = mapped_column(Float, default=0)
-    status: Mapped[str] = mapped_column(String(20), default="PENDING")  # PENDING | APPROVED | REJECTED | AUTO_APPROVED
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)

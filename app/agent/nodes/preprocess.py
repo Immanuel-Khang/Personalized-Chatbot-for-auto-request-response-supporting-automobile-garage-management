@@ -41,7 +41,6 @@ Also extract any relevant customer information from the message:
 - customer_phone: Số điện thoại
 - customer_address: Địa chỉ
 - decided_price: Mức giá khách đồng ý chốt (VNĐ)
-- discount_percent: Phần trăm giảm giá yêu cầu
 """
 
 
@@ -71,10 +70,6 @@ def _rule_based_preprocess(state: AgentState) -> dict:
         slots["service_type"] = ServiceType.REPAIR.value
     elif "bảo dưỡng" in text and Intent.APPOINTMENT.value in intents:
         slots["service_type"] = ServiceType.MAINTENANCE.value
-
-    # Trích xuất % giảm giá từ text
-    if m := re.search(r"(\d+(?:\.\d+)?)\s*%", text):
-        slots["discount_percent"] = float(m.group(1))
 
     complexity = "HIGH" if (len(intents) >= 3 or len(text) > 300) else "LOW"
     return {"intents": intents, "slots": slots, "complexity": complexity}

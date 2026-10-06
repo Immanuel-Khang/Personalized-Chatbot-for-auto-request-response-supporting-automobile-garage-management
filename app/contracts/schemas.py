@@ -42,7 +42,6 @@ class CustomerSlots(BaseModel):
     customer_phone: Optional[str] = Field(default=None, description="Số điện thoại liên hệ")
     customer_address: Optional[str] = Field(default=None, description="Địa chỉ nơi ở hoặc địa chỉ nhận xe")
     decided_price: Optional[float] = Field(default=None, description="Mức giá cuối cùng khách chốt mua (VNĐ)")
-    discount_percent: Optional[float] = Field(default=None, description="Phần trăm giảm giá khách yêu cầu")
 
 
 class IntentAndSlotExtraction(BaseModel):
@@ -62,6 +61,7 @@ class ChatResponse(BaseModel):
     conversation_id: int
     reply: str
     mode: ConversationMode
+    message_id: int | None = None  # id tin bot vừa gửi (client dùng để poll tin nhân viên/hệ thống sau đó)
     trace: list[str] = []  # các node đã đi qua - dùng để debug và để chấm eval theo trajectory
 
 
@@ -91,18 +91,6 @@ class BookingResult(BaseModel):
 class HandoverResult(BaseModel):
     task_id: int
     lead_id: int | None = None
-
-
-class DiscountResult(BaseModel):
-    """Kết quả xử lý yêu cầu giảm giá."""
-    ok: bool
-    status: str  # AUTO_APPROVED | PENDING | REJECTED
-    car_name: str = ""
-    original_price: float = 0
-    discount_percent: float = 0
-    discounted_price: float = 0
-    request_id: str | None = None
-    message: str = ""
 
 
 class MaintenanceResult(BaseModel):

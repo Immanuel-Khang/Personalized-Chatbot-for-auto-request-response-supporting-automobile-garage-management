@@ -1,14 +1,17 @@
 """[TRACK B] Knowledge Agent: RAG + maintenance lookup + lời khuyên an toàn.
-Tích hợp maintenance_node từ codebase hiện tại (tra cứu mốc km bảo dưỡng)."""
+Tích hợp maintenance_node từ codebase hiện tại (tra cứu mốc km bảo dưỡng).
+complexity HIGH -> chuyển người; khách muốn đặt lịch -> chuyển sang appointment."""
 from app.agent.llm import generate
 from app.agent.nodes.common import step
 from app.agent.state import AgentState
 from app.config import settings
-from app.contracts.schemas import Intent
+from app.contracts.schemas import Intent, ServiceType
 from app.services import get_services
 from app.utils import fmt_vnd
 
 SAFETY_PREFIX = f"⚠️ Nếu xe có dấu hiệu nguy hiểm, hãy dừng xe ở nơi an toàn và gọi hotline {settings.hotline}.\n"
+
+BOOKING = ["đặt lịch", "đặt hẹn", "hẹn lịch", "mang xe qua", "mang xe đến"]
 
 KNOWLEDGE_SYSTEM_PROMPT = """\
 Bạn là chuyên viên kỹ thuật ô tô Toyota. Trả lời chính xác dựa trên tài liệu được cung cấp.
@@ -58,4 +61,9 @@ def knowledge(state: AgentState) -> dict:
         ) or (extra_context if extra_context else f"Theo tài liệu của xưởng: {chunks[0].text}")
 
     prefix = SAFETY_PREFIX if state.get("safety") else ""
-    return {**update, "draft_reply": prefix + body}
+    update["draft_reply"] = prefix + body
+    if any(k in state["user_text"].lower() for k in BOOKING):  # muốn đặt lịch → appointment hỏi tiếp slot
+        update["handoff_to"] = "appointment"
+        if Intent.MAINTENANCE.value in intents and not slots.get("service_type"):
+            update["slots"] = {**slots, "service_type": ServiceType.MAINTENANCE.value}
+    return update
