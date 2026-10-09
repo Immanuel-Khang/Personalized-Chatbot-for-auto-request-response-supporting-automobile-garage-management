@@ -11,6 +11,7 @@ from app.utils import fmt_vnd
 
 NEGOTIATION = KEYWORDS[Intent.DISCOUNT]
 TEST_DRIVE = ["lái thử", "chạy thử"]
+SUGGESTION_KEYWORDS = ["phổ biến", "bán chạy", "gợi ý", "nên mua", "nào tốt", "xe gì", "dòng xe nào", "loại xe nào"]
 
 SALES_SYSTEM_PROMPT = """\
 Bạn là trợ lý tư vấn xe Toyota chuyên nghiệp, thân thiện.
@@ -26,22 +27,36 @@ QUY TẮC:
 
 def sales(state: AgentState) -> dict:
     slots = state.get("slots", {})
-    text = state["user_text"].lower()
+    text = state.get("user_text", "").lower()
 
-    # Mặc cả xuất hiện giữa luồng (preprocess phân loại SALES nhưng câu có ý mặc cả) → chuyển người
+    # Mặc cả xuất hiện giữa luồng → chuyển người
     if any(k in text for k in NEGOTIATION):
         return {"needs_human": True, "handover_reason": "NEGOTIATION", "negotiation_active": True,
                 "trace": step(state, "sales")}
 
-    # Tra cứu sản phẩm từ DB qua service interface
-    products = get_services().product.search(state["user_text"], limit=3)
-
-    # Nếu khách hỏi cụ thể 1 xe → tìm chính xác
     car_model = slots.get("car_model")
+    budget = slots.get("budget_vnd")
+    is_suggestion = any(k in text for k in SUGGESTION_KEYWORDS)
+
+    # Chọn phương thức tìm kiếm phù hợp
+    svc = get_services().product
     if car_model:
-        exact = get_services().product.get_by_name(car_model)
-        if exact and exact not in products:
-            products = [exact] + products[:2]
+        # Ưu tiên tìm đúng xe khách đề cập
+        exact = svc.get_by_name(car_model)
+        products = ([exact] if exact else []) + svc.search(car_model, limit=3)
+        # Loại bỏ trùng lặp
+        seen, deduped = set(), []
+        for p in products:
+            if p.id not in seen:
+                seen.add(p.id)
+                deduped.append(p)
+        products = deduped[:3]
+    elif budget:
+        products = svc.search_by_budget(budget, limit=3)
+    elif is_suggestion:
+        products = svc.get_popular(limit=3)
+    else:
+        products = svc.search(state.get("user_text", ""), limit=3)
 
     if not products:
         return {"draft_reply": "Hiện mình chưa tìm thấy sản phẩm phù hợp. Bạn cho mình biết thêm nhu cầu nhé?",
@@ -57,23 +72,18 @@ def sales(state: AgentState) -> dict:
 
     product_info = "\n".join(lines)
 
-    # Dùng LLM sinh câu trả lời tự nhiên
     llm_reply = generate(
         SALES_SYSTEM_PROMPT,
-        f"Câu hỏi của khách: {state['user_text']}\n\n"
+        f"Câu hỏi của khách: {state.get('user_text', '')}\n\n"
         f"Dữ liệu xe từ hệ thống:\n{product_info}\n\n"
         f"Thông tin đã biết về khách: {slots}\n"
         f"Hãy tư vấn dựa trên dữ liệu trên."
     )
-    if llm_reply:
-        reply = llm_reply
-    else:
-        # Fallback nếu không có LLM
-        reply = "Mình gửi bạn một vài lựa chọn:\n" + product_info + \
-                "\nBạn muốn mình tư vấn kỹ hơn hay đặt lịch lái thử không?"
+    reply = llm_reply or ("Mình gửi bạn một vài lựa chọn:\n" + product_info +
+                           "\nBạn muốn mình tư vấn kỹ hơn hay đặt lịch lái thử không?")
 
     update = {"draft_reply": reply, "allowed_amounts": amounts, "trace": step(state, "sales")}
-    if any(k in text for k in TEST_DRIVE):  # muốn lái thử → appointment hỏi tiếp slot
+    if any(k in text for k in TEST_DRIVE):
         update["handoff_to"] = "appointment"
         update["slots"] = {**slots, "service_type": ServiceType.TEST_DRIVE.value}
     return update

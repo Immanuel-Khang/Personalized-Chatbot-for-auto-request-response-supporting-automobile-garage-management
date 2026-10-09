@@ -7,7 +7,7 @@ from app.agent.llm import generate
 from app.agent.nodes.common import step
 from app.agent.state import AgentState
 
-# Các trường cần thiết để hoàn tất hợp đồng (port từ contract_node)
+# Các trường cần thiết để hoàn tất hợp đồng 
 REQUIRED_FIELDS = {
     "customer_name": "Họ và tên",
     "customer_phone": "Số điện thoại",
@@ -19,7 +19,7 @@ REQUIRED_FIELDS = {
 ESCALATE = ["sửa hợp đồng", "thay đổi", "đổi điều khoản", "điều khoản", "giá", "bao nhiêu", "chi phí", "phí"]
 
 CONTRACT_SYSTEM_PROMPT = """\
-Bạn là chuyên viên pháp lý và thủ tục hợp đồng mua xe Toyota.
+Bạn là chuyên viên pháp lý và thủ tục hợp đồng mua xe Foton.
 QUY TẮC:
 1. Nếu còn thông tin thiếu, chúc mừng khách đã chốt xe và nhẹ nhàng xin nốt các thông tin còn thiếu.
 2. Nếu đã ĐỦ TẤT CẢ thông tin, tóm tắt lại toàn bộ hợp đồng (Tên, SĐT, Địa chỉ, Dòng xe, Giá chốt)
@@ -30,8 +30,8 @@ QUY TẮC:
 
 def contract(state: AgentState) -> dict:
     slots = state.get("slots", {})
-    if any(k in state["user_text"].lower() for k in ESCALATE):
-        return {"needs_human": True, "handover_reason": "CONTRACT_CHANGE_OR_PRICE",
+    if any(k in state.get("user_text", "").lower() for k in ESCALATE):
+        return {"needs_human": True, "handover_reason": "CONTRACT_OR_PRICE_CHANGE",
                 "active_flow": "contract", "trace": step(state, "contract")}
 
     # Tìm thông tin còn thiếu
@@ -42,7 +42,7 @@ def contract(state: AgentState) -> dict:
         # Dùng LLM để hỏi thông tin thiếu một cách tự nhiên
         llm_reply = generate(
             CONTRACT_SYSTEM_PROMPT,
-            f"Câu hỏi/tin nhắn của khách: {state['user_text']}\n\n"
+            f"Câu hỏi/tin nhắn của khách: {state.get("user_text", "")}\n\n"
             f"📋 THÔNG TIN ĐÃ CÓ: {json.dumps(present_fields, ensure_ascii=False)}\n\n"
             f"⚠️ THÔNG TIN CÒN THIẾU: {missing_fields}\n\n"
             f"Hãy chúc mừng khách và xin nốt các thông tin còn thiếu."
@@ -57,7 +57,7 @@ def contract(state: AgentState) -> dict:
         # Đã đủ thông tin → tóm tắt hợp đồng
         llm_reply = generate(
             CONTRACT_SYSTEM_PROMPT,
-            f"Câu hỏi/tin nhắn của khách: {state['user_text']}\n\n"
+            f"Câu hỏi/tin nhắn của khách: {state.get("user_text", "")}\n\n"
             f"📋 THÔNG TIN ĐẦY ĐỦ: {json.dumps(present_fields, ensure_ascii=False)}\n\n"
             f"Đã đủ tất cả thông tin. Hãy tóm tắt hợp đồng và hẹn ngày ký kết."
         )
@@ -65,6 +65,7 @@ def contract(state: AgentState) -> dict:
             reply = llm_reply
         else:
             info_str = "\n".join(f"  • {label}: {value}" for label, value in present_fields.items())
-            reply = f"📄 TÓM TẮT HỢP ĐỒNG:\n{info_str}\n\nMình sẽ liên hệ bạn để hẹn ngày ký kết và bàn giao xe. Cảm ơn bạn!"
+            polite_response = "Tư vấn viên bên em sẽ liên hệ and/chị để hẹn ngày ký kết và bàn giao xe. Cảm ơn anh/chị đã tin tưởng và sử dụng dịch vụ bên em!"
+            reply = f"📄 TÓM TẮT HỢP ĐỒNG:\n{info_str}\n\n{polite_response}"
 
     return {"draft_reply": reply, "active_flow": "contract", "trace": step(state, "contract")}

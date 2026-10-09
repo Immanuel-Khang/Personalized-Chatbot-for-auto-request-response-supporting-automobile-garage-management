@@ -28,7 +28,7 @@ class Conversation(Base):
     __tablename__ = "conversations"
     id: Mapped[int] = mapped_column(primary_key=True)
     customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"))
-    mode: Mapped[str] = mapped_column(String(20), default="BOT")
+    mode: Mapped[str] = mapped_column(String(20), default="BOT") # BOT, HUMAN_PENDING
     negotiation_active: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 

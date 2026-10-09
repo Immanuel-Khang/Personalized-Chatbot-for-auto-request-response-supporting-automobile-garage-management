@@ -49,7 +49,8 @@ def knowledge(state: AgentState) -> dict:
     # --- RAG: tìm kiến thức từ tài liệu ---
     chunks = get_services().knowledge.retrieve(state["user_text"], k=3)
     if not chunks and not extra_context:
-        body = "Mình chưa có thông tin chính xác về vấn đề này. Bạn để lại số điện thoại để nhân viên kỹ thuật hỗ trợ nhé."
+        # RAG không tìm được tài liệu liên quan → coi là câu hỏi phức tạp, chuyển người
+        return {**update, "needs_human": True, "handover_reason": "COMPLEXITY_HIGH: no RAG match"}
     else:
         context = "\n".join(c.text for c in chunks) if chunks else ""
         full_context = context + extra_context

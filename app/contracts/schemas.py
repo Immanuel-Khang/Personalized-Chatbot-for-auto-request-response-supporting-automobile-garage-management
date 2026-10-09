@@ -42,6 +42,8 @@ class CustomerSlots(BaseModel):
     customer_phone: Optional[str] = Field(default=None, description="Số điện thoại liên hệ")
     customer_address: Optional[str] = Field(default=None, description="Địa chỉ nơi ở hoặc địa chỉ nhận xe")
     decided_price: Optional[float] = Field(default=None, description="Mức giá cuối cùng khách chốt mua (VNĐ)")
+    service_type: Optional[str] = Field(default=None, description="Loại dịch vụ: MAINTENANCE | REPAIR | TEST_DRIVE")
+    appointment_when: Optional[str] = Field(default=None, description="Thời điểm hẹn (VD: sáng thứ 3, ngày mai, 15/10)")
 
 
 class IntentAndSlotExtraction(BaseModel):

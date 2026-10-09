@@ -22,6 +22,6 @@ def output_guard(state: AgentState) -> dict:
     if FORBIDDEN.search(draft):
         return {**update, "needs_human": True, "handover_reason": "OUTPUT_GUARD: cam kết/giảm giá"}
     for amount in AMOUNT.findall(draft):
-        if amount.strip() not in allowed:
+        if len(allowed) > 0 and (amount.strip() not in allowed):
             return {**update, "needs_human": True, "handover_reason": f"OUTPUT_GUARD: số tiền lạ ({amount})"}
     return update
