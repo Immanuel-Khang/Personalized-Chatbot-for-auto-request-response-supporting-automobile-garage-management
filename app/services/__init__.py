@@ -16,12 +16,11 @@ from app.services.product import DbProductService
 
 @dataclass
 class Services:
-    product: ProductService
-    knowledge: KnowledgeService
-    booking: BookingService
-    handover: HandoverService
-    maintenance: MaintenanceService
-
+    product: DbProductService
+    knowledge: RagKnowledgeService
+    booking: DbBookingService
+    handover: DbHandoverService
+    maintenance: DbMaintenanceService
 
 _services: Services | None = None
 
