@@ -15,6 +15,7 @@ class Intent(str, Enum):
     CONTRACT = "CONTRACT"
     DISCOUNT = "DISCOUNT"
     MAINTENANCE = "MAINTENANCE"
+    AFTER_SALES = "AFTER_SALES"
     GREETING = "GREETING"
     OTHER = "OTHER"
 
@@ -46,9 +47,17 @@ class CustomerSlots(BaseModel):
     appointment_when: Optional[str] = Field(default=None, description="Thời điểm hẹn (VD: sáng thứ 3, ngày mai, 15/10)")
 
 
+class IntentTask(BaseModel):
+    """Một việc trong tin nhắn nhiều ý: intent + đúng phần câu của khách thuộc intent đó."""
+    intent: Intent
+    text: str = Field(description="Trích nguyên văn phần câu của khách thuộc intent này")
+
+
 class IntentAndSlotExtraction(BaseModel):
-    """Kết quả LLM structured output: intent + slots."""
-    intent: Intent = Field(description="Intent chính từ tin nhắn mới nhất của khách")
+    """Kết quả LLM structured output: tất cả intent, từng việc tách theo vế câu + slots."""
+    intents: list[Intent] = Field(description="Tất cả intent trong tin nhắn mới nhất, ý định chính đứng trước")
+    tasks: list[IntentTask] = Field(default_factory=list,
+                                    description="Mỗi intent kèm phần câu tương ứng, theo thứ tự trong tin nhắn")
     extracted_slots: CustomerSlots = Field(default_factory=CustomerSlots)
 
 
@@ -75,6 +84,14 @@ class Product(BaseModel):
     list_price_vnd: int
     price_as_of: str  # ngày hiệu lực của giá, bắt buộc phải hiển thị khi báo giá
     specs: dict = {}
+
+
+class ServiceRecord(BaseModel):
+    id: int
+    service_date: str
+    service_type: str
+    description: str
+    cost_vnd: int
 
 
 class KnowledgeChunk(BaseModel):

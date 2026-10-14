@@ -1,4 +1,5 @@
-from typing import Any, TypedDict
+import operator
+from typing import Annotated, Any, TypedDict
 
 
 class AgentState(TypedDict, total=False):
@@ -6,23 +7,34 @@ class AgentState(TypedDict, total=False):
     conversation_id: int
     customer_id: int
     user_text: str
-    mode: str  # BOT | HUMAN_PENDING (đọc từ bảng conversations)
+    mode: str  # BOT (graph không chạy ở HUMAN_PENDING / HUMAN_ACTIVE)
     # preprocess (chỉ đọc, không side effect)
     intents: list[str]
+    tasks: list[dict]  # [{intent, text}]: mỗi intent kèm phần câu của nó
     slots: dict[str, Any]  # được giữ qua các lượt nhờ checkpoint -> slot-filling nhiều lượt
+    slots_updated: bool  # lượt này khách có cung cấp thêm slot không
     complexity: str  # LOW | HIGH
-    active_flow: str | None  # luồng đang làm dở qua nhiều lượt (vd 'appointment'), giữ nhờ checkpoint
+    active_flow: str | None  # luồng ghi dữ liệu đang làm dở (appointment | contract), giữ nhờ checkpoint
     # policy guard
     negotiation_active: bool  # sticky: đã bật thì giữ (đọc/ghi bảng conversations)
     safety: bool
-    route: str  # human | knowledge | router
-    # agent
+    route: str  # human | router
+    # router (lập kế hoạch)
+    plan: list[dict]  # [{agent, text, order}]: các agent chỉ đọc + tối đa 1 agent ghi dữ liệu
+    planned_agents: list[str]
+    pending_intent: str | None  # intent ghi dữ liệu bị hoãn sang lượt sau (vd CONTRACT + APPOINTMENT)
+    pending_text: str | None  # phần câu gốc của pending_intent
+    # payload riêng của từng nhánh (router gửi qua Send)
+    task_text: str
+    task_order: int
+    # agent (các nhánh song song chỉ ghi vào key có reducer, trừ agent ghi dữ liệu duy nhất)
+    answers: Annotated[list[dict], operator.add]  # [{agent, order, text, needs_human, handover_reason}]
+    allowed_amounts: Annotated[list[str], operator.add]  # số tiền được phép xuất hiện (lấy từ tool)
+    # compose / guard
     draft_reply: str
-    allowed_amounts: list[str]  # các số tiền được phép xuất hiện (lấy từ tool)
     needs_human: bool
     handover_reason: str | None
-    handoff_to: str | None  # agent chuyển tiếp sang agent khác trong cùng lượt (vd 'appointment')
     set_mode: str | None
     # output
     final_reply: str
-    trace: list[str]  # đường đi qua các node -> dùng cho eval theo trajectory
+    trace: Annotated[list[str], operator.add]  # đường đi qua các node -> dùng cho eval theo trajectory

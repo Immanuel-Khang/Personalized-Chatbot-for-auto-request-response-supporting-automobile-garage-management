@@ -30,12 +30,23 @@ python -m eval.run_eval              # chấm agent theo đường đi (trajecto
 ## Luồng 1 tin nhắn
 ```
 web → POST /chat → conversation.py (khóa, kiểm tra mode)
-   → graph: preprocess → policy_guard → { human_handover | knowledge | router }
-            router → { sales | contract | appointment | knowledge | respond }
-            agent → output_guard → { respond | human_handover }
+   → graph: preprocess → policy_guard → { human_handover | router }
+            router ─Send→ agent chỉ đọc song song { sales | knowledge | after_sales }
+                        + tối đa 1 agent ghi dữ liệu { contract | appointment }
+            mọi agent → compose → output_guard → { respond | human_handover }
    → lưu messages (kèm trace) → trả lời
 ```
 `trace` trả về trong mỗi response cho biết bot đi qua node nào → dùng để debug và để eval.
+Thứ tự các nhánh song song trong trace không cố định.
+
+- Preprocess tách tin thành `tasks: [{intent, text}]` (LLM trả `tasks` hoặc rule-based tách vế câu); mỗi agent chỉ đọc `task_text` của mình.
+- Agent chỉ đọc chạy song song (tối đa 3). Agent ghi dữ liệu chạy tối đa 1, câu hỏi slot luôn nằm cuối câu trả lời.
+- Hai agent ghi dữ liệu cùng lúc (vd chốt hợp đồng + đặt lịch): chạy contract, hoãn appointment vào `pending_intent` + `pending_text` và báo khách.
+- Agent trả lời qua `answers` (reducer cộng dồn); `compose` ghép theo thứ tự vế câu bằng code, không để LLM viết lại số tiền.
+- Một agent cần người không làm mất phần trả lời của agent khác: khách vẫn nhận giá, kèm thông báo chuyển nhân viên.
+- Hỏi thêm câu chỉ đọc giữa flow đặt lịch không làm mất flow; hủy sẽ xóa flow, việc chờ và slot đặt lịch.
+- `HUMAN_PENDING` và `HUMAN_ACTIVE` bỏ qua graph: chỉ lưu tin, cập nhật ticket/SĐT, nhân viên trả lời qua admin. Timeout vẫn gửi system message qua polling.
+- After-sales hiện có node/protocol/service **stub** trả rỗng; chưa có bảng hoặc dữ liệu lịch sử thật.
 
 ## Thêm 1 tính năng mới: làm theo thứ tự này
 1. Ghi yêu cầu vào `docs/REQUIREMENTS.md` (user story + tiêu chí hoàn thành).

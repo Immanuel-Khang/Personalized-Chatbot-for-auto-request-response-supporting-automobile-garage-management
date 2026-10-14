@@ -58,6 +58,10 @@ class CatalogItem(Base):
         return json.loads(self.specs_json or "{}")
 
 
+# TODO[TRACK A P1]: triển khai bảng ServiceHistory theo ServiceRecord (customer_id,
+# service_date, service_type, description, cost_vnd) rồi kết nối DbAfterSalesService.
+
+
 class Appointment(Base):
     __tablename__ = "appointments"
     id: Mapped[int] = mapped_column(primary_key=True)

@@ -1,5 +1,5 @@
 """[TRACK C] Admin API tối thiểu. TODO[PLATFORM]: RBAC/xác thực nhân viên, upload knowledge.
-Luồng chuyển giao: OPEN (bot vẫn trả lời) -> claim (HUMAN_ACTIVE, báo khách) -> reply -> resolve (trả về bot, báo khách)."""
+Luồng chuyển giao: OPEN (bot im lặng) -> claim (HUMAN_ACTIVE, báo khách) -> reply -> resolve (trả về bot, báo khách)."""
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 

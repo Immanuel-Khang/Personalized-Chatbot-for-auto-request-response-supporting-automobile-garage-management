@@ -23,19 +23,20 @@ def test_negotiation_goes_to_human(client):
     assert r["mode"] == "HUMAN_PENDING" and "human_handover" in r["trace"]
 
 
-def test_pending_bot_keeps_answering(client):
-    """Đang chờ nhân viên, bot vẫn trả lời câu hỏi khác, không tạo ticket mới."""
+def test_pending_bot_silent(client):
+    """Đang chờ nhân viên, không gọi graph và không tạo ticket mới."""
     r = chat(client, "Giảm giá cho mình đi", token="t5")
     assert r["mode"] == "HUMAN_PENDING"
     r2 = chat(client, "Cho mình hỏi giá xe Toyota Vios", token="t5", conv=r["conversation_id"])
-    assert r2["mode"] == "HUMAN_PENDING" and "sales" in r2["trace"] and "human_handover" not in r2["trace"]
+    assert r2["mode"] == "HUMAN_PENDING" and r2["trace"] == [] and r2["reply"] == ""
 
 
 def test_pending_extra_human_request_appends_ticket(client):
     """Đang chờ mà khách lại mặc cả → ghi thêm vào ticket đang mở, không mở ticket thứ 2."""
     r = chat(client, "Giảm giá cho mình đi", token="t16")
     r2 = chat(client, "Bớt thêm chút nữa được không, mình khiếu nại đấy", token="t16", conv=r["conversation_id"])
-    assert "human_handover" in r2["trace"] and "ghi chú thêm" in r2["reply"]
+    assert r2["trace"] == [] and r2["reply"] == ""
+    assert "khiếu nại" in _tasks(r["conversation_id"])[-1].summary
     assert len(_tasks(r["conversation_id"])) == 1
 
 
@@ -71,22 +72,26 @@ def test_discount_with_car_model_goes_to_human(client):
 
 def test_contract_price_question_goes_to_human(client):
     r = chat(client, "Hợp đồng này phí trước bạ bao nhiêu", token="t9")
-    assert r["trace"][-3:] == ["contract", "human_handover", "respond"]
+    assert "contract" in r["trace"] and r["trace"][-4:] == ["compose", "output_guard", "human_handover", "respond"]
 
 
 def test_knowledge_complexity_high_goes_to_human(client):
     r = chat(client, "Tại sao " + "xe kêu lạ " * 40, token="t10")
-    assert "knowledge" in r["trace"] and "human_handover" in r["trace"]
+    assert "knowledge" not in r["trace"] and "human_handover" in r["trace"]
 
 
-def test_sales_hands_off_to_appointment(client):
+def test_sales_and_appointment_same_turn(client):
+    """Giá + lái thử: sales báo giá và appointment hỏi slot trong cùng một lượt, câu hỏi slot nằm cuối."""
     r = chat(client, "Giá xe Vios bao nhiêu, cho mình chạy thử", token="t11")
-    assert r["trace"][-4:] == ["sales", "appointment", "output_guard", "respond"]
+    assert {"sales", "appointment"} <= set(r["trace"])
+    assert r["trace"][-3:] == ["compose", "output_guard", "respond"]
+    assert "đồng" in r["reply"] and r["reply"].rstrip().endswith("Bạn muốn đến vào ngày giờ nào?")
 
 
-def test_knowledge_hands_off_to_appointment(client):
+def test_knowledge_and_appointment_same_turn(client):
     r = chat(client, "Tại sao phanh kêu, mình mang xe qua được không", token="t12")
-    assert r["trace"][-4:] == ["knowledge", "appointment", "output_guard", "respond"]
+    assert {"knowledge", "appointment"} <= set(r["trace"])
+    assert r["reply"].rstrip().endswith("Bạn muốn đặt lịch bảo dưỡng, sửa chữa hay lái thử xe?")
 
 
 
@@ -110,7 +115,7 @@ def test_pending_saves_phone_to_ticket(client):
 
 
 def test_pending_timeout_sends_hotline_once(client):
-    """Quá HANDOVER_TIMEOUT_MINUTES chưa ai nhận → kèm hotline vào câu trả lời, chỉ 1 lần."""
+    """Quá thời hạn chờ → thông báo system poll được, không chạy bot, chỉ gửi 1 lần."""
     from datetime import timedelta
     from app.db.models import HumanTask
     from app.db.session import SessionLocal
@@ -120,9 +125,12 @@ def test_pending_timeout_sends_hotline_once(client):
         task.created_at -= timedelta(hours=1)
         db.commit()
     r2 = chat(client, "Xin chào", token="t14", conv=r["conversation_id"])
-    assert r2["mode"] == "HUMAN_PENDING" and "hotline" in r2["reply"] and r2["trace"]
+    assert r2["mode"] == "HUMAN_PENDING" and r2["reply"] == "" and r2["trace"] == []
+    p = _poll(client, r["conversation_id"], "t14", after=r2["message_id"])
+    assert len(p["messages"]) == 1 and "hotline" in p["messages"][0]["content"]
     r3 = chat(client, "Xin chào", token="t14", conv=r["conversation_id"])
-    assert "hotline" not in r3["reply"]
+    assert r3["reply"] == ""
+    assert _poll(client, r["conversation_id"], "t14", after=p["messages"][0]["id"])["messages"] == []
 
 
 def test_human_takeover_flow(client):

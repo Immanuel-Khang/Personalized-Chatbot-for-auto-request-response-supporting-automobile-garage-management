@@ -4,7 +4,7 @@ Chỉ gửi template: mọi yêu cầu thay đổi hợp đồng hoặc hỏi v�
 import json
 
 from app.agent.llm import generate
-from app.agent.nodes.common import step
+from app.agent.nodes.common import answer, step
 from app.agent.state import AgentState
 
 # Các trường cần thiết để hoàn tất hợp đồng 
@@ -30,8 +30,11 @@ QUY TẮC:
 
 def contract(state: AgentState) -> dict:
     slots = state.get("slots", {})
-    if any(k in state.get("user_text", "").lower() for k in ESCALATE):
-        return {"needs_human": True, "handover_reason": "CONTRACT_OR_PRICE_CHANGE",
+    # Chỉ xét phần câu thuộc hợp đồng: "chốt mua Vios, phí trước bạ bao nhiêu" vẫn thu thập slot,
+    # câu hỏi phí do sales trả lời song song trong cùng lượt.
+    if any(k in (state.get("task_text") or state.get("user_text", "")).lower() for k in ESCALATE):
+        return {"answers": [answer(state, "contract", needs_human=True,
+                                   handover_reason="CONTRACT_OR_PRICE_CHANGE")],
                 "active_flow": "contract", "trace": step(state, "contract")}
 
     # Tìm thông tin còn thiếu
@@ -42,7 +45,7 @@ def contract(state: AgentState) -> dict:
         # Dùng LLM để hỏi thông tin thiếu một cách tự nhiên
         llm_reply = generate(
             CONTRACT_SYSTEM_PROMPT,
-            f"Câu hỏi/tin nhắn của khách: {state.get("user_text", "")}\n\n"
+            f"Câu hỏi/tin nhắn của khách: {state.get("task_text") or state.get("user_text", "")}\n\n"
             f"📋 THÔNG TIN ĐÃ CÓ: {json.dumps(present_fields, ensure_ascii=False)}\n\n"
             f"⚠️ THÔNG TIN CÒN THIẾU: {missing_fields}\n\n"
             f"Hãy chúc mừng khách và xin nốt các thông tin còn thiếu."
@@ -57,7 +60,7 @@ def contract(state: AgentState) -> dict:
         # Đã đủ thông tin → tóm tắt hợp đồng
         llm_reply = generate(
             CONTRACT_SYSTEM_PROMPT,
-            f"Câu hỏi/tin nhắn của khách: {state.get("user_text", "")}\n\n"
+            f"Câu hỏi/tin nhắn của khách: {state.get("task_text") or state.get("user_text", "")}\n\n"
             f"📋 THÔNG TIN ĐẦY ĐỦ: {json.dumps(present_fields, ensure_ascii=False)}\n\n"
             f"Đã đủ tất cả thông tin. Hãy tóm tắt hợp đồng và hẹn ngày ký kết."
         )
@@ -68,4 +71,5 @@ def contract(state: AgentState) -> dict:
             polite_response = "Tư vấn viên bên em sẽ liên hệ and/chị để hẹn ngày ký kết và bàn giao xe. Cảm ơn anh/chị đã tin tưởng và sử dụng dịch vụ bên em!"
             reply = f"📄 TÓM TẮT HỢP ĐỒNG:\n{info_str}\n\n{polite_response}"
 
-    return {"draft_reply": reply, "active_flow": "contract", "trace": step(state, "contract")}
+    return {"answers": [answer(state, "contract", reply)], "active_flow": "contract",
+            "trace": step(state, "contract")}

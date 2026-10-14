@@ -1,8 +1,16 @@
 [
   {"id": "greeting", "turns": ["Xin chào"], "expect_path": ["router", "respond"], "expect_handover": false},
-  {"id": "price", "turns": ["Cho mình hỏi giá xe 7 chỗ"], "expect_path": ["sales", "output_guard"], "expect_handover": false},
+  {"id": "price", "turns": ["Cho mình hỏi giá xe 7 chỗ"], "expect_path": ["sales", "compose", "output_guard"], "expect_handover": false},
   {"id": "negotiation", "turns": ["Giảm giá cho mình 10% được không"], "expect_path": ["policy_guard", "human_handover"], "expect_handover": true},
   {"id": "safety", "turns": ["Đèn áp suất dầu sáng thì sao"], "expect_path": ["knowledge"], "expect_handover": false},
   {"id": "appointment_multi_turn", "turns": ["Mình muốn đặt lịch bảo dưỡng", "Sáng thứ 7", "0912345678"], "expect_path": ["appointment"], "expect_handover": false},
-  {"id": "knowledge", "turns": ["Bao lâu thì cần thay dầu động cơ"], "expect_path": ["knowledge"], "expect_handover": false}
+  {"id": "knowledge", "turns": ["Bao lâu thì cần thay dầu động cơ"], "expect_path": ["knowledge"], "expect_handover": false},
+  {"id": "sales_and_booking_same_turn", "turns": [{"message": "Giá xe Vios bao nhiêu, cho mình chạy thử", "expect_path": ["router", "sales", "appointment", "compose", "output_guard"], "expect_mode": "BOT"}, {"message": "Sáng thứ 7", "expect_path": ["appointment"], "forbid_path": ["sales"]}, {"message": "0912345678", "expect_path": ["appointment"]}, {"message": "Cảm ơn", "forbid_path": ["appointment"]}], "expect_handover": false},
+  {"id": "knowledge_and_booking_same_turn", "turns": [{"message": "Tại sao phanh kêu, mình mang xe qua được không", "expect_path": ["knowledge", "appointment", "compose"]}], "expect_handover": false},
+  {"id": "human_pending_bypass", "turns": [{"message": "Giảm giá cho mình đi", "expect_path": ["human_handover"], "expect_mode": "HUMAN_PENDING"}, {"message": "Cho mình hỏi giá xe Vios", "forbid_path": ["preprocess", "sales"], "expect_mode": "HUMAN_PENDING", "expect_empty_reply": true}, {"message": "0987654321", "forbid_path": ["preprocess"], "expect_empty_reply": true}], "expect_handover": false},
+  {"id": "after_sales_history", "turns": ["Lần trước xưởng làm gì cho xe mình"], "expect_path": ["router", "after_sales", "compose", "output_guard"], "expect_handover": false},
+  {"id": "booking_cancel", "turns": [{"message": "Mình muốn đặt lịch", "expect_path": ["appointment"]}, {"message": "Thôi không cần đặt lịch", "forbid_path": ["appointment"]}, {"message": "Được", "forbid_path": ["appointment"]}], "expect_handover": false},
+  {"id": "showroom_visit", "turns": ["Tôi muốn đến showroom để xem xe toyota camry 2.5Q"], "expect_path": ["appointment"], "forbid_path": ["sales"], "expect_handover": false},
+  {"id": "two_writers_deferred", "turns": [{"message": "Mình chốt mua xe, đặt lịch lái thử nữa", "expect_path": ["contract"], "forbid_path": ["appointment"]}, {"message": "Được", "expect_path": ["appointment"], "forbid_path": ["contract"]}], "expect_handover": false},
+  {"id": "parallel_read_agents", "turns": ["Giá xe 7 chỗ bao nhiêu, còn phanh kêu là tại sao"], "expect_path": ["sales", "knowledge", "compose"], "expect_handover": false}
 ]

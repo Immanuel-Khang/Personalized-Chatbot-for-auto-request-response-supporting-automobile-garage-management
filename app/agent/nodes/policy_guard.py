@@ -4,11 +4,10 @@ Bot KHÔNG có quyền duyệt giảm giá: mọi yêu cầu mặc cả/giảm g
 negotiation_active là cờ sticky (đọc/ghi bảng conversations): đã bật thì giữ.
 
 Thứ tự ưu tiên:
-  1. Safety → route = knowledge (để knowledge thêm cảnh báo hotline)
-  2. Yêu cầu gặp người thật → human
-  3. Khiếu nại / không hài lòng → human
-  4. Intent DISCOUNT (bot không có quyền giảm giá) → human
-  5. Mặc định → tiếp tục router
+  1. Safety → gắn cờ cảnh báo; router vẫn là nơi chọn agent
+  2. Yêu cầu gặp người / khiếu nại / giảm giá → human
+  3. Câu hỏi kỹ thuật phức tạp → human
+  4. Mặc định → tiếp tục router
 """
 from app.agent.nodes.common import step
 from app.agent.state import AgentState
@@ -44,22 +43,21 @@ def policy_guard(state: AgentState) -> dict:
     is_complaint = any(k in text for k in COMPLAINT)
     is_discount = Intent.DISCOUNT.value in intents
 
-    # Mặc định: tiếp tục xử lý bình thường
-    reason: str | None = None
-    route = "router"
-
-    # Safety → chuyển sang knowledge để thêm cảnh báo + hotline
-    if is_safety:
-        route = "knowledge"
-
-    # Các trigger chuyển người (ghi đè safety nếu cùng xuất hiện)
+    # Ghi đủ mọi lý do để ticket không mất ngữ cảnh (vd vừa đòi gặp người vừa mặc cả)
+    reasons: list[str] = []
     if is_human_request:
-        reason, route = "HUMAN_REQUEST", "human"
-    elif is_complaint:
-        reason, route = "COMPLAINT", "human"
-    elif is_discount:
+        reasons.append("HUMAN_REQUEST")
+    if is_complaint:
+        reasons.append("COMPLAINT")
+    if is_discount:
         negotiation = True
-        reason, route = "NEGOTIATION", "human"
+        reasons.append("NEGOTIATION")
+    if state.get("complexity") == "HIGH" and any(
+        i in intents for i in (Intent.KNOWLEDGE.value, Intent.MAINTENANCE.value)
+    ):
+        reasons.append("COMPLEXITY_HIGH")
+    reason = "; ".join(reasons) or None
+    route = "human" if reasons else "router"
 
     return {
         "negotiation_active": negotiation,

@@ -1,8 +1,7 @@
 """
 [TRACK C] Conversation Manager: nhận tin -> khóa theo thread -> kiểm tra mode -> chạy agent -> lưu DB.
-- BOT / HUMAN_PENDING: bot vẫn trả lời (khách không bị "treo" trong lúc chờ nhân viên).
-  Yêu cầu cần người phát sinh thêm khi đang chờ -> ghi vào ticket đang mở (human_handover).
-- HUMAN_ACTIVE: nhân viên đã nhận -> bot im lặng, chỉ lưu tin; nhân viên trả lời qua admin API.
+- BOT: router chạy các agent chỉ đọc song song + tối đa một agent ghi dữ liệu.
+- HUMAN_PENDING / HUMAN_ACTIVE: bot im lặng, lưu tin và bổ sung ngữ cảnh cho ticket nhân viên.
 Thông báo chuyển giao (nhân viên tiếp nhận / trả về bot / quá hạn) là tin role="system", client poll để hiển thị.
 """
 import json
@@ -22,7 +21,7 @@ from app.identity import resolve_customer
 
 _locks: dict[int, threading.Lock] = defaultdict(threading.Lock)  # mỗi hội thoại 1 khóa
 TIMEOUT_NOTICE = ("Hiện nhân viên đang bận nên chưa tiếp nhận được. Bạn có thể gọi hotline {hotline} "
-                  "để được hỗ trợ ngay, mình vẫn ở đây trả lời các câu hỏi khác của bạn.")
+                  "để được hỗ trợ ngay. Các tin nhắn của bạn vẫn được lưu để nhân viên tiếp nhận.")
 PHONE_RE = re.compile(r"\b(0\d{9})\b")  # search for phone number
 
 
@@ -70,15 +69,22 @@ def handle_message(req: ChatRequest) -> ChatResponse:
     with _locks[conv_id]:
         with SessionLocal() as db:
             conv = db.get(Conversation, conv_id)
-            if conv.mode == ConversationMode.HUMAN_ACTIVE.value:
-                # Nhân viên đang trò chuyện trực tiếp: bot không chen vào, chỉ lưu SĐT nếu khách gửi
+            if conv.mode in (ConversationMode.HUMAN_PENDING.value, ConversationMode.HUMAN_ACTIVE.value):
+                # Không gọi graph/LLM; nhân viên xem tin đã lưu qua inbox hiện có.
+                task = _open_task(db, conv_id)
+                if task:
+                    task.summary = f"{task.summary}\n[Khách] {req.message}".strip()
                 if m := PHONE_RE.search(req.message):
-                    resolve_customer(db, req.visitor_token).phone = m.group(1)
+                    phone = m.group(1)
+                    resolve_customer(db, req.visitor_token).phone = phone
+                    if task:
+                        task.summary = f"{task.summary}\nSĐT khách: {phone}".strip()
+                if notice := _timeout_notice(db, conv):
+                    db.add(Message(conversation_id=conv_id, role="system", content=notice))
                 db.commit()
-                return ChatResponse(conversation_id=conv_id, reply="", 
-                                    mode=ConversationMode.HUMAN_ACTIVE,
-                                    message_id=user_msg.id
-                                    )
+                # Giữ cursor ở tin khách để client còn poll được thông báo timeout vừa tạo.
+                return ChatResponse(conversation_id=conv_id, reply="", mode=ConversationMode(conv.mode),
+                                    message_id=user_msg.id)
             negotiation_active, mode = conv.negotiation_active, conv.mode
 
         result = run_turn(conv_id, customer_id, req.message, negotiation_active, mode)
