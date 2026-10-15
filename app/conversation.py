@@ -69,7 +69,7 @@ def handle_message(req: ChatRequest) -> ChatResponse:
     with _locks[conv_id]:
         with SessionLocal() as db:
             conv = db.get(Conversation, conv_id)
-            if conv.mode in (ConversationMode.HUMAN_PENDING.value, ConversationMode.HUMAN_ACTIVE.value):
+            if conv.mode == ConversationMode.HUMAN_ACTIVE.value:
                 # Không gọi graph/LLM; nhân viên xem tin đã lưu qua inbox hiện có.
                 task = _open_task(db, conv_id)
                 if task:
