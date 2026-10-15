@@ -60,7 +60,7 @@ Thứ tự các nhánh song song trong trace không cố định.
 |---|---|---|---|
 | Intent/slot | rule-based từ khóa | LLM structured output | B |
 | Viết câu trả lời | ghép chuỗi từ dữ liệu | `agent/llm.py` + ReAct ≤3 vòng | B |
-| Retriever | khớp từ khóa | embedding + Chroma/pgvector | A |
+| Retriever | **Hybrid** (BM25 + OpenAI embedding, RRF) trên `app/rag/`; chọn bằng `RETRIEVER` trong `.env` | pgvector + reranker + lọc metadata | A |
 | DB | SQLite | Postgres (đổi `DATABASE_URL`) | A |
 | Checkpoint | MemorySaver (mất khi tắt server) | PostgresSaver | B/C |
 | Đặt lịch | ghi thẳng DB, chờ duyệt | giờ làm việc, slot, hủy/đổi | C |
