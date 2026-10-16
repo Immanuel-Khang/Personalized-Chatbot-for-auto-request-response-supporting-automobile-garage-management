@@ -22,17 +22,17 @@ class KnowledgeService(Protocol):
 
 class BookingService(Protocol):
     def create_appointment(
-        self, customer_id: int, service_type: ServiceType, when_text: str, phone: str
+        self, session_id: str, service_type: ServiceType, when_text: str, phone: str
     ) -> BookingResult: ...
 
 
 class HandoverService(Protocol):
-    def create(self, conversation_id: int, reason: str, summary: str) -> HandoverResult: ...
-    def append(self, conversation_id: int, reason: str, note: str) -> HandoverResult: ...  # ghi thêm vào ticket đang mở
+    def create(self, session_id: str, reason: str, summary: str) -> HandoverResult: ...
+    def append(self, session_id: str, reason: str, note: str) -> HandoverResult: ...  # ghi thêm vào ticket đang mở
 
 
 class AfterSalesService(Protocol):
-    def get_history(self, customer_id: int, limit: int = 5) -> list[ServiceRecord]: ...
+    def get_history(self, customer_id: int | None, limit: int = 5) -> list[ServiceRecord]: ...
 
 
 class MaintenanceService(Protocol):

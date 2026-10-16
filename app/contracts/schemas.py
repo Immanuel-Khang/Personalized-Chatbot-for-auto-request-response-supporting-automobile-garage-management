@@ -63,13 +63,13 @@ class IntentAndSlotExtraction(BaseModel):
 
 # ---- API ----
 class ChatRequest(BaseModel):
-    visitor_token: str
+    # UUID trình duyệt tạo và giữ trong localStorage = chat_sessions.id. Chỉ nhận ra phiên, không chứng minh danh tính.
+    session_id: str = Field(min_length=8, max_length=64, pattern=r"^[A-Za-z0-9_\-]+$")
     message: str
-    conversation_id: int | None = None
 
 
 class ChatResponse(BaseModel):
-    conversation_id: int
+    session_id: str
     reply: str
     mode: ConversationMode
     message_id: int | None = None  # id tin bot vừa gửi (client dùng để poll tin nhân viên/hệ thống sau đó)
@@ -109,7 +109,6 @@ class BookingResult(BaseModel):
 
 class HandoverResult(BaseModel):
     task_id: int
-    lead_id: int | None = None
 
 
 class MaintenanceResult(BaseModel):

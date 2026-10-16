@@ -4,8 +4,8 @@ from typing import Annotated, Any, TypedDict
 
 class AgentState(TypedDict, total=False):
     # input mỗi lượt
-    conversation_id: int
-    customer_id: int
+    session_id: str
+    customer_id: int | None  # chỉ có khi SĐT đã xác minh OTP (được phép đọc dữ liệu cá nhân)
     user_text: str
     mode: str  # BOT (graph không chạy ở HUMAN_PENDING / HUMAN_ACTIVE)
     # preprocess (chỉ đọc, không side effect)
@@ -16,7 +16,7 @@ class AgentState(TypedDict, total=False):
     complexity: str  # LOW | HIGH
     active_flow: str | None  # luồng ghi dữ liệu đang làm dở (appointment | contract), giữ nhờ checkpoint
     # policy guard
-    negotiation_active: bool  # sticky: đã bật thì giữ (đọc/ghi bảng conversations)
+    negotiation_active: bool  # sticky: đã bật thì giữ (đọc/ghi bảng chat_sessions)
     safety: bool
     route: str  # human | router
     # router (lập kế hoạch)

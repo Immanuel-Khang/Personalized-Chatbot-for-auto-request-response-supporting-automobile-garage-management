@@ -32,13 +32,11 @@ def main() -> int:
     cases = json.loads((Path(__file__).parent / "cases.json").read_text(encoding="utf-8"))
     passed = 0
     for case in cases:
-        token, conv_id, resp = f"eval-{uuid.uuid4()}", None, None
+        session_id, resp = f"eval-{uuid.uuid4()}", None
         ok, paths = True, []
         for turn in case["turns"]:
             expectation = turn if isinstance(turn, dict) else {"message": turn}
-            resp = handle_message(ChatRequest(visitor_token=token, message=expectation["message"],
-                                               conversation_id=conv_id))
-            conv_id = resp.conversation_id
+            resp = handle_message(ChatRequest(session_id=session_id, message=expectation["message"]))
             single_agent = len([n for n in resp.trace if n in WRITERS]) <= 1
             ok = matches(resp, expectation) and single_agent and ok
             paths.append(" -> ".join(resp.trace) or f"({resp.mode.value}: bypass)")

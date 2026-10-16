@@ -8,10 +8,18 @@ Mọi chỗ cần viết thêm đều có dấu `TODO[TÊN-TRACK]`. Tìm bằng:
 python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env
+# Postgres (có pgvector) chạy local, chỉ mở trên localhost; dùng docker thay podman cũng được
+podman run -d --name garage-pg -e POSTGRES_USER=garage -e POSTGRES_PASSWORD=garage -e POSTGRES_DB=garage \
+  -p 127.0.0.1:5432:5432 -v garage-pg-data:/var/lib/postgresql/data docker.io/pgvector/pgvector:pg17
+podman exec garage-pg psql -U garage -c "CREATE DATABASE garage_test"   # DB cho pytest (bị xóa sạch mỗi lần chạy)
+alembic upgrade head                 # tạo/cập nhật bảng (app cũng tự chạy lệnh này khi khởi động)
 uvicorn app.main:app --reload        # mở http://localhost:8000
 pytest                               # chạy test
 python -m eval.run_eval              # chấm agent theo đường đi (trajectory)
 ```
+
+Đổi schema: sửa `app/db/models.py` → `alembic revision --autogenerate -m "mô tả"` → đọc lại file trong
+`migrations/versions/` → `alembic upgrade head`. Không sửa bảng bằng tay trên DB.
 
 ## Bản đồ thư mục & ai sở hữu
 
@@ -61,7 +69,7 @@ Thứ tự các nhánh song song trong trace không cố định.
 | Intent/slot | rule-based từ khóa | LLM structured output | B |
 | Viết câu trả lời | ghép chuỗi từ dữ liệu | `agent/llm.py` + ReAct ≤3 vòng | B |
 | Retriever | khớp từ khóa | embedding + Chroma/pgvector | A |
-| DB | SQLite | Postgres (đổi `DATABASE_URL`) | A |
+| DB | Postgres + Alembic, đợt 1 (vận hành) theo `docs/schema.dbml` | đợt 2 danh mục xe, đợt 3 sau bán/hợp đồng/knowledge | A |
 | Checkpoint | MemorySaver (mất khi tắt server) | PostgresSaver | B/C |
 | Đặt lịch | ghi thẳng DB, chờ duyệt | giờ làm việc, slot, hủy/đổi | C |
 | Hợp đồng / nhắc lịch | file rỗng có hướng dẫn | `app/tools/contract.py`, `app/jobs/reminders.py` | C |

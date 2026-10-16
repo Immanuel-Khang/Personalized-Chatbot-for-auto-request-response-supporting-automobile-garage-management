@@ -12,13 +12,13 @@
 <div id="log"></div>
 <form id="f"><input id="m" placeholder="Nhập tin nhắn..." autocomplete="off"><button>Gửi</button></form>
 <script>
-const token = localStorage.getItem("vt") || (crypto.randomUUID()); localStorage.setItem("vt", token);
-let convId = null, lastId = 0; const log = document.getElementById("log");
+// session_id = chat_sessions.id: UUID trình duyệt giữ trong localStorage, một trình duyệt một phiên
+const sessionId = localStorage.getItem("sid") || crypto.randomUUID(); localStorage.setItem("sid", sessionId);
+let lastId = 0; const log = document.getElementById("log");
 function add(cls, text){const d=document.createElement("div");d.className=cls;d.textContent=text;log.appendChild(d);log.scrollTop=log.scrollHeight;return d}
 const LABEL = {staff: "Nhân viên: ", system: ""};
 async function poll(){  // tin nhân viên/hệ thống (vd "nhân viên đã tiếp nhận") đến bất kỳ lúc nào
-  if(!convId) return;
-  const r = await fetch(`/chat/${convId}/messages?visitor_token=${encodeURIComponent(token)}&after=${lastId}`);
+  const r = await fetch(`/chat/${encodeURIComponent(sessionId)}/messages?after=${lastId}`);
   if(!r.ok) return;
   const j = await r.json();
   for(const m of j.messages){ add(m.role==="staff"?"st":"s", LABEL[m.role]+m.content); lastId = Math.max(lastId, m.id); }
@@ -28,8 +28,8 @@ document.getElementById("f").onsubmit = async (e) => {
   e.preventDefault(); const i = document.getElementById("m"); const msg = i.value.trim(); if(!msg) return; i.value="";
   add("u","Bạn: "+msg);
   const r = await fetch("/chat",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({visitor_token:token,message:msg,conversation_id:convId})});
-  const j = await r.json(); convId = j.conversation_id;
+    body:JSON.stringify({session_id:sessionId,message:msg})});
+  const j = await r.json();
   if(j.message_id) lastId = Math.max(lastId, j.message_id);  // tin system đi kèm lượt này đã nằm trong reply
   if(j.reply) add("b","Bot: "+j.reply);
   add("t","["+j.mode+"] "+j.trace.join(" → "));

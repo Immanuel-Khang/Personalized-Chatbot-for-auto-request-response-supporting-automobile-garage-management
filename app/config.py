@@ -9,11 +9,11 @@ load_dotenv()
 
 @dataclass(frozen=True)
 class Settings:
-    database_url: str = os.getenv("DATABASE_URL", "sqlite:///./dev.db")
+    database_url: str = os.getenv("DATABASE_URL", "postgresql+psycopg://garage:garage@localhost:5432/garage")
     llm_provider: str = os.getenv("LLM_PROVIDER", "openai")  # none | openai
     llm_api_key: str = os.getenv("LLM_API_KEY", "")
     openai_api_key: str = os.getenv("OPENAI_API_KEY", os.getenv("OPEN_AI_KEY", ""))
-    openai_model: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    openai_model: str = os.getenv("OPENAI_MODEL", "gpt-5_4-nano")
     openai_temperature: float = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
     max_react_iterations: int = int(os.getenv("MAX_REACT_ITERATIONS", "3"))
     hotline: str = os.getenv("HOTLINE", "0900 000 000")
