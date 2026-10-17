@@ -14,6 +14,7 @@ from app.agent.nodes.after_sales import after_sales
 from app.agent.nodes.appointment import appointment
 from app.agent.nodes.compose import compose
 from app.agent.nodes.contract import contract
+from app.agent.nodes.conversation import conversation
 from app.agent.nodes.human_handover import human_handover
 from app.agent.nodes.knowledge import knowledge
 from app.agent.nodes.output_guard import output_guard
@@ -25,7 +26,7 @@ from app.agent.nodes.sales import sales
 from app.agent.state import AgentState
 
 SPECIALISTS = {"sales": sales, "knowledge": knowledge, "after_sales": after_sales,
-               "contract": contract, "appointment": appointment}
+               "contract": contract, "appointment": appointment, "conversation": conversation}
 assert set(SPECIALISTS) == set(READ_ONLY) | set(WRITERS)
 
 

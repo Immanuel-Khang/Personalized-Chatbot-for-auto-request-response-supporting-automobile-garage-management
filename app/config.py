@@ -9,7 +9,7 @@ load_dotenv()
 
 @dataclass(frozen=True)
 class Settings:
-    database_url: str = os.getenv("DATABASE_URL", "postgresql+psycopg://garage:garage@localhost:5432/garage")
+    database_url: str = os.getenv("DATABASE_URL", "postgresql+psycopg://garage:garage@127.0.0.1:5432/garage")
     llm_provider: str = os.getenv("LLM_PROVIDER", "openai")  # none | openai
     llm_api_key: str = os.getenv("LLM_API_KEY", "")
     openai_api_key: str = os.getenv("OPENAI_API_KEY", os.getenv("OPEN_AI_KEY", ""))

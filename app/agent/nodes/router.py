@@ -12,18 +12,15 @@ AGENTS = {
     Intent.CONTRACT.value: "contract", Intent.APPOINTMENT.value: "appointment",
     Intent.AFTER_SALES.value: "after_sales", Intent.MAINTENANCE.value: "knowledge",
     Intent.SALES.value: "sales", Intent.KNOWLEDGE.value: "knowledge",
+    Intent.GREETING.value: "conversation", Intent.OTHER.value: "conversation",
 }
-READ_ONLY = ("sales", "knowledge", "after_sales")
+READ_ONLY = ("sales", "knowledge", "after_sales", "conversation")
 WRITERS = ("contract", "appointment")  # thứ tự ưu tiên khi cùng xuất hiện
 WRITER_INTENT = {"contract": Intent.CONTRACT.value, "appointment": Intent.APPOINTMENT.value}
 WRITER_LABEL = {"contract": "hoàn tất hợp đồng", "appointment": "đặt lịch hẹn"}
 MAX_READ_AGENTS = 3
 WRITER_ORDER = 100  # câu hỏi slot của agent ghi dữ liệu luôn nằm cuối câu trả lời
 NOTE_ORDER = 200
-
-GREETING_REPLY = "Chào bạn! Mình là trợ lý của xưởng Foton. Mình có thể tư vấn xe, báo giá, đặt lịch bảo dưỡng/lái thử hoặc giải đáp thắc mắc kỹ thuật."
-OUT_OF_SCOPE_REPLY = "Mình chưa hiểu rõ ý bạn. Bạn có thể hỏi về giá xe, đặt lịch bảo dưỡng/lái thử, hoặc kiến thức kỹ thuật nhé."
-CANCEL_REPLY = "Mình đã dừng yêu cầu đang chờ. Bạn cần hỗ trợ gì khác cứ nhắn nhé."
 DEFERRED_NOTE = "Sau bước này mình sẽ hỗ trợ tiếp phần {label} cho bạn nhé."
 CANCEL = ["hủy", "huỷ", "không đặt", "không muốn đặt", "không cần đặt", "không book"]
 BOOKING_SLOTS = {"service_type", "appointment_when", "when_text"}
@@ -60,10 +57,12 @@ def _groups(state: AgentState) -> tuple[list[dict], bool]:
     return [{"agent": g["agent"], "text": ", ".join(g["texts"])} for g in groups.values()], slot_answer
 
 
-def _default(state: AgentState, update: dict, text: str) -> dict:
-    update.update(plan=[], planned_agents=[],
-                  answers=[{"agent": "router", "order": 0, "text": text, "needs_human": False}])
-    return update
+def _route_to_conversation(state: AgentState, text: str) -> dict:
+    """Route to conversation agent instead of using fixed reply."""
+    return {
+        "plan": [{"agent": "conversation", "text": text, "order": 0}],
+        "planned_agents": ["conversation"]
+    }
 
 
 def router(state: AgentState) -> dict:
@@ -77,7 +76,9 @@ def router(state: AgentState) -> dict:
     if _cancelled(state):
         update.update(pending_intent=None, pending_text=None, active_flow=None,
                       slots={k: v for k, v in state.get("slots", {}).items() if k not in BOOKING_SLOTS})
-        return _default(state, update, CANCEL_REPLY)
+        # Route cancel to conversation agent instead of fixed reply
+        update.update(_route_to_conversation(state, text))
+        return update
 
     groups, slot_answer = _groups(state)
     reads = [g for g in groups if g["agent"] in READ_ONLY][:MAX_READ_AGENTS]
@@ -98,7 +99,9 @@ def router(state: AgentState) -> dict:
         writer = {"agent": active, "text": text}  # câu ngắn không rõ ý trong flow đang dở
 
     if not writer and not reads:  # flow/pending giữ nguyên trong checkpoint
-        return _default(state, update, GREETING_REPLY if is_greeting else OUT_OF_SCOPE_REPLY)
+        # Route to conversation agent for greeting/other
+        update.update(_route_to_conversation(state, text))
+        return update
 
     plan = [{"agent": g["agent"], "text": g["text"], "order": i} for i, g in enumerate(reads)]
     if writer:

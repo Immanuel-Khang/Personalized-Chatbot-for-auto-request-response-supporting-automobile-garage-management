@@ -117,3 +117,10 @@ class MaintenanceResult(BaseModel):
     model_name: str
     tasks: list[str]
     estimated_cost: float
+
+
+class ProfileInfo(BaseModel):
+    """Thông tin khách hàng đã lưu trong phiên."""
+    name: str | None = None
+    phone: str | None = None
+    verified: bool = False
