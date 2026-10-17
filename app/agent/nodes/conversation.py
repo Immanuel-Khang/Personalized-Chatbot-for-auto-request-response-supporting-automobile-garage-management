@@ -5,7 +5,8 @@ from app.agent.nodes.common import answer, step
 from app.agent.state import AgentState
 from app.config import settings
 from app.contracts.schemas import Intent
-from app.services import get_services
+from app.db.models import ChatSession, Customer, Message
+from app.db.session import SessionLocal
 
 CONVERSATION_SYSTEM_PROMPT = """\
 Bạn là trợ lý thân thiện của xưởng Foton. Nhiệm vụ của bạn:
@@ -23,17 +24,53 @@ QUY TẮC:
 """
 
 
+def _get_customer_profile(session_id: str) -> tuple[str | None, str | None]:
+    """Truy vấn thông tin khách hàng từ DB. Trả về (tên, số điện thoại)."""
+    db = SessionLocal()
+    try:
+        chat_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+        if not chat_session or not chat_session.customer_id:
+            return None, None
+        customer = db.query(Customer).filter(Customer.id == chat_session.customer_id).first()
+        if not customer:
+            return None, None
+        return customer.full_name, customer.phone_number
+    finally:
+        db.close()
+
+
+def _get_conversation_history(session_id: str, limit: int = 8) -> str:
+    """Lấy lịch sử hội thoại gần nhất."""
+    db = SessionLocal()
+    try:
+        messages = (
+            db.query(Message)
+            .filter(Message.session_id == session_id)
+            .order_by(Message.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+        if not messages:
+            return "(chưa có tin nhắn trước đó)"
+        lines = []
+        for msg in reversed(messages):
+            role = "Khách" if msg.role == "user" else "Bot"
+            lines.append(f"{role}: {msg.content[:80]}")
+        return "\n".join(lines)
+    finally:
+        db.close()
+
+
 def conversation(state: AgentState) -> dict:
     """Xử lý greeting, other, và các câu hỏi về ngữ cảnh hội thoại."""
     update: dict = {"trace": step(state, "conversation")}
     intents = state.get("intents", [])
     question = state.get("task_text") or state.get("user_text", "")
 
-    # Lấy thông tin khách và lịch sử hội thoại
+    # Lấy thông tin khách và lịch sử hội thoại từ DB
     session_id = state.get("session_id", "")
-    profile_svc = get_services().profile
-    profile = profile_svc.get_profile(session_id)
-    history = profile_svc.get_conversation_summary(session_id, limit=8)
+    name, phone = _get_customer_profile(session_id)
+    history = _get_conversation_history(session_id, limit=8)
 
     # Xác định ngữ cảnh
     intent_context = ""
@@ -46,10 +83,8 @@ def conversation(state: AgentState) -> dict:
 
     # Chuẩn bị ngữ cảnh cho LLM
     profile_text = ""
-    if profile.name or profile.phone:
-        profile_text = f"Thông tin khách đã lưu: Tên: {profile.name or 'chưa có'}, SĐT: {profile.phone or 'chưa có'}"
-        if profile.verified:
-            profile_text += " (đã xác thực)"
+    if name or phone:
+        profile_text = f"Thông tin khách đã lưu: Tên: {name or 'chưa có'}, SĐT: {phone or 'chưa có'}"
     else:
         profile_text = "Chưa có thông tin khách hàng trong hồ sơ."
 

@@ -1,5 +1,6 @@
 """
-[TRACK B] Preprocess: tách intent + task theo vế câu + slot + độ phức tạp. CHỈ ĐỌC, không side effect.
+[TRACK B] Preprocess: tách intent + task theo vế câu + slot + độ phức tạp + lưu thông tin khách hàng.
+CHỈ ĐỌC ngoại trừ việc lưu profile vào DB khi phát hiện tên/SĐT.
 Khi có LLM: structured output (intents + tasks). Fallback: rule-based theo từ khóa, tách vế bằng segments.
 """
 import re
@@ -9,6 +10,8 @@ from app.agent.nodes.common import step
 from app.agent.nodes.segments import split_clauses
 from app.agent.state import AgentState
 from app.contracts.schemas import Intent, IntentAndSlotExtraction, ServiceType
+from app.db.models import ChatSession, Customer
+from app.db.session import SessionLocal
 
 # ---- Fallback rule-based ----
 KEYWORDS: dict[Intent, list[str]] = {
@@ -145,7 +148,69 @@ def _llm_preprocess(state: AgentState) -> dict:
             "slots_updated": _slots_updated(old_slots, merged_slots), "complexity": _complexity(text)}
 
 
+def _extract_name(text: str) -> str | None:
+    """Trích tên khách hàng từ câu nói (tôi tên X, tôi là X)."""
+    patterns = [
+        r"(?:tên\s+(?:tôi|mình|em)\s+(?:là\s+)?|(?:tôi|mình|em)\s+tên\s+)(\w+)",
+        r"(?:tôi|mình|em)\s+là\s+(\w+)",
+    ]
+    for p in patterns:
+        if m := re.search(p, text, re.IGNORECASE):
+            return m.group(1).strip()
+    return None
+
+
+def _save_profile_to_db(session_id: str, name: str | None, phone: str | None) -> None:
+    """Lưu thông tin khách hàng vào DB nếu phát hiện tên hoặc SĐT."""
+    if not name and not phone:
+        return
+
+    db = SessionLocal()
+    try:
+        # Tìm hoặc tạo chat_session
+        chat_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+        if not chat_session:
+            chat_session = ChatSession(id=session_id)
+            db.add(chat_session)
+            db.flush()
+
+        # Tìm hoặc tạo customer
+        customer = None
+        if chat_session.customer_id:
+            customer = db.query(Customer).filter(Customer.id == chat_session.customer_id).first()
+
+        if not customer:
+            # Tạo customer mới
+            customer = Customer()
+            db.add(customer)
+            db.flush()
+            # Link customer với chat_session
+            chat_session.customer_id = customer.id
+
+        # Cập nhật thông tin
+        if name and not customer.full_name:
+            customer.full_name = name
+        if phone and not customer.phone_number:
+            customer.phone_number = phone
+
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"Error saving profile: {e}")
+    finally:
+        db.close()
+
+
 def preprocess(state: AgentState) -> dict:
     result = _llm_preprocess(state)
+
+    # Lưu profile vào DB nếu phát hiện tên hoặc SĐT
+    text = state.get("user_text", "")
+    name = _extract_name(text)
+    phone = result["slots"].get("customer_phone")
+    session_id = state.get("session_id")
+    if session_id and (name or phone):
+        _save_profile_to_db(session_id, name, phone)
+
     result["trace"] = step(state, "preprocess")
     return result

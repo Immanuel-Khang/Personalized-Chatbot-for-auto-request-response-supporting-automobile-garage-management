@@ -7,7 +7,7 @@ from typing import Optional, Protocol
 
 from app.contracts.schemas import (
     BookingResult, HandoverResult, KnowledgeChunk,
-    MaintenanceResult, Product, ProfileInfo, ServiceRecord, ServiceType,
+    MaintenanceResult, Product, ServiceRecord, ServiceType,
 )
 
 
@@ -37,9 +37,3 @@ class AfterSalesService(Protocol):
 
 class MaintenanceService(Protocol):
     def get_milestone_details(self, model: str, km: int) -> Optional[MaintenanceResult]: ...
-
-
-class ProfileService(Protocol):
-    """Tra cứu thông tin khách hàng và lịch sử hội thoại từ DB."""
-    def get_profile(self, session_id: str) -> ProfileInfo: ...
-    def get_conversation_summary(self, session_id: str, limit: int = 10) -> str: ...

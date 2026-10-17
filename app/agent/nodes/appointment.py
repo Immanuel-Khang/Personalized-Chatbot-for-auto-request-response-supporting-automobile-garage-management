@@ -3,7 +3,8 @@ from app.agent.llm import generate
 from app.agent.nodes.common import answer, step
 from app.agent.state import AgentState
 from app.contracts.schemas import ServiceType
-from app.services import get_services
+from app.db.models import Message
+from app.db.session import SessionLocal
 
 # Fallback templates when LLM not available
 ASK_FALLBACK = {
@@ -57,11 +58,33 @@ def _missing_slots(slots: dict) -> list[str]:
     return [s for s in required if not slots.get(s)]
 
 
+def _get_conversation_history(session_id: str, limit: int = 6) -> str:
+    """Lấy lịch sử hội thoại gần nhất."""
+    db = SessionLocal()
+    try:
+        messages = (
+            db.query(Message)
+            .filter(Message.session_id == session_id)
+            .order_by(Message.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+        if not messages:
+            return "(chưa có tin nhắn trước đó)"
+        lines = []
+        for msg in reversed(messages):
+            role = "Khách" if msg.role == "user" else "Bot"
+            lines.append(f"{role}: {msg.content[:80]}")
+        return "\n".join(lines)
+    finally:
+        db.close()
+
+
 def _generate_slot_question(state: AgentState, slots: dict, missing: list[str]) -> str:
     """Dùng LLM sinh câu hỏi tự nhiên cho slot còn thiếu."""
-    # Lấy lịch sử hội thoại
+    # Lấy lịch sử hội thoại từ DB
     session_id = state.get("session_id", "")
-    history = get_services().profile.get_conversation_summary(session_id, limit=6)
+    history = _get_conversation_history(session_id, limit=6)
 
     # Format slot đã có và còn thiếu
     slot_names = {

@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 
 from app.contracts.interfaces import (
     AfterSalesService, BookingService, HandoverService,
-    KnowledgeService, MaintenanceService, ProductService, ProfileService,
+    KnowledgeService, MaintenanceService, ProductService,
 )
 from app.services.after_sales import DbAfterSalesService
 from app.services.booking import DbBookingService
@@ -13,7 +13,6 @@ from app.services.handover import DbHandoverService
 from app.services.knowledge import RagKnowledgeService
 from app.services.maintenance import DbMaintenanceService
 from app.services.product import DbProductService
-from app.services.profile import DbProfileService
 
 
 @dataclass
@@ -23,7 +22,6 @@ class Services:
     booking: DbBookingService
     handover: DbHandoverService
     maintenance: DbMaintenanceService
-    profile: DbProfileService
     after_sales: AfterSalesService = field(default_factory=DbAfterSalesService)
 
 _services: Services | None = None
@@ -35,7 +33,7 @@ def get_services() -> Services:
         _services = Services(
             product=DbProductService(), knowledge=RagKnowledgeService(),
             booking=DbBookingService(), handover=DbHandoverService(),
-            maintenance=DbMaintenanceService(), profile=DbProfileService(),
+            maintenance=DbMaintenanceService(),
         )
     return _services
 
