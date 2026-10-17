@@ -1,4 +1,5 @@
 """Regression tests: agent chỉ đọc chạy song song, tối đa một agent ghi dữ liệu mỗi lượt, trạng thái liên lượt."""
+import uuid
 from unittest.mock import Mock
 
 import pytest
@@ -10,13 +11,13 @@ from app.agent.nodes.preprocess import _llm_preprocess, _rule_based_preprocess, 
 from app.agent.nodes.router import WRITERS, router
 from app.agent.nodes.segments import split_clauses
 from app.contracts.schemas import CustomerSlots, Intent, IntentAndSlotExtraction, IntentTask, ServiceRecord
-from app.db.models import Appointment, Conversation, Customer, HumanTask, Message
+from app.db.models import Appointment, ChatSession, Customer, HandoverTicket, Message
 from app.db.session import SessionLocal
 from app.services import get_services
 
 
 def chat(client, text, token, conv=None):
-    response = client.post("/chat", json={"visitor_token": token, "message": text, "conversation_id": conv})
+    response = client.post("/chat", json={"session_id": conv or f"{token}-{uuid.uuid4().hex}", "message": text})
     assert response.status_code == 200
     result = response.json()
     assert len([n for n in result["trace"] if n in WRITERS]) <= 1  # tối đa một agent ghi dữ liệu
@@ -30,12 +31,12 @@ def checkpoint(conv):
 
 def appointments(conv):
     with SessionLocal() as db:
-        return db.query(Appointment).filter_by(customer_id=checkpoint(conv)["customer_id"]).all()
+        return db.query(Appointment).filter_by(session_id=conv).all()
 
 
 def test_price_and_test_drive_same_turn_single_booking(client):
     first = chat(client, "Giá xe Vios bao nhiêu, cho mình chạy thử", "same-turn")
-    conv = first["conversation_id"]
+    conv = first["session_id"]
     assert {"sales", "appointment"} <= set(first["trace"])
     assert "đồng" in first["reply"] and first["reply"].rstrip().endswith("Bạn muốn đến vào ngày giờ nào?")
     assert checkpoint(conv)["active_flow"] == "appointment" and appointments(conv) == []
@@ -56,7 +57,7 @@ def test_camry_showroom_visit_goes_to_appointment(client):
 
 def test_read_question_during_booking_keeps_flow(client):
     first = chat(client, "Mình muốn đặt lịch bảo dưỡng", "keep-flow")
-    conv = first["conversation_id"]
+    conv = first["session_id"]
     second = chat(client, "Lần trước xưởng làm gì cho xe mình", "keep-flow", conv)
     assert "after_sales" in second["trace"] and "appointment" not in second["trace"]
     assert checkpoint(conv)["active_flow"] == "appointment"
@@ -65,7 +66,7 @@ def test_read_question_during_booking_keeps_flow(client):
 
 def test_two_writers_defer_second_with_note(client):
     first = chat(client, "Mình chốt mua xe, đặt lịch lái thử nữa", "two-writers")
-    conv = first["conversation_id"]
+    conv = first["session_id"]
     assert "contract" in first["trace"] and "appointment" not in first["trace"]
     assert "đặt lịch hẹn" in first["reply"]
     assert checkpoint(conv)["pending_intent"] == "APPOINTMENT"
@@ -76,7 +77,7 @@ def test_two_writers_defer_second_with_note(client):
 
 def test_cancel_and_greeting_in_active_flow(client):
     first = chat(client, "Mình muốn đặt lịch", "cancel")
-    conv = first["conversation_id"]
+    conv = first["session_id"]
     greeting = chat(client, "Xin chào", "cancel", conv)
     assert "appointment" not in greeting["trace"] and checkpoint(conv)["active_flow"] == "appointment"
     cancelled = chat(client, "Thôi không cần đặt lịch", "cancel", conv)
@@ -87,12 +88,12 @@ def test_cancel_and_greeting_in_active_flow(client):
 
 def test_policy_escalation_clears_flow(client):
     first = chat(client, "Giá xe Vios bao nhiêu, cho mình chạy thử", "escalate")
-    conv = first["conversation_id"]
+    conv = first["session_id"]
     escalated = chat(client, "Giảm giá cho mình", "escalate", conv)
     assert escalated["mode"] == "HUMAN_PENDING" and "appointment" not in escalated["trace"]
     assert checkpoint(conv)["active_flow"] is None and checkpoint(conv)["pending_intent"] is None
     with SessionLocal() as db:
-        task_id = db.query(HumanTask).filter_by(conversation_id=conv).one().id
+        task_id = db.query(HandoverTicket).filter_by(session_id=conv).one().id
     client.post(f"/admin/tasks/{task_id}/claim")
     client.post(f"/admin/tasks/{task_id}/resolve")
     assert "appointment" not in chat(client, "Được", "escalate", conv)["trace"]
@@ -100,14 +101,14 @@ def test_policy_escalation_clears_flow(client):
 
 def test_safety_runs_knowledge_alone(client):
     first = chat(client, "Mình muốn đặt lịch", "safe")
-    second = chat(client, "Đèn áp suất dầu sáng, thôi không lái nữa", "safe", first["conversation_id"])
+    second = chat(client, "Đèn áp suất dầu sáng, thôi không lái nữa", "safe", first["session_id"])
     assert "router" in second["trace"] and "knowledge" in second["trace"]
     assert "appointment" not in second["trace"] and "hotline" in second["reply"]
 
 
 def test_active_appointment_service_slot_and_updated_time(client):
     first = chat(client, "Mình muốn đặt lịch", "service-slot")
-    conv = first["conversation_id"]
+    conv = first["session_id"]
     second = chat(client, "Bảo dưỡng", "service-slot", conv)
     assert "appointment" in second["trace"] and "knowledge" not in second["trace"]
     chat(client, "Ngày mai", "service-slot", conv)
@@ -123,13 +124,13 @@ def test_sales_question_ending_with_thoi_is_not_cancelled(client):
 
 def test_technical_question_interrupts_appointment(client):
     first = chat(client, "Mình muốn đặt lịch bảo dưỡng", "technical-interrupt")
-    result = chat(client, "Phanh kêu có nguy hiểm không?", "technical-interrupt", first["conversation_id"])
+    result = chat(client, "Phanh kêu có nguy hiểm không?", "technical-interrupt", first["session_id"])
     assert "knowledge" in result["trace"] and "appointment" not in result["trace"]
 
 
 def test_cancelled_booking_does_not_reuse_old_date(client):
     first = chat(client, "Mình muốn đặt lịch bảo dưỡng ngày mai", "stale-date")
-    conv = first["conversation_id"]
+    conv = first["session_id"]
     chat(client, "Thôi không đặt nữa", "stale-date", conv)
     assert not checkpoint(conv)["slots"].get("appointment_when")
     result = chat(client, "Đặt lịch lái thử 0912345678", "stale-date", conv)
@@ -140,9 +141,9 @@ def test_cancelled_booking_does_not_reuse_old_date(client):
 def test_contract_slot_only_continuation(client):
     first = chat(client, "Mình muốn chốt mua xe", "contract-slots")
     assert "sales" not in first["trace"]
-    second = chat(client, "0912345678", "contract-slots", first["conversation_id"])
+    second = chat(client, "0912345678", "contract-slots", first["session_id"])
     assert "contract" in second["trace"]
-    assert checkpoint(first["conversation_id"])["slots"]["customer_phone"] == "0912345678"
+    assert checkpoint(first["session_id"])["slots"]["customer_phone"] == "0912345678"
 
 
 def test_contract_and_fee_question_same_turn(client):
@@ -157,7 +158,7 @@ def test_partial_handover_keeps_other_answers(client, monkeypatch):
     assert "đồng" in result["reply"] and "chuyển yêu cầu" in result["reply"]
     assert result["mode"] == "HUMAN_PENDING"
     with SessionLocal() as db:
-        assert "no RAG match" in db.query(HumanTask).filter_by(conversation_id=result["conversation_id"]).one().reason
+        assert "no RAG match" in db.query(HandoverTicket).filter_by(session_id=result["session_id"]).one().summary
 
 
 def test_agents_receive_their_own_clause(client, monkeypatch):
@@ -177,9 +178,9 @@ def test_agents_receive_their_own_clause(client, monkeypatch):
 def test_human_modes_bypass_graph_and_keep_inbox(client, monkeypatch, claimed):
     token = f"bypass-{claimed}"
     first = chat(client, "Mình muốn gặp nhân viên", token)
-    conv = first["conversation_id"]
+    conv = first["session_id"]
     with SessionLocal() as db:
-        task_id = db.query(HumanTask).filter_by(conversation_id=conv).one().id
+        task_id = db.query(HandoverTicket).filter_by(session_id=conv).one().id
     if claimed:
         client.post(f"/admin/tasks/{task_id}/claim")
     run = Mock(side_effect=AssertionError("Human mode must not call graph"))
@@ -189,10 +190,11 @@ def test_human_modes_bypass_graph_and_keep_inbox(client, monkeypatch, claimed):
     assert second["mode"] == ("HUMAN_ACTIVE" if claimed else "HUMAN_PENDING")
     run.assert_not_called()
     with SessionLocal() as db:
-        assert db.query(Customer).filter_by(visitor_token=token).one().phone == "0987654321"
-        assert "0987654321" in db.get(HumanTask, task_id).summary
-        assert db.query(HumanTask).filter_by(conversation_id=conv).count() == 1
-        assert db.query(Message).filter_by(conversation_id=conv, role="bot").count() == 1
+        customer = db.get(Customer, db.get(ChatSession, conv).customer_id)
+        assert customer.phone_number == "+84987654321"
+        assert "0987654321" in db.get(HandoverTicket, task_id).summary
+        assert db.query(HandoverTicket).filter_by(session_id=conv).count() == 1
+        assert db.query(Message).filter_by(session_id=conv, role="ai").count() == 1
         assert db.get(Message, second["message_id"]).role == "user"
     assert client.get(f"/admin/tasks/{task_id}/messages").json()[-1]["content"] == "Gọi mình 0987654321"
 
@@ -212,7 +214,7 @@ def test_after_sales_reads_service_and_formats_records(client, monkeypatch):
     result = chat(client, "Cho mình xem lịch sử bảo dưỡng", "history-records")
     assert "after_sales" in result["trace"] and "knowledge" not in result["trace"]
     assert "2026-10-01" in result["reply"] and "1.200.000 đồng" in result["reply"]
-    service.get_history.assert_called_once_with(checkpoint(result["conversation_id"])["customer_id"], limit=5)
+    service.get_history.assert_called_once_with(checkpoint(result["session_id"])["customer_id"], limit=5)
 
 
 def test_after_sales_complaint_still_escalates(client):
@@ -223,9 +225,9 @@ def test_after_sales_complaint_still_escalates(client):
 def test_policy_records_all_handover_reasons(client):
     result = chat(client, "Cho mình gặp nhân viên, giảm giá được không", "all-reasons")
     with SessionLocal() as db:
-        task = db.query(HumanTask).filter_by(conversation_id=result["conversation_id"]).one()
-        conv = db.get(Conversation, result["conversation_id"])
-    assert "HUMAN_REQUEST" in task.reason and "NEGOTIATION" in task.reason and conv.negotiation_active
+        task = db.query(HandoverTicket).filter_by(session_id=result["session_id"]).one()
+        conv = db.get(ChatSession, result["session_id"])
+    assert task.reason == "HUMAN_REQUEST" and "NEGOTIATION" in task.summary and conv.negotiation_active
 
 
 def test_llm_tasks_drive_parallel_plan(monkeypatch):

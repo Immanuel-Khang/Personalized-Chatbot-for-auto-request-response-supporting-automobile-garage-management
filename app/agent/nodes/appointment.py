@@ -29,8 +29,13 @@ def appointment(state: AgentState) -> dict:
                     "slots": slots, "trace": step(state, "appointment")}
 
     result = get_services().booking.create_appointment(
-        state["customer_id"], ServiceType(slots["service_type"]), slots["when_text"], slots["phone"]
+        state["session_id"], ServiceType(slots["service_type"]), slots["when_text"], slots["phone"]
     )
+    if not result.ok:  # SĐT không hợp lệ -> hỏi lại, giữ luồng
+        slots.pop("phone", None)
+        slots.pop("customer_phone", None)
+        return {"answers": [answer(state, "appointment", f"{result.message} {ASK['phone']}")],
+                "active_flow": "appointment", "slots": slots, "trace": step(state, "appointment")}
     reply = f"Mình đã ghi nhận lịch hẹn ({slots['when_text']}). {result.message}"
     return {"answers": [answer(state, "appointment", reply)], "slots": {}, "active_flow": None,
             "trace": step(state, "appointment")}

@@ -8,10 +8,18 @@ Mọi chỗ cần viết thêm đều có dấu `TODO[TÊN-TRACK]`. Tìm bằng:
 python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env
+# Postgres (có pgvector) chạy local, chỉ mở trên localhost; dùng docker thay podman cũng được
+podman run -d --name garage-pg -e POSTGRES_USER=garage -e POSTGRES_PASSWORD=garage -e POSTGRES_DB=garage \
+  -p 127.0.0.1:5432:5432 -v garage-pg-data:/var/lib/postgresql/data docker.io/pgvector/pgvector:pg17
+podman exec garage-pg psql -U garage -c "CREATE DATABASE garage_test"   # DB cho pytest (bị xóa sạch mỗi lần chạy)
+alembic upgrade head                 # tạo/cập nhật bảng (app cũng tự chạy lệnh này khi khởi động)
 uvicorn app.main:app --reload        # mở http://localhost:8000
 pytest                               # chạy test
 python -m eval.run_eval              # chấm agent theo đường đi (trajectory)
 ```
+
+Đổi schema: sửa `app/db/models.py` → `alembic revision --autogenerate -m "mô tả"` → đọc lại file trong
+`migrations/versions/` → `alembic upgrade head`. Không sửa bảng bằng tay trên DB.
 
 ## Bản đồ thư mục & ai sở hữu
 

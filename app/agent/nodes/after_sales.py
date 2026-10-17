@@ -6,7 +6,7 @@ from app.utils import fmt_vnd
 
 
 def after_sales(state: AgentState) -> dict:
-    records = get_services().after_sales.get_history(state["customer_id"], limit=5)
+    records = get_services().after_sales.get_history(state.get("customer_id"), limit=5)
     if not records:
         reply = ("Hiện mình chưa có dữ liệu lịch sử bảo dưỡng của xe bạn trong hệ thống. "
                  "Bạn có thể cung cấp thêm thông tin hoặc nhờ nhân viên hỗ trợ tra cứu nhé.")
