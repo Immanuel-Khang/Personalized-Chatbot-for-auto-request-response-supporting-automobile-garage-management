@@ -68,7 +68,6 @@ class Customer(Base):
     full_name: Mapped[str | None] = mapped_column(String(80))
     email: Mapped[str | None] = mapped_column(String(120))
     birthday: Mapped[date | None] = mapped_column(Date)
-    cccd_encrypted: Mapped[str | None] = mapped_column(Text)  # mã hóa tầng ứng dụng, không log, không đưa vào LLM
     created_at: Mapped[datetime] = _created()
     updated_at: Mapped[datetime] = _updated()
 
@@ -94,7 +93,7 @@ class Message(Base):
     session_id: Mapped[str] = mapped_column(ForeignKey("chat_sessions.id"))
     role: Mapped[str] = mapped_column(String(20))  # user | ai | tool | staff | system
     manager_id: Mapped[int | None] = mapped_column(ForeignKey("managers.id"))  # chỉ có khi role = staff
-    content: Mapped[str] = mapped_column(Text)  # TODO[PLATFORM]: che CCCD/số nhạy cảm trước khi lưu
+    content: Mapped[str] = mapped_column(Text)
     tool_calls: Mapped[list | dict | None] = mapped_column(JSONB)
     trace: Mapped[list | None] = mapped_column(JSONB)  # node đã đi qua trong lượt, dùng cho eval trajectory
     created_at: Mapped[datetime] = _created()
