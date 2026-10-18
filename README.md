@@ -3,12 +3,32 @@
 Bản khung **chạy được ngay** (không cần API key): web chat → FastAPI → LangGraph agent → DB.
 Mọi chỗ cần viết thêm đều có dấu `TODO[TÊN-TRACK]`. Tìm bằng: `grep -rn "TODO\[" app/`
 
-## Chạy thử (5 phút)
+## Chạy thử (Khởi động nhanh với Docker)
+
+Yêu cầu máy đã cài **Docker** và **Docker Compose**.
+
+```bash
+# 1. Tạo file cấu hình môi trường
+cp .env.example .env
+
+# 2. Khởi chạy môi trường phát triển (tự động build, mount code để live-reload, mở http://localhost:8000)
+make dev
+
+# Các lệnh quản lý khác:
+make prod       # Chạy môi trường production ngầm (-d, multi-workers)
+make down       # Dừng toàn bộ containers
+make logs       # Xem log thời gian thực của container prod
+make clean      # Dừng và xóa sạch volume dữ liệu (nếu muốn reset)
+```
+
+<details>
+<summary><b>Hoặc chạy thủ công bằng Python local (không qua Docker)</b></summary>
+
 ```bash
 python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env
-# Postgres (có pgvector) chạy local, chỉ mở trên localhost; dùng docker thay podman cũng được
+# Postgres (có pgvector) chạy local
 podman run -d --name garage-pg -e POSTGRES_USER=garage -e POSTGRES_PASSWORD=garage -e POSTGRES_DB=garage \
   -p 127.0.0.1:5432:5432 -v garage-pg-data:/var/lib/postgresql/data docker.io/pgvector/pgvector:pg17
 podman exec garage-pg psql -U garage -c "CREATE DATABASE garage_test"   # DB cho pytest (bị xóa sạch mỗi lần chạy)
@@ -17,6 +37,7 @@ uvicorn app.main:app --reload        # mở http://localhost:8000
 pytest                               # chạy test
 python -m eval.run_eval              # chấm agent theo đường đi (trajectory)
 ```
+</details>
 
 Đổi schema: sửa `app/db/models.py` → `alembic revision --autogenerate -m "mô tả"` → đọc lại file trong
 `migrations/versions/` → `alembic upgrade head`. Không sửa bảng bằng tay trên DB.
