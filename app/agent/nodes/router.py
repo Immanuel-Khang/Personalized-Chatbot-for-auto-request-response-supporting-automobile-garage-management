@@ -25,6 +25,8 @@ DEFERRED_NOTE = "Sau bước này mình sẽ hỗ trợ tiếp phần {label} ch
 CANCEL = ["hủy", "huỷ", "không đặt", "không muốn đặt", "không cần đặt", "không book"]
 BOOKING_SLOTS = {"service_type", "appointment_when", "when_text"}
 QUESTION = ["bao lâu", "bao nhiêu", "khi nào", "tại sao", "vì sao", "mốc", "chi phí", "cần làm gì"]
+# Câu đồng ý ngắn: tiếp tục flow / việc đang chờ. Câu không rõ ý khác → hỏi lại, không đoán là trả lời slot.
+AFFIRM = ("được", "ok", "oke", "okay", "ừ", "ừm", "vâng", "dạ", "có", "đồng ý", "tiếp tục", "đúng rồi", "uh")
 
 
 def _cancelled(state: AgentState) -> bool:
@@ -57,11 +59,16 @@ def _groups(state: AgentState) -> tuple[list[dict], bool]:
     return [{"agent": g["agent"], "text": ", ".join(g["texts"])} for g in groups.values()], slot_answer
 
 
-def _route_to_conversation(state: AgentState, text: str) -> dict:
-    """Route to conversation agent instead of using fixed reply."""
+def _affirm(text: str) -> bool:
+    return text.lower().strip().rstrip(".!?, ") in AFFIRM
+
+
+def _route_to_conversation(state: AgentState, text: str, reason: str | None = None) -> dict:
+    """Route to conversation agent. reason: 'cancel' | 'clarify' | None (chào / ngoài phạm vi theo intent)."""
     return {
         "plan": [{"agent": "conversation", "text": text, "order": 0}],
-        "planned_agents": ["conversation"]
+        "planned_agents": ["conversation"],
+        "conversation_reason": reason,
     }
 
 
@@ -77,7 +84,7 @@ def router(state: AgentState) -> dict:
         update.update(pending_intent=None, pending_text=None, active_flow=None,
                       slots={k: v for k, v in state.get("slots", {}).items() if k not in BOOKING_SLOTS})
         # Route cancel to conversation agent instead of fixed reply
-        update.update(_route_to_conversation(state, text))
+        update.update(_route_to_conversation(state, text, "cancel"))
         return update
 
     groups, slot_answer = _groups(state)
@@ -95,12 +102,13 @@ def router(state: AgentState) -> dict:
         writer = {"agent": active, "text": text}  # trả lời slot cho flow đang làm dở
     elif not groups and not is_greeting and pending in WRITERS:
         writer = {"agent": pending, "text": state.get("pending_text") or text}  # khách đồng ý ("Được")
-    elif not groups and not is_greeting and active:
-        writer = {"agent": active, "text": text}  # câu ngắn không rõ ý trong flow đang dở
+    elif not groups and not is_greeting and active and _affirm(text):
+        writer = {"agent": active, "text": text}  # "Được" / "Ok" trong flow đang dở → hỏi tiếp slot còn thiếu
 
     if not writer and not reads:  # flow/pending giữ nguyên trong checkpoint
-        # Route to conversation agent for greeting/other
-        update.update(_route_to_conversation(state, text))
+        # Không hiểu khách muốn gì trong lúc có flow/việc chờ → hỏi lại, không tự đoán là trả lời slot
+        unclear = not is_greeting and bool(active or pending)
+        update.update(_route_to_conversation(state, text, "clarify" if unclear else None))
         return update
 
     plan = [{"agent": g["agent"], "text": g["text"], "order": i} for i, g in enumerate(reads)]

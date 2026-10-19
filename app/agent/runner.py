@@ -13,6 +13,6 @@ def run_turn(session_id: str, customer_id: int | None, text: str, negotiation_ac
         "trace": Overwrite([]), "answers": Overwrite([]), "allowed_amounts": Overwrite([]),
         "tasks": [], "plan": [], "planned_agents": [], "draft_reply": "", "needs_human": False,
         "handover_reason": None, "set_mode": None, "route": "", "safety": False, "slots_updated": False,
-        "negotiation_active": negotiation_active, "mode": mode,
+        "negotiation_active": negotiation_active, "mode": mode, "conversation_reason": None,
     }
     return get_graph().invoke(turn_input, config)

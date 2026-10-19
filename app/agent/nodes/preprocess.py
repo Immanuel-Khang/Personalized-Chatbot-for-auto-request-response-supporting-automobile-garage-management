@@ -3,15 +3,19 @@
 CHỈ ĐỌC ngoại trừ việc lưu profile vào DB khi phát hiện tên/SĐT.
 Khi có LLM: structured output (intents + tasks). Fallback: rule-based theo từ khóa, tách vế bằng segments.
 """
+import logging
 import re
 
 from app.agent.llm import generate_structured
 from app.agent.nodes.common import step
 from app.agent.nodes.segments import split_clauses
+from app.agent.nodes.service_type import detect_service_type
 from app.agent.state import AgentState
-from app.contracts.schemas import Intent, IntentAndSlotExtraction, ServiceType
+from app.contracts.schemas import Intent, IntentAndSlotExtraction
 from app.db.models import ChatSession, Customer
 from app.db.session import SessionLocal
+
+logger = logging.getLogger(__name__)
 
 # ---- Fallback rule-based ----
 KEYWORDS: dict[Intent, list[str]] = {
@@ -42,6 +46,10 @@ A technical question plus a visit request has both KNOWLEDGE and APPOINTMENT.
 Wanting to visit the showroom to see a car is APPOINTMENT; add SALES only if they ask about price or specs.
 A booking request mentioning maintenance as the service is APPOINTMENT, not a separate MAINTENANCE question.
 A service history request is AFTER_SALES, not a separate MAINTENANCE question.
+Asking how to contact the garage (hotline, address) is OTHER, not APPOINTMENT.
+Only classify APPOINTMENT when the customer clearly asks to book/visit. If the message is unclear, garbled,
+or you are not sure what the customer wants, return OTHER and do NOT extract service_type or appointment_when.
+Never guess slot values: only extract a field when the customer states it explicitly.
 - SALES: Inquiring about car features, models, catalog, prices, or budget-based recommendations.
 - MAINTENANCE: Inquiring about service milestones, repair costs, maintenance schedules by mileage.
 - KNOWLEDGE: General automotive knowledge questions (why, how, when, symptoms).
@@ -61,7 +69,8 @@ Also extract any relevant customer information from the message:
 - customer_phone: Số điện thoại
 - customer_address: Địa chỉ
 - decided_price: Mức giá khách đồng ý chốt (VNĐ)
-- service_type: Loại dịch vụ nếu đặt lịch — một trong MAINTENANCE | REPAIR | TEST_DRIVE
+- service_type: Loại dịch vụ nếu đặt lịch — một trong MAINTENANCE | REPAIR | TEST_DRIVE | SHOWROOM_VISIT
+  (SHOWROOM_VISIT = đến showroom xem xe trực tiếp)
 - appointment_when: Thời điểm hẹn nếu có (VD: "sáng thứ 3", "ngày mai", "15/10")
 """
 
@@ -110,12 +119,8 @@ def _rule_based_preprocess(state: AgentState) -> dict:
         if m2 := re.search(r"(sáng|chiều|tối)", text):
             when += " " + m2.group(1)
         slots["appointment_when"] = when
-    if "lái thử" in text or "chạy thử" in text:
-        slots["service_type"] = ServiceType.TEST_DRIVE.value
-    elif "sửa" in text or "sửa chữa" in text:
-        slots["service_type"] = ServiceType.REPAIR.value
-    elif "bảo dưỡng" in text:
-        slots["service_type"] = ServiceType.MAINTENANCE.value
+    if service := detect_service_type(text).service:  # mơ hồ → để appointment agent hỏi lại
+        slots["service_type"] = service.value
 
     return {"intents": intents, "tasks": tasks, "slots": slots,
             "slots_updated": _slots_updated(old_slots, slots), "complexity": _complexity(raw)}
@@ -196,7 +201,7 @@ def _save_profile_to_db(session_id: str, name: str | None, phone: str | None) ->
         db.commit()
     except Exception as e:
         db.rollback()
-        print(f"Error saving profile: {e}")
+        logger.exception("Error saving profile: %s", e)
     finally:
         db.close()
 

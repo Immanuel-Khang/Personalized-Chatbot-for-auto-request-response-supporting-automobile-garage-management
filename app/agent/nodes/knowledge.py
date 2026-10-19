@@ -2,7 +2,7 @@
 Tích hợp maintenance_node từ codebase hiện tại (tra cứu mốc km bảo dưỡng).
 Không có dữ liệu -> chuyển người; chỉ đọc dữ liệu, chạy song song với các agent khác."""
 from app.agent.llm import generate
-from app.agent.nodes.common import answer, step
+from app.agent.nodes.common import STYLE_RULES, answer, step
 from app.agent.state import AgentState
 from app.config import settings
 from app.contracts.schemas import Intent
@@ -12,13 +12,13 @@ from app.utils import fmt_vnd
 SAFETY_PREFIX = f"⚠️ Nếu xe có dấu hiệu nguy hiểm, hãy dừng xe ở nơi an toàn và gọi hotline {settings.hotline}.\n"
 
 KNOWLEDGE_SYSTEM_PROMPT = """\
-Bạn là chuyên viên kỹ thuật ô tô Toyota. Trả lời chính xác dựa trên tài liệu được cung cấp.
+Bạn là chuyên viên kỹ thuật ô tô của xưởng Foton. Trả lời chính xác dựa trên tài liệu được cung cấp.
 QUY TẮC:
 1. Luôn trả lời bằng tiếng Việt.
 2. KHÔNG ĐƯỢC bịa thông tin. Nếu tài liệu không có → nói thật.
 3. Nếu liên quan đến an toàn → nhấn mạnh cảnh báo và hotline.
 4. Nếu có thông tin bảo dưỡng theo km → nêu rõ mốc km, công việc cần làm, chi phí ước tính.
-"""
+""" + STYLE_RULES
 
 
 def knowledge(state: AgentState) -> dict:
@@ -26,10 +26,11 @@ def knowledge(state: AgentState) -> dict:
     slots = state.get("slots", {})
     intents = state.get("intents", [])
     extra_context = ""
+    result = None
 
     # --- Port maintenance_node: tra cứu mốc km bảo dưỡng ---
     if Intent.MAINTENANCE.value in intents:
-        car_model = slots.get("car_model", "Toyota")
+        car_model = slots.get("car_model") or "xe của bạn"
         mileage = slots.get("current_mileage_km")
         if mileage:
             result = get_services().maintenance.get_milestone_details(car_model, int(mileage))
@@ -61,6 +62,6 @@ def knowledge(state: AgentState) -> dict:
 
     prefix = SAFETY_PREFIX if state.get("safety") else ""
     update["answers"] = [answer(state, "knowledge", prefix + body)]
-    if extra_context and result:
+    if result:
         update["allowed_amounts"] = [fmt_vnd(int(result.estimated_cost))]
     return update

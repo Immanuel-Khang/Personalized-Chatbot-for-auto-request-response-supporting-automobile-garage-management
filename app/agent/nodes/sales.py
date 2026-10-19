@@ -2,7 +2,7 @@
 Chỉ đọc, không có quyền về giá: chỉ báo giá niêm yết kèm ngày hiệu lực.
 Mặc cả do Policy Guard xử lý; chỉ đọc dữ liệu, chạy song song với các agent khác."""
 from app.agent.llm import generate
-from app.agent.nodes.common import answer, step
+from app.agent.nodes.common import STYLE_RULES, answer, step
 from app.agent.state import AgentState
 from app.services import get_services
 from app.utils import fmt_vnd
@@ -10,7 +10,7 @@ from app.utils import fmt_vnd
 SUGGESTION_KEYWORDS = ["phổ biến", "bán chạy", "gợi ý", "nên mua", "nào tốt", "xe gì", "dòng xe nào", "loại xe nào"]
 
 SALES_SYSTEM_PROMPT = """\
-Bạn là trợ lý tư vấn xe Toyota chuyên nghiệp, thân thiện.
+Bạn là trợ lý tư vấn xe của xưởng Foton chuyên nghiệp, thân thiện.
 QUY TẮC:
 1. Luôn trả lời bằng tiếng Việt.
 2. Khi nêu giá, PHẢI dùng đúng số liệu được cung cấp, KHÔNG ĐƯỢC tự bịa giá.
@@ -18,7 +18,7 @@ QUY TẮC:
 4. KHÔNG hứa giảm giá, quà tặng hay cam kết nào.
 5. Chỉ trả lời phần câu hỏi được giao; KHÔNG tự hỏi ngày giờ hay số điện thoại đặt lịch.
 6. Sử dụng thông tin về khách hàng (slots) để tư vấn cá nhân hóa, KHÔNG hỏi lại thông tin đã có.
-"""
+""" + STYLE_RULES
 
 
 def sales(state: AgentState) -> dict:
