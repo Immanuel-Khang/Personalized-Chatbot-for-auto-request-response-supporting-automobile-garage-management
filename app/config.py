@@ -20,7 +20,8 @@ class Settings:
     retriever: str = os.getenv("RETRIEVER", "hybrid")  # hybrid | bm25 | vector | keyword
     embedding_provider: str = os.getenv("EMBEDDING_PROVIDER", "openai")  # openai | hash | none
     embedding_model: str = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
-    rag_vector_store: str = os.getenv("RAG_VECTOR_STORE", "local")
+    rag_vector_store: str = os.getenv("RAG_VECTOR_STORE", "pgvector")  # pgvector | local
+    rag_lexical: str = os.getenv("RAG_LEXICAL", "python")  # python | pg
     rag_cache_dir: str = os.getenv("RAG_CACHE_DIR", "./data/.rag_cache")
     rag_candidates: int = int(os.getenv("RAG_CANDIDATES", "10"))
     rag_rrf_k: int = int(os.getenv("RAG_RRF_K", "60"))
