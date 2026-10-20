@@ -119,7 +119,10 @@ def _rule_based_preprocess(state: AgentState) -> dict:
         if m2 := re.search(r"(sáng|chiều|tối)", text):
             when += " " + m2.group(1)
         slots["appointment_when"] = when
-    if service := detect_service_type(text).service:  # mơ hồ → để appointment agent hỏi lại
+    # Câu hỏi thuần ("Phanh kêu có nguy hiểm không?") không phải trả lời slot: không ghi đè loại dịch vụ đang đặt
+    question_only = (Intent.APPOINTMENT.value not in intents
+                     and any(i in intents for i in (Intent.KNOWLEDGE.value, Intent.SALES.value, Intent.AFTER_SALES.value)))
+    if not question_only and (service := detect_service_type(text).service):  # mơ hồ → appointment hỏi lại
         slots["service_type"] = service.value
 
     return {"intents": intents, "tasks": tasks, "slots": slots,

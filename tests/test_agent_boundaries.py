@@ -35,7 +35,7 @@ def appointments(conv):
 
 
 def test_price_and_test_drive_same_turn_single_booking(client):
-    first = chat(client, "Giá xe Vios bao nhiêu, cho mình chạy thử", "same-turn")
+    first = chat(client, "Giá xe Foton Aumark bao nhiêu, cho mình chạy thử", "same-turn")
     conv = first["session_id"]
     assert {"sales", "appointment"} <= set(first["trace"])
     assert "đồng" in first["reply"] and first["reply"].rstrip().endswith("Bạn muốn đến vào ngày giờ nào?")
@@ -50,8 +50,8 @@ def test_price_and_test_drive_same_turn_single_booking(client):
     assert len(booked) == 1 and booked[0].service_type == "TEST_DRIVE"
 
 
-def test_camry_showroom_visit_goes_to_appointment(client):
-    result = chat(client, "Tôi muốn đến showroom để xem xe toyota camry 2.5Q", "showroom")
+def test_showroom_visit_goes_to_appointment(client):
+    result = chat(client, "Tôi muốn đến showroom để xem xe Foton Aumark", "showroom")
     assert "appointment" in result["trace"] and "sales" not in result["trace"]
 
 
@@ -87,7 +87,7 @@ def test_cancel_and_greeting_in_active_flow(client):
 
 
 def test_policy_escalation_clears_flow(client):
-    first = chat(client, "Giá xe Vios bao nhiêu, cho mình chạy thử", "escalate")
+    first = chat(client, "Giá xe Foton Aumark bao nhiêu, cho mình chạy thử", "escalate")
     conv = first["session_id"]
     escalated = chat(client, "Giảm giá cho mình", "escalate", conv)
     assert escalated["mode"] == "HUMAN_PENDING" and "appointment" not in escalated["trace"]
@@ -118,7 +118,7 @@ def test_active_appointment_service_slot_and_updated_time(client):
 
 
 def test_sales_question_ending_with_thoi_is_not_cancelled(client):
-    result = chat(client, "Cho mình hỏi giá xe Vios thôi", "not-cancel")
+    result = chat(client, "Cho mình hỏi giá xe Foton Aumark thôi", "not-cancel")
     assert "sales" in result["trace"] and "đã dừng" not in result["reply"]
 
 
@@ -147,13 +147,13 @@ def test_contract_slot_only_continuation(client):
 
 
 def test_contract_and_fee_question_same_turn(client):
-    result = chat(client, "Mình chốt mua Vios, phí trước bạ bao nhiêu", "contract-clause")
+    result = chat(client, "Mình chốt mua Foton Aumark, phí trước bạ bao nhiêu", "contract-clause")
     assert {"contract", "sales"} <= set(result["trace"]) and "human_handover" not in result["trace"]
 
 
 def test_partial_handover_keeps_other_answers(client, monkeypatch):
     monkeypatch.setattr(get_services().knowledge, "retrieve", Mock(return_value=[]))
-    result = chat(client, "Giá xe Vios bao nhiêu, còn phanh kêu là tại sao", "partial")
+    result = chat(client, "Giá xe Foton Aumark bao nhiêu, còn phanh kêu là tại sao", "partial")
     assert {"sales", "knowledge", "human_handover"} <= set(result["trace"])
     assert "đồng" in result["reply"] and "chuyển yêu cầu" in result["reply"]
     assert result["mode"] == "HUMAN_PENDING"
@@ -166,9 +166,9 @@ def test_agents_receive_their_own_clause(client, monkeypatch):
     monkeypatch.setattr(get_services().knowledge, "retrieve", retrieve)
     search = Mock(wraps=get_services().product.search)
     monkeypatch.setattr(get_services().product, "search", search)
-    result = chat(client, "Giá xe 7 chỗ bao nhiêu, còn phanh kêu là tại sao", "clauses")
+    result = chat(client, "Giá xe tải Foton bao nhiêu, còn phanh kêu là tại sao", "clauses")
     assert {"sales", "knowledge"} <= set(result["trace"])
-    assert search.call_args.args[0] == "Giá xe 7 chỗ bao nhiêu"
+    assert search.call_args.args[0] == "Giá xe tải Foton bao nhiêu"
     assert retrieve.call_args.args[0] == "phanh kêu là tại sao"
     # Sales trả lời trước knowledge theo thứ tự vế câu, bất kể nhánh nào chạy xong trước
     assert result["reply"].index("đồng") < result["reply"].index("phanh")
@@ -299,6 +299,6 @@ def test_llm_budget_search_regression(client, monkeypatch):
 
 
 def test_split_clauses_keeps_original_text():
-    assert split_clauses("So sánh Vios và Camry", classify_clause) == [("So sánh Vios và Camry", {"SALES"})]
+    assert split_clauses("So sánh Foton và Isuzu", classify_clause) == [("So sánh Foton và Isuzu", {"SALES"})]
     assert [c for c, _ in split_clauses("Xe giá 1.5 tỷ phải không. Phanh kêu tại sao", classify_clause)] == \
         ["Xe giá 1.5 tỷ phải không", "Phanh kêu tại sao"]

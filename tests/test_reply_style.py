@@ -11,7 +11,7 @@ from app.agent.nodes.router import router
     ("Xin chào bạn! Giá xe là", "Giá xe là"),
     ("Chào anh/chị. Xe này", "Xe này"),
     ("Chào mừng bạn đến với xưởng", "Chào mừng bạn đến với xưởng"),  # không phải lời chào mở đầu
-    ("Giá xe Vios", "Giá xe Vios"),
+    ("Giá xe Foton", "Giá xe Foton"),
 ])
 def test_strip_greeting(text, expected):
     assert strip_greeting(text) == expected

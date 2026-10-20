@@ -8,6 +8,9 @@ from app.contracts.schemas import Product
 from app.db.models import CatalogItem
 from app.db.session import SessionLocal
 
+# Loại sản phẩm là xe (catalog hiện chỉ có TRUCK, có thể thêm CAR); PART là phụ tùng
+VEHICLE_KINDS = ("CAR", "TRUCK")
+
 
 def _to_product(i: CatalogItem) -> Product:
     return Product(id=i.id, kind=i.kind, name=i.name, list_price_vnd=i.list_price_vnd,
@@ -26,7 +29,7 @@ class DbProductService:
                 items = []
             if not items:
                 # Không khớp tên cụ thể → trả vài xe đầu catalog
-                items = db.query(CatalogItem).filter(CatalogItem.kind == "CAR").limit(limit).all()
+                items = db.query(CatalogItem).filter(CatalogItem.kind.in_(VEHICLE_KINDS)).limit(limit).all()
             return [_to_product(i) for i in items]
 
     def search_by_budget(self, budget_vnd: float, limit: int = 3) -> list[Product]:
@@ -34,7 +37,7 @@ class DbProductService:
         with SessionLocal() as db:
             items = (
                 db.query(CatalogItem)
-                .filter(CatalogItem.kind == "CAR", CatalogItem.list_price_vnd <= budget_vnd * 1.1)
+                .filter(CatalogItem.kind.in_(VEHICLE_KINDS), CatalogItem.list_price_vnd <= budget_vnd * 1.1)
                 .order_by(CatalogItem.list_price_vnd.desc())
                 .limit(limit)
                 .all()
@@ -43,7 +46,7 @@ class DbProductService:
                 # Ngân sách quá thấp → trả xe rẻ nhất trong catalog
                 items = (
                     db.query(CatalogItem)
-                    .filter(CatalogItem.kind == "CAR")
+                    .filter(CatalogItem.kind.in_(VEHICLE_KINDS))
                     .order_by(CatalogItem.list_price_vnd.asc())
                     .limit(limit)
                     .all()
@@ -53,7 +56,7 @@ class DbProductService:
     def get_popular(self, limit: int = 3) -> list[Product]:
         """Trả danh sách xe phổ biến (hiện tại theo thứ tự catalog, sau có thể dùng lượt xem thực)."""
         with SessionLocal() as db:
-            items = db.query(CatalogItem).filter(CatalogItem.kind == "CAR").limit(limit).all()
+            items = db.query(CatalogItem).filter(CatalogItem.kind.in_(VEHICLE_KINDS)).limit(limit).all()
             return [_to_product(i) for i in items]
 
     def get_by_name(self, name: str) -> Optional[Product]:

@@ -14,8 +14,8 @@ def test_greeting(client):
 
 
 def test_sales_shows_price_with_date(client):
-    r = chat(client, "Cho mình hỏi giá xe Toyota Vios")
-    assert "đồng" in r["reply"] or "VNĐ" in r["reply"] or "vios" in r["reply"].lower()
+    r = chat(client, "Cho mình hỏi giá xe Foton Aumark")
+    assert "đồng" in r["reply"] or "VNĐ" in r["reply"] or "foton" in r["reply"].lower()
 
 
 def test_negotiation_goes_to_human(client):
@@ -28,7 +28,7 @@ def test_pending_bot_silent(client):
     """Đang chờ nhân viên, không gọi graph và không tạo ticket mới."""
     r = chat(client, "Giảm giá cho mình đi", token="t5")
     assert r["mode"] == "HUMAN_PENDING"
-    r2 = chat(client, "Cho mình hỏi giá xe Toyota Vios", token="t5", conv=r["session_id"])
+    r2 = chat(client, "Cho mình hỏi giá xe Foton Aumark", token="t5", conv=r["session_id"])
     assert r2["mode"] == "HUMAN_PENDING" and r2["trace"] == [] and r2["reply"] == ""
 
 
@@ -67,7 +67,7 @@ def test_contract_asks_for_info(client):
 
 def test_discount_with_car_model_goes_to_human(client):
     """Không còn auto-approve: kể cả nêu rõ xe + % nhỏ vẫn chuyển người."""
-    r = chat(client, "Xe Vios giảm giá cho mình 3% nhé", token="t8")
+    r = chat(client, "Xe Foton Aumark giảm giá cho mình 3% nhé", token="t8")
     assert r["mode"] == "HUMAN_PENDING" and "human_handover" in r["trace"] and "sales" not in r["trace"]
 
 
@@ -83,16 +83,20 @@ def test_knowledge_complexity_high_goes_to_human(client):
 
 def test_sales_and_appointment_same_turn(client):
     """Giá + lái thử: sales báo giá và appointment hỏi slot trong cùng một lượt, câu hỏi slot nằm cuối."""
-    r = chat(client, "Giá xe Vios bao nhiêu, cho mình chạy thử", token="t11")
+    r = chat(client, "Giá xe Foton Aumark bao nhiêu, cho mình chạy thử", token="t11")
     assert {"sales", "appointment"} <= set(r["trace"])
     assert r["trace"][-3:] == ["compose", "output_guard", "respond"]
     assert "đồng" in r["reply"] and r["reply"].rstrip().endswith("Bạn muốn đến vào ngày giờ nào?")
 
 
 def test_knowledge_and_appointment_same_turn(client):
+    """Hỏi kỹ thuật + muốn mang xe qua: knowledge trả lời trước, appointment hiểu là sửa chữa và hỏi ngày giờ."""
     r = chat(client, "Tại sao phanh kêu, mình mang xe qua được không", token="t12")
     assert {"knowledge", "appointment"} <= set(r["trace"])
-    assert r["reply"].rstrip().endswith("Bạn muốn đặt lịch bảo dưỡng, sửa chữa hay lái thử xe?")
+    reply = r["reply"].rstrip()
+    assert "phanh" in reply.lower() and reply.endswith("Bạn muốn đến vào ngày giờ nào?")
+    # Không hỏi lại loại dịch vụ khi khách đã nói rõ triệu chứng hỏng
+    assert "lái thử" not in reply
 
 
 

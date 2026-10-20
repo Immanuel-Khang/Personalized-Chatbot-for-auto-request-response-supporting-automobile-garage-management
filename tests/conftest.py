@@ -5,6 +5,8 @@ import os
 os.environ["DATABASE_URL"] = os.getenv(
     "TEST_DATABASE_URL", "postgresql+psycopg://garage:garage@127.0.0.1:5432/garage_test?connect_timeout=5")
 os.environ["LLM_PROVIDER"] = "none"  # test chạy rule-based, không cần API key
+# RAG chạy BM25-only: không gọi OpenAI embeddings (mỗi câu hỏi 1 request mạng, mạng chậm -> treo cả suite)
+os.environ["EMBEDDING_PROVIDER"] = "none"
 
 import pytest
 from fastapi.testclient import TestClient
@@ -34,13 +36,14 @@ def _ensure_test_database() -> None:
 _ensure_test_database()
 
 from app.main import app  # noqa: E402
-from app.db.session import engine, SessionLocal, Base  # noqa: E402
+from app.db.session import engine, SessionLocal, Base, init_db  # noqa: E402
 from app.db import models  # noqa: E402, F401 - Import to register models
 
-# Reset schema mỗi lần chạy: bảng sót lại từ lần chạy trước (bị ngắt giữa chừng) không làm hỏng create_all
+# Reset schema mỗi lần chạy rồi dựng bằng Alembic (giống production): lifespan của app gọi
+# `alembic upgrade head` lần nữa sẽ là no-op. create_all không ghi alembic_version -> CREATE TABLE trùng.
 with engine.begin() as conn:
     conn.execute(text("DROP SCHEMA public CASCADE; CREATE SCHEMA public"))
-Base.metadata.create_all(bind=engine)
+init_db()
 
 
 @pytest.fixture()

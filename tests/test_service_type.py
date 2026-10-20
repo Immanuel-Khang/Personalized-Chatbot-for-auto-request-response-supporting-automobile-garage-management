@@ -7,7 +7,7 @@ from app.contracts.schemas import ServiceType as S
 
 @pytest.mark.parametrize("text, expected", [
     ("Tôi muốn qua xưởng xem xe", S.SHOWROOM_VISIT),
-    ("Mình muốn đến showroom xem Camry", S.SHOWROOM_VISIT),
+    ("Mình muốn đến showroom xem xe Foton", S.SHOWROOM_VISIT),
     ("Cho mình xem xe trực tiếp", S.SHOWROOM_VISIT),
     ("Cho mình chạy thử", S.TEST_DRIVE),
     ("Muốn đến showroom lái thử", S.TEST_DRIVE),  # PRECEDENCE: lái thử cụ thể hơn
