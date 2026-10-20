@@ -19,6 +19,7 @@ from app.rag.bm25 import BM25Index
 from app.rag.chunking import Chunk, load_chunks
 from app.rag.embeddings import Embedder
 from app.rag.fusion import rrf
+from app.rag.pgstore import PgFtsIndex
 from app.rag.vectorstore import VectorStore
 
 logger = logging.getLogger(__name__)
@@ -37,30 +38,49 @@ class HybridRetriever:
         weight_vector: float = 1.0,
         min_keyword_hits: int = 2,
         min_vector_sim: float = 0.35,
+        lexical: str = "python",         # python (BM25 trong RAM) | pg (full-text của Postgres, cần store là PgVectorStore)
     ) -> None:
         self.dir, self.embedder, self.store = knowledge_dir, embedder, store
         self.mode, self.candidates, self.rrf_k = mode, candidates, rrf_k
         self.w_bm25, self.w_vec = weight_bm25, weight_vector
         self.min_hits, self.min_sim = min_keyword_hits, min_vector_sim
+        self.lexical = lexical
         self.chunks: list[Chunk] = []
         self._by_id: dict[str, Chunk] = {}
-        self._bm25: BM25Index | None = None
+        self._bm25: BM25Index | PgFtsIndex | None = None
         self._vector_ready = False
         self.reload()
 
     # ---- lập chỉ mục -------------------------------------------------
     def reload(self) -> int:
-        """Đọc lại data/knowledge/ và dựng lại chỉ mục (đoạn không đổi dùng lại vector trong cache). Trả số chunk."""
+        """Đọc lại data/knowledge/ và dựng lại chỉ mục (đoạn không đổi dùng lại vector đã có trong DB/cache). Trả số chunk."""
         chunks = load_chunks(self.dir)
-        bm25 = BM25Index([c.index_text for c in chunks])
+        persistent = hasattr(self.store, "sync")  # PgVectorStore: chunk + vector nằm trong DB, đồng bộ tăng dần
         vector_ready = False
-        if self.embedder and self.store and self.mode in ("hybrid", "vector") and chunks:
+        want_vec = bool(self.embedder and self.store and self.mode in ("hybrid", "vector") and chunks)
+        synced = False
+        if persistent:
             try:
-                vecs = self.embedder.embed_documents([c.index_text for c in chunks])
-                self.store.replace_all([c.id for c in chunks], vecs)
+                self.store.sync(chunks, self.embedder if want_vec else None)  # type: ignore[union-attr]
+                synced, vector_ready = True, want_vec
+            except Exception as e:
+                logger.warning("Không đồng bộ vector vào Postgres (%s) -> chạy BM25-only", e)
+                try:  # vẫn đưa chunk (không vector) vào DB để nhánh full-text dùng được
+                    self.store.sync(chunks, None)  # type: ignore[union-attr]
+                    synced = True
+                except Exception as e2:
+                    logger.warning("Không đồng bộ được chunk vào Postgres (%s)", e2)
+        elif want_vec:
+            try:
+                vecs = self.embedder.embed_documents([c.index_text for c in chunks])  # type: ignore[union-attr]
+                self.store.replace_all([c.id for c in chunks], vecs)  # type: ignore[union-attr]
                 vector_ready = True
             except Exception as e:
                 logger.warning("Không dựng được chỉ mục vector (%s) -> chạy BM25-only", e)
+        if self.lexical == "pg" and synced:
+            bm25 = PgFtsIndex(self.store.engine, chunks, self.store.ns)  # type: ignore[union-attr]
+        else:
+            bm25 = BM25Index([c.index_text for c in chunks])
         self.chunks, self._by_id, self._bm25, self._vector_ready = chunks, {c.id: c for c in chunks}, bm25, vector_ready
         logger.info("RAG index: %d chunk, mode=%s, vector=%s", len(chunks), self.mode, vector_ready)
         return len(chunks)
