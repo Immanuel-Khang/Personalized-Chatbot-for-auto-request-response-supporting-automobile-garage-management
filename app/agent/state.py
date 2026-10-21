@@ -24,7 +24,10 @@ class AgentState(TypedDict, total=False):
     planned_agents: list[str]
     pending_intent: str | None  # intent ghi dữ liệu bị hoãn sang lượt sau (vd CONTRACT + APPOINTMENT)
     pending_text: str | None  # phần câu gốc của pending_intent
-    conversation_reason: str | None  # router → conversation: 'cancel' | 'clarify' | None (theo intent)
+    conversation_reason: str | None  # router → conversation: 'cancel' | 'clarify' | 'service_inquiry' | 'contract_inquiry'
+    # Bước bot vừa GỢI Ý (chưa thực hiện), vd {intent: APPOINTMENT, text}: chỉ router ghi, hiệu lực đúng 1 lượt.
+    # Khách đồng ý / trả lời giờ ở lượt sau → mới vào flow; khác đi → bỏ.
+    offer: dict | None
     # payload riêng của từng nhánh (router gửi qua Send)
     task_text: str
     task_order: int

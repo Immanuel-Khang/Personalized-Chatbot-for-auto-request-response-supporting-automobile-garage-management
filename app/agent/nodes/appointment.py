@@ -1,10 +1,17 @@
 """[TRACK B gọi, TRACK C cài BookingService] Appointment Agent: slot-filling nhiều lượt, bắt buộc có SĐT."""
 from app.agent.llm import generate
 from app.agent.nodes.common import STYLE_RULES, answer, conversation_history, step
+from app.agent.nodes.router import BOOKING_SLOTS, _affirm
 from app.agent.nodes.service_type import LABELS, clarify_question, resolve_service_type
 from app.agent.state import AgentState
-from app.contracts.schemas import ServiceType
+from app.config import settings
+from app.contracts.schemas import Intent, ServiceType
+from app.identity import normalize_phone
 from app.services import get_services
+
+CONFIRM = "Em ghi nhận lịch {label} ({when}) cho anh/chị. Anh/chị xác nhận đặt lịch này giúp em nhé?"
+BOOKING_FAILED = ("Hiện em chưa xác nhận được lịch {when} trên hệ thống ạ. Em vẫn giữ thông tin anh/chị đã cung cấp, "
+                  "anh/chị có thể nhắn lại để em thử lại hoặc gọi hotline {hotline} để nhân viên hỗ trợ.")
 
 # Fallback templates when LLM not available
 ASK_FALLBACK = {
@@ -73,7 +80,8 @@ def _generate_slot_question(state: AgentState, slots: dict, missing: list[str]) 
     slot_names = {
         "service_type": "Loại dịch vụ",
         "when_text": "Ngày giờ hẹn",
-        "phone": "Số điện thoại"
+        "phone": "Số điện thoại",
+        "service_detail": "Hạng mục khách nhắc tới",
     }
 
     shown = {**slots, "service_type": LABELS[ServiceType(slots["service_type"])]} if slots.get("service_type") else slots
@@ -121,18 +129,34 @@ def appointment(state: AgentState) -> dict:
                 "active_flow": "appointment", "slots": slots,
                 "trace": step(state, "appointment")}
 
-    # Đủ slot → tạo lịch hẹn
-    result = get_services().booking.create_appointment(
-        state["session_id"], ServiceType(slots["service_type"]), slots["when_text"], slots["phone"]
-    )
-
-    if not result.ok:  # SĐT không hợp lệ → hỏi lại, giữ luồng
-        slots.pop("phone", None)
-        slots.pop("customer_phone", None)
-        return {"answers": [answer(state, "appointment", f"{result.message} {ASK_FALLBACK['phone']}")],
+    label = LABELS[ServiceType(slots["service_type"])]
+    # Đủ slot nhưng khách mới chỉ nhận lời gợi ý của bot (chưa nói muốn đặt) → xác nhận trước khi tạo lịch
+    explicit = (Intent.APPOINTMENT.value in state.get("intents", []) or state.get("active_flow") == "appointment"
+                or _affirm(state.get("user_text", "")))
+    if not explicit:
+        return {"answers": [answer(state, "appointment", CONFIRM.format(label=label, when=slots["when_text"]))],
                 "active_flow": "appointment", "slots": slots, "trace": step(state, "appointment")}
 
-    label = LABELS[ServiceType(slots["service_type"])]
+    # Đủ slot → tạo lịch hẹn
+    try:
+        result = get_services().booking.create_appointment(
+            state["session_id"], ServiceType(slots["service_type"]), slots["when_text"], slots["phone"]
+        )
+    except Exception:  # lỗi hệ thống đặt lịch: không báo thành công, giữ slot để thử lại
+        result = None
+
+    if result is None or not result.ok:
+        if result is not None and normalize_phone(slots["phone"]) is None:  # SĐT không hợp lệ → hỏi lại, giữ luồng
+            slots.pop("phone", None)
+            slots.pop("customer_phone", None)
+            reply = f"{result.message} {ASK_FALLBACK['phone']}"
+        else:
+            reply = BOOKING_FAILED.format(when=slots["when_text"], hotline=settings.hotline)
+        return {"answers": [answer(state, "appointment", reply)],
+                "active_flow": "appointment", "slots": slots, "trace": step(state, "appointment")}
+
     reply = f"Mình đã ghi nhận lịch hẹn {label} ({slots['when_text']}). {result.message}"
-    return {"answers": [answer(state, "appointment", reply)], "slots": {}, "active_flow": None,
+    # Chỉ xóa slot đặt lịch; giữ thông tin khách (tên, SĐT, dòng xe) cho các lượt sau
+    kept = {k: v for k, v in slots.items() if k not in BOOKING_SLOTS}
+    return {"answers": [answer(state, "appointment", reply)], "slots": kept, "active_flow": None,
             "trace": step(state, "appointment")}

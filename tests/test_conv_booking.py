@@ -28,7 +28,6 @@ def test_tc04_explicit_request_enters_flow_and_keeps_date(client):
     assert BOOKED not in result["reply"] and conv.appointments() == []
 
 
-@defect("DEFECT-04", "'kiểm tra điều hòa' không khớp SERVICE_PATTERNS -> hỏi lại loại dịch vụ khách đã nói")
 def test_tc04_does_not_reask_service(client):
     conv = Conversation(client, "tc04-service")
     result = conv.say(TC04)
@@ -46,7 +45,6 @@ def test_tc05_full_request_unknown_customer_asks_only_phone(client):
     assert BOOKED not in result["reply"] and conv.appointments() == []
 
 
-@defect("DEFECT-05", "regex thời gian trong preprocess chỉ bắt buổi (sáng/chiều/tối), mất '10 giờ'")
 def test_tc05_keeps_exact_time(client):
     conv = Conversation(client, "tc05-time")
     conv.say(TC05)
@@ -92,7 +90,6 @@ def test_tc06_second_turn_keeps_booking_context(client):
     assert conv.customer_id() == customer_before and conv.appointments() == []
 
 
-@defect("DEFECT-06", "'10 giờ sáng nhé' không được nhận là trả lời slot -> router hỏi lại 'chưa hiểu'")
 def test_tc06_time_answer_fills_pending_slot(client):
     conv = Conversation(client, "tc06-slot")
     conv.say(TC06[0])

@@ -19,7 +19,6 @@ NAMING = {
     "pk": "pk_%(table_name)s",
 }
 
-
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING)
 

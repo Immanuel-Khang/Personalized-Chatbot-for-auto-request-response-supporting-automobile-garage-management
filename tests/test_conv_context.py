@@ -69,13 +69,11 @@ def test_tc13_unknown_service_makes_no_claim_either_way(client):
     assert not mentions(result["reply"], DATE_ASK + PHONE_ASK) and questions(result["reply"]) <= 1
 
 
-@defect("DEFECT-01", "câu hỏi dịch vụ không khớp intent nào -> fallback 'chưa hiểu', không nói cần xác minh")
 def test_tc13_says_availability_needs_verification(client):
     reply = Conversation(client, "tc13-verify").say(TC13)["reply"].lower()
     assert NOT_UNDERSTOOD not in reply and mentions(reply, ("kiểm tra", "xác nhận", "hotline", "nhân viên"))
 
 
-@defect("DEFECT-02", "preprocess ghi service_type=REPAIR từ câu hỏi dịch vụ")
 def test_tc13_collects_no_booking_slot(client):
     conv = Conversation(client, "tc13-slots")
     conv.say(TC13)
@@ -88,8 +86,7 @@ INQUIRIES = [
     "Kính chắn gió xe tôi có một vết nứt nhỏ ở góc bên phải.",
     "Thay kính chắn gió hết bao nhiêu tiền vậy?",
     "Tôi đang muốn tìm một chiếc Foton Aumark để đi làm hằng ngày.",
-    pytest.param("Tôi muốn ký hợp đồng mua xe, cần chuẩn bị giấy tờ gì?",
-                 marks=defect("DEFECT-10", "contract flow xin SĐT/địa chỉ cho câu hỏi thủ tục")),
+    "Tôi muốn ký hợp đồng mua xe, cần chuẩn bị giấy tờ gì?",
     "Xe tôi có tiếng kêu lạ khi phanh.",
     "Gara bên bạn có sửa hệ thống pin của xe điện bị lỗi không?",
 ]

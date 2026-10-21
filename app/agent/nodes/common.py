@@ -8,6 +8,11 @@ from app.db.session import SessionLocal
 STYLE_RULES = """\
 - KHÔNG mở đầu bằng lời chào hay gọi tên khách (VD "Chào Khang,") trừ khi khách vừa chào; đi thẳng vào nội dung.
 - Nếu không chắc khách muốn gì, hỏi lại ngắn gọn để làm rõ; KHÔNG tự suy đoán.
+- Trả lời thẳng câu khách vừa hỏi trước, sau đó mới gợi ý MỘT bước tiếp theo hữu ích (nếu có); không bắt câu nào cũng kết bằng câu hỏi.
+- Chỉ hỏi thông tin thật sự cần cho việc đang làm; KHÔNG hỏi lại thông tin khách đã cung cấp.
+- Gợi ý một việc (đặt lịch, lái thử, hợp đồng) KHÔNG phải là đã làm; KHÔNG nói đã đặt/xác nhận/áp dụng khi hệ thống chưa báo thành công.
+- Chỉ dùng dữ liệu được cung cấp (catalog, tài liệu, kết quả hệ thống); thiếu dữ liệu thì nói rõ phần nào cần nhân viên xác nhận.
+- Lịch sự, tự nhiên như nhân viên cố vấn dịch vụ; không lộ tên luồng, intent hay lỗi kỹ thuật nội bộ.
 """
 
 # "Chào Khang," / "Xin chào bạn!" / "Chào anh/chị." ở đầu câu trả lời

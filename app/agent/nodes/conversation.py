@@ -2,11 +2,13 @@
 và truy vấn thông tin từ hội thoại. Chỉ đọc, không ghi dữ liệu."""
 from app.agent.llm import generate
 from app.agent.nodes.common import STYLE_RULES, answer, conversation_history, step
+from app.agent.nodes.service_type import detect_component
 from app.agent.state import AgentState
 from app.config import settings
 from app.contracts.schemas import Intent
 from app.db.models import ChatSession, Customer
 from app.db.session import SessionLocal
+from app.services import get_services
 
 CONVERSATION_SYSTEM_PROMPT = """\
 Bạn là trợ lý thân thiện của xưởng Foton. Nhiệm vụ của bạn:
@@ -14,7 +16,8 @@ Bạn là trợ lý thân thiện của xưởng Foton. Nhiệm vụ của bạn
 2. Hướng dẫn lịch sự khi khách hỏi ngoài phạm vi (gợi ý: tư vấn xe, báo giá, đặt lịch bảo dưỡng/lái thử, kiến thức kỹ thuật)
 3. Xác nhận khi khách muốn hủy yêu cầu
 4. Trả lời câu hỏi về thông tin khách đã cung cấp trước đó (tên, số điện thoại)
-5. Khi chưa hiểu khách muốn gì: hỏi lại để làm rõ, có thể nêu cách bạn đang hiểu để khách xác nhận
+5. Trả lời câu hỏi về dịch vụ / thủ tục dựa trên tài liệu được cung cấp
+6. Khi chưa hiểu khách muốn gì: hỏi lại để làm rõ, có thể nêu cách bạn đang hiểu để khách xác nhận
 
 QUY TẮC:
 - Luôn trả lời bằng tiếng Việt
@@ -30,6 +33,13 @@ INTENT_CONTEXT = {
     "greeting": "Khách đang chào hỏi.",
     "cancel": "Khách muốn hủy yêu cầu đang xử lý. Xác nhận đã dừng và hỏi có cần gì khác.",
     "clarify": "Bạn chưa hiểu rõ khách muốn gì. Hỏi lại ngắn gọn để làm rõ, KHÔNG tự đoán và KHÔNG tự thực hiện yêu cầu.",
+    "service_inquiry": ("Khách hỏi xưởng có hỗ trợ một hạng mục sửa chữa/kiểm tra không. Trả lời câu hỏi trước: chỉ khẳng định "
+                        "xưởng làm được hạng mục đó khi tài liệu bên dưới nói rõ; nếu không, nói kỹ thuật viên cần kiểm tra/xác nhận "
+                        "trực tiếp, KHÔNG khẳng định có hay không. Sau đó gợi ý mang xe qua để kiểm tra. KHÔNG hỏi số điện thoại, "
+                        "KHÔNG chẩn đoán chắc chắn nguyên nhân, KHÔNG báo giá khi tài liệu không có giá."),
+    "contract_inquiry": ("Khách hỏi thủ tục/giấy tờ mua xe hoặc hợp đồng, CHƯA phải chốt mua. Chỉ trả lời theo tài liệu bên dưới; "
+                         "tài liệu không có thì nói nhân viên tư vấn sẽ xác nhận danh mục giấy tờ chính xác. KHÔNG tự liệt kê "
+                         "giấy tờ pháp lý, KHÔNG hứa duyệt vay, KHÔNG xin thông tin cá nhân."),
     "other": ("Tin nhắn chưa thuộc chủ đề nào bạn xử lý được. Nếu đó là câu nói tiếp chủ đề trước thì trả lời theo ngữ cảnh; "
               "nếu chưa rõ ý thì hỏi lại; nếu ngoài phạm vi thì hướng dẫn lịch sự các chủ đề bạn hỗ trợ."),
 }
@@ -38,6 +48,10 @@ FALLBACK = {
     "greeting": "Chào bạn! Mình là trợ lý của xưởng Foton. Mình có thể tư vấn xe, báo giá, đặt lịch bảo dưỡng/lái thử hoặc giải đáp thắc mắc kỹ thuật.",
     "cancel": "Mình đã dừng yêu cầu đang chờ. Bạn cần hỗ trợ gì khác cứ nhắn nhé.",
     "clarify": "Mình chưa hiểu rõ ý bạn lắm. Bạn nói rõ hơn giúp mình được không?",
+    "service_inquiry": ("Dạ, về {component} thì kỹ thuật viên bên em cần xem trực tiếp mới xác nhận được hướng xử lý và chi phí ạ. "
+                        "Nếu anh/chị muốn, em có thể sắp xếp để anh/chị mang xe qua xưởng kiểm tra."),
+    "contract_inquiry": ("Dạ, danh mục giấy tờ cụ thể sẽ do nhân viên tư vấn xác nhận theo hình thức mua của anh/chị ạ. "
+                         "Anh/chị cần em chuyển câu hỏi này cho nhân viên tư vấn không?"),
     "other": "Mình chưa hiểu rõ ý bạn. Bạn có thể hỏi về giá xe, đặt lịch bảo dưỡng/lái thử, hoặc kiến thức kỹ thuật nhé.",
 }
 
@@ -82,9 +96,15 @@ def conversation(state: AgentState) -> dict:
     else:
         profile_text = "Chưa có thông tin khách hàng trong hồ sơ."
 
+    documents = ""
+    if reason in ("service_inquiry", "contract_inquiry"):
+        chunks = get_services().knowledge.retrieve(question, k=3)
+        documents = "\n".join(c.text for c in chunks) or "(không có tài liệu liên quan)"
+        documents = f"\nTài liệu của xưởng (nguồn duy nhất được dùng):\n{documents}\n"
+
     context = f"""
 {INTENT_CONTEXT[reason]}
-
+{documents}
 Lịch sử hội thoại gần đây:
 {history}
 
@@ -94,5 +114,6 @@ Tin nhắn mới của khách: {question}
 """
 
     reply = generate(CONVERSATION_SYSTEM_PROMPT.format(hotline=settings.hotline, style=STYLE_RULES), context)
-    update["answers"] = [answer(state, "conversation", reply or FALLBACK[reason])]
+    fallback = FALLBACK[reason].format(component=detect_component(question) or "tình trạng xe")
+    update["answers"] = [answer(state, "conversation", reply or fallback)]
     return update

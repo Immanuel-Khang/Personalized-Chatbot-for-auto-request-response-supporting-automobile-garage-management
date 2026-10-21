@@ -9,7 +9,7 @@ import re
 from app.agent.llm import generate_structured
 from app.agent.nodes.common import step
 from app.agent.nodes.segments import split_clauses
-from app.agent.nodes.service_type import detect_service_type
+from app.agent.nodes.service_type import detect_component, detect_service_type
 from app.agent.state import AgentState
 from app.contracts.schemas import Intent, IntentAndSlotExtraction
 from app.db.models import ChatSession, Customer
@@ -25,11 +25,20 @@ KEYWORDS: dict[Intent, list[str]] = {
                          "đến showroom", "ghé showroom", "qua showroom", "tới showroom", "xem xe trực tiếp"],
     Intent.AFTER_SALES: ["lịch sử bảo dưỡng", "lịch sử sửa chữa", "lịch sử dịch vụ", "lần trước", "đã sửa gì", "đã làm gì"],
     Intent.MAINTENANCE: ["bảo dưỡng", "bao lâu thay dầu", "mốc km", "số km"],
-    Intent.SALES: ["giá", "mua xe", "bao nhiêu", "so sánh", "trả góp", "xe nào", "tư vấn xe"],
+    Intent.SALES: ["giá", "mua xe", "muốn mua", "tìm mua", "tìm một chiếc", "tìm xe", "bao nhiêu", "so sánh",
+                   "trả góp", "xe nào", "tư vấn xe"],
     Intent.KNOWLEDGE: ["tại sao", "vì sao", "bao lâu", "khi nào", "dấu hiệu", "đèn", "phanh", "dầu", "lốp"],
 }
 NO_TASK = {Intent.GREETING.value, Intent.OTHER.value}
 PRICE_QUESTION = ["giá", "bao nhiêu", "so sánh", "trả góp"]
+DISCOUNT_PERCENT = re.compile(r"giảm\s*(?:giá\s*)?\d+\s*%")  # "hứa giảm 15% rồi" cũng là mặc cả
+NEGATED_BOOKING = re.compile(r"(?:chưa|không)\s+(?:muốn\s+|định\s+|cần\s+)?(?:đặt lịch|đặt hẹn|book)")
+BOOKING_SLOT_KEYS = ("service_type", "appointment_when", "service_detail")
+
+# Thời điểm hẹn: ngày + giờ + buổi. Thiếu ngày mà lượt trước đã có ngày → ghép ("10 giờ sáng" sau "ngày mai")
+DAY_RE = re.compile(r"(thứ\s*[2-7]|chủ nhật|ngày mai|ngày kia|hôm nay|\d{1,2}/\d{1,2})")
+HOUR_RE = re.compile(r"(?<!\d)(\d{1,2})\s*(?:giờ|h)(?:\s*(\d{2}))?(?!\w)")
+PERIOD_RE = re.compile(r"(sáng|trưa|chiều|tối)")
 
 # Từ khóa gợi ý độ phức tạp cao ngay từ đầu
 COMPLEX_SIGNALS = [
@@ -79,6 +88,10 @@ def classify_clause(text: str) -> set[str]:
     """Intent theo từ khóa cho một vế câu."""
     lowered = text.lower()
     found = {i.value for i, kws in KEYWORDS.items() if any(k in lowered for k in kws)}
+    if DISCOUNT_PERCENT.search(lowered):
+        found.add(Intent.DISCOUNT.value)
+    if NEGATED_BOOKING.search(lowered):  # "chưa định đặt lịch" không phải yêu cầu đặt lịch
+        found.discard(Intent.APPOINTMENT.value)
     if Intent.AFTER_SALES.value in found:  # 'lịch sử bảo dưỡng' không phải câu hỏi bảo dưỡng
         found -= {Intent.MAINTENANCE.value, Intent.KNOWLEDGE.value}
     # 'chốt mua xe' là hợp đồng; chỉ thêm SALES khi vế đó thật sự hỏi giá
@@ -94,6 +107,39 @@ def _complexity(text: str) -> str:
 
 def _slots_updated(old: dict, new: dict) -> bool:
     return any(old.get(k) != v for k, v in new.items())
+
+
+def extract_when(text: str, previous: str | None = None) -> str | None:
+    """'ngày mai lúc 10 giờ sáng' → 'ngày mai 10 giờ sáng'. Chỉ có giờ → ghép với ngày của lượt trước."""
+    lowered = text.lower()
+    day, hour, period = DAY_RE.search(lowered), HOUR_RE.search(lowered), PERIOD_RE.search(lowered)
+    if not (day or hour):
+        return None
+    day_text = day.group(1) if day else None
+    if not day_text and previous and (prev_day := DAY_RE.search(previous.lower())):
+        day_text = prev_day.group(1)
+    hour_text = f"{hour.group(1)} giờ" + (f" {hour.group(2)}" if hour.group(2) else "") if hour else None
+    return " ".join(p for p in (day_text, hour_text, period.group(1) if period else None) if p)
+
+
+def _booking_context(state: AgentState, intents: list[str]) -> bool:
+    """Chỉ lấp slot đặt lịch khi khách đã muốn đặt (hoặc đang đặt dở / có lịch đặt hoãn chờ).
+    Hỏi 'có sửa kính không?' là hỏi thông tin, không phải yêu cầu đặt lịch."""
+    offer = state.get("offer") or {}
+    return (Intent.APPOINTMENT.value in intents or state.get("active_flow") == "appointment"
+            or state.get("pending_intent") == Intent.APPOINTMENT.value
+            or offer.get("intent") == Intent.APPOINTMENT.value)
+
+
+def _keep_old_booking_slots(old: dict, new: dict) -> dict:
+    """Bỏ slot đặt lịch vừa trích ngoài ngữ cảnh đặt lịch, giữ nguyên giá trị của lượt trước."""
+    gated = dict(new)
+    for key in BOOKING_SLOT_KEYS:
+        if key in old:
+            gated[key] = old[key]
+        else:
+            gated.pop(key, None)
+    return gated
 
 
 def _rule_based_preprocess(state: AgentState) -> dict:
@@ -114,16 +160,16 @@ def _rule_based_preprocess(state: AgentState) -> dict:
     slots = dict(old_slots)
     if m := re.search(r"\b(0\d{9})\b", text):
         slots["customer_phone"] = m.group(1)
-    if m := re.search(r"(thứ\s*[2-7]|chủ nhật|ngày mai|hôm nay|\d{1,2}/\d{1,2})", text):
-        when = m.group(1)
-        if m2 := re.search(r"(sáng|chiều|tối)", text):
-            when += " " + m2.group(1)
-        slots["appointment_when"] = when
     # Câu hỏi thuần ("Phanh kêu có nguy hiểm không?") không phải trả lời slot: không ghi đè loại dịch vụ đang đặt
     question_only = (Intent.APPOINTMENT.value not in intents
                      and any(i in intents for i in (Intent.KNOWLEDGE.value, Intent.SALES.value, Intent.AFTER_SALES.value)))
-    if not question_only and (service := detect_service_type(text).service):  # mơ hồ → appointment hỏi lại
-        slots["service_type"] = service.value
+    if _booking_context(state, intents):
+        if not question_only and (when := extract_when(text, old_slots.get("appointment_when"))):
+            slots["appointment_when"] = when
+        if not question_only and (service := detect_service_type(text).service):  # mơ hồ → appointment hỏi lại
+            slots["service_type"] = service.value
+        if not question_only and (component := detect_component(text)):  # khách đổi hạng mục (kính → điều hòa)
+            slots["service_detail"] = component
 
     return {"intents": intents, "tasks": tasks, "slots": slots,
             "slots_updated": _slots_updated(old_slots, slots), "complexity": _complexity(raw)}
@@ -150,6 +196,8 @@ def _llm_preprocess(state: AgentState) -> dict:
         for key, value in result.extracted_slots.model_dump(exclude_unset=True).items():
             if value is not None and value != "":
                 merged_slots[key] = value
+    if not _booking_context(state, intents):
+        merged_slots = _keep_old_booking_slots(old_slots, merged_slots)
 
     # Policy Guard xử lý complexity HIGH trước khi router lập kế hoạch
     return {"intents": intents, "tasks": tasks, "slots": merged_slots,

@@ -30,14 +30,12 @@ def test_tc01_service_inquiry_does_not_start_booking(client):
     assert unsupported_amounts(result["reply"]) == []
 
 
-@defect("DEFECT-01", "câu hỏi dịch vụ không khớp intent nào -> fallback 'chưa hiểu ý bạn', không trả lời")
 def test_tc01_answers_the_service_question(client):
     reply = Conversation(client, "tc01-answer").say(TC01)["reply"]
     assert NOT_UNDERSTOOD not in reply.lower()
     assert "kính" in reply.lower() and mentions(reply, VERIFY)
 
 
-@defect("DEFECT-02", "preprocess ghi service_type=REPAIR từ câu hỏi chưa phải yêu cầu đặt lịch")
 def test_tc01_inquiry_collects_no_booking_slot(client):
     conv = Conversation(client, "tc01-slots")
     conv.say(TC01)
@@ -52,7 +50,6 @@ def test_tc02_damage_description_does_not_start_booking(client):
     assert not mentions(result["reply"], DIAGNOSIS_CLAIMS)
 
 
-@defect("DEFECT-01", "mô tả hư hỏng kính không khớp intent nào -> fallback 'chưa hiểu ý bạn'")
 def test_tc02_acknowledges_the_damage(client):
     reply = Conversation(client, "tc02-ack").say(TC02)["reply"]
     assert NOT_UNDERSTOOD not in reply.lower()

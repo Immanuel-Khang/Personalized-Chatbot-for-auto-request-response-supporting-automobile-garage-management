@@ -21,7 +21,7 @@ SERVICE_PATTERNS: dict[ServiceType, list[str]] = {
         r"tham quan",
     ],
     ServiceType.REPAIR: [r"sửa", r"hỏng", r"\bhư\b", r"\bkêu\b", r"\blỗi\b", r"thay phanh", r"\bbị (?:rò|chảy|nóng|rung)",
-                         r"repair"],
+                         r"\bnứt\b", r"\bvỡ\b", r"kiểm tra", r"repair"],
     ServiceType.MAINTENANCE: [r"bảo dưỡng", r"bảo trì", r"thay dầu", r"thay nhớt", r"định kỳ", r"maintenance"],
 }
 
@@ -92,6 +92,21 @@ def resolve_service_type(text: str | None, current: str | None) -> ServiceDetect
     if rule.ambiguous:
         return ServiceDetection(existing, rule.candidates) if existing in rule.candidates else rule
     return ServiceDetection(existing, (existing,) if existing else ())
+
+
+# Bộ phận khách nhắc tới: chỉ để gọi đúng tên trong câu trả lời / ghi chú, KHÔNG dùng để khẳng định năng lực
+COMPONENTS = ("kính chắn gió", "điều hòa", "pin", "ắc quy", "phanh", "lốp", "đèn", "động cơ", "hộp số",
+              "hệ thống treo", "gương", "cửa", "điện")
+
+
+def detect_component(text: str | None) -> str | None:
+    lowered = " ".join((text or "").lower().split())
+    return next((c for c in COMPONENTS if re.search(rf"\b{c}\b", lowered)), None)
+
+
+def is_service_inquiry(text: str | None) -> bool:
+    """Câu nhắc tới sửa chữa/hư hỏng (có sửa kính không, kính bị nứt). Chưa phải yêu cầu đặt lịch."""
+    return ServiceType.REPAIR in detect_service_type(text).candidates
 
 
 def clarify_question(candidates: tuple[ServiceType, ...]) -> str:

@@ -5,6 +5,7 @@
 from langgraph.types import Send
 
 from app.agent.nodes.common import step
+from app.agent.nodes.service_type import is_service_inquiry
 from app.agent.state import AgentState
 from app.contracts.schemas import Intent
 
@@ -23,7 +24,9 @@ WRITER_ORDER = 100  # câu hỏi slot của agent ghi dữ liệu luôn nằm cu
 NOTE_ORDER = 200
 DEFERRED_NOTE = "Sau bước này mình sẽ hỗ trợ tiếp phần {label} cho bạn nhé."
 CANCEL = ["hủy", "huỷ", "không đặt", "không muốn đặt", "không cần đặt", "không book"]
-BOOKING_SLOTS = {"service_type", "appointment_when", "when_text"}
+BOOKING_SLOTS = {"service_type", "appointment_when", "when_text", "service_detail"}
+# Hỏi thủ tục/giấy tờ là hỏi thông tin, chưa phải chốt hợp đồng → trả lời, không mở contract flow
+CONTRACT_QUESTION = ("giấy tờ", "thủ tục", "hồ sơ", "cần chuẩn bị", "cần những gì", "điều kiện")
 QUESTION = ["bao lâu", "bao nhiêu", "khi nào", "tại sao", "vì sao", "mốc", "chi phí", "cần làm gì"]
 # Câu đồng ý ngắn: tiếp tục flow / việc đang chờ. Câu không rõ ý khác → hỏi lại, không đoán là trả lời slot.
 AFFIRM = ("được", "ok", "oke", "okay", "ừ", "ừm", "vâng", "dạ", "có", "đồng ý", "tiếp tục", "đúng rồi", "uh")
@@ -48,6 +51,8 @@ def _groups(state: AgentState) -> tuple[list[dict], bool]:
         agent = AGENTS.get(t["intent"])
         if not agent:
             continue
+        if _contract_inquiry(state, t):
+            agent = "conversation"
         # 'Đặt lịch bảo dưỡng' / trả lời 'Bảo dưỡng' là loại dịch vụ, không phải câu hỏi bảo dưỡng
         if (t["intent"] == Intent.MAINTENANCE.value and booking
                 and not any(k in t["text"].lower() for k in QUESTION)):
@@ -57,6 +62,17 @@ def _groups(state: AgentState) -> tuple[list[dict], bool]:
         if t["text"] not in group["texts"]:
             group["texts"].append(t["text"])
     return [{"agent": g["agent"], "text": ", ".join(g["texts"])} for g in groups.values()], slot_answer
+
+
+def _contract_inquiry(state: AgentState, task: dict) -> bool:
+    return (task["intent"] in (Intent.CONTRACT.value, Intent.SALES.value) and state.get("active_flow") != "contract"
+            and any(k in task["text"].lower() for k in CONTRACT_QUESTION))
+
+
+def _accepts_offer(state: AgentState, text: str) -> bool:
+    """Lượt trước bot gợi ý đặt lịch: khách đồng ý hoặc trả lời ngày giờ → mới vào flow."""
+    offer = state.get("offer") or {}
+    return offer.get("intent") == Intent.APPOINTMENT.value and (_affirm(text) or bool(state.get("slots_updated")))
 
 
 def _affirm(text: str) -> bool:
@@ -80,6 +96,8 @@ def router(state: AgentState) -> dict:
         update.update(plan=[{"agent": "knowledge", "text": text, "order": 0}], planned_agents=["knowledge"])
         return update
 
+    offer = state.get("offer")
+    update["offer"] = None  # gợi ý chỉ hiệu lực đúng lượt kế tiếp
     if _cancelled(state):
         update.update(pending_intent=None, pending_text=None, active_flow=None,
                       slots={k: v for k, v in state.get("slots", {}).items() if k not in BOOKING_SLOTS})
@@ -100,12 +118,23 @@ def router(state: AgentState) -> dict:
         deferred = writers[1] if len(writers) > 1 else None
     elif active and (state.get("slots_updated") or slot_answer):
         writer = {"agent": active, "text": text}  # trả lời slot cho flow đang làm dở
+    elif not groups and not is_greeting and not active and _accepts_offer(state, text):
+        writer = {"agent": "appointment", "text": offer.get("text") or text}  # khách nhận lời gợi ý đặt lịch
     elif not groups and not is_greeting and pending in WRITERS:
         writer = {"agent": pending, "text": state.get("pending_text") or text}  # khách đồng ý ("Được")
     elif not groups and not is_greeting and active and _affirm(text):
         writer = {"agent": active, "text": text}  # "Được" / "Ok" trong flow đang dở → hỏi tiếp slot còn thiếu
 
+    if offer and not active and not (writer and writer["agent"] == "appointment"):
+        # Không nhận lời gợi ý: bỏ slot đặt lịch preprocess vừa lấy theo ngữ cảnh gợi ý
+        update["slots"] = {k: v for k, v in state.get("slots", {}).items() if k not in BOOKING_SLOTS}
+
     if not writer and not reads:  # flow/pending giữ nguyên trong checkpoint
+        if not is_greeting and not active and not pending and is_service_inquiry(text):
+            # Hỏi dịch vụ: trả lời trước, gợi ý mang xe qua kiểm tra; KHÔNG tự mở flow đặt lịch
+            update.update(_route_to_conversation(state, text, "service_inquiry"),
+                          offer={"intent": Intent.APPOINTMENT.value, "text": text})
+            return update
         # Không hiểu khách muốn gì trong lúc có flow/việc chờ → hỏi lại, không tự đoán là trả lời slot
         unclear = not is_greeting and bool(active or pending)
         update.update(_route_to_conversation(state, text, "clarify" if unclear else None))
@@ -117,6 +146,8 @@ def router(state: AgentState) -> dict:
         if active and writer["agent"] != active:
             update["active_flow"] = None  # chuyển sang flow ghi dữ liệu khác
     update.update(plan=plan, planned_agents=[p["agent"] for p in plan])
+    if any(_contract_inquiry(state, t) for t in state.get("tasks", [])):
+        update["conversation_reason"] = "contract_inquiry"
 
     if deferred:
         update.update(pending_intent=WRITER_INTENT[deferred["agent"]], pending_text=deferred["text"],
