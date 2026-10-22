@@ -89,7 +89,8 @@ def _route_to_conversation(state: AgentState, text: str, reason: str | None = No
 
 
 def router(state: AgentState) -> dict:
-    update: dict = {"trace": step(state, "router")}
+    # sales_question chỉ hiệu lực đúng 1 lượt: preprocess đã dùng nó, sales đặt lại nếu lại hỏi tiếp
+    update: dict = {"trace": step(state, "router"), "sales_question": None}
     text = state.get("user_text", "")
 
     if state.get("safety"):  # cảnh báo an toàn luôn đi một mình, đọc cả câu
@@ -125,7 +126,8 @@ def router(state: AgentState) -> dict:
     elif not groups and not is_greeting and active and _affirm(text):
         writer = {"agent": active, "text": text}  # "Được" / "Ok" trong flow đang dở → hỏi tiếp slot còn thiếu
 
-    if offer and not active and not (writer and writer["agent"] == "appointment"):
+    if (offer or {}).get("intent") == Intent.APPOINTMENT.value and not active \
+            and not (writer and writer["agent"] == "appointment"):
         # Không nhận lời gợi ý: bỏ slot đặt lịch preprocess vừa lấy theo ngữ cảnh gợi ý
         update["slots"] = {k: v for k, v in state.get("slots", {}).items() if k not in BOOKING_SLOTS}
 

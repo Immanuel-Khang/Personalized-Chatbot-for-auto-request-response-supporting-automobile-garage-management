@@ -14,5 +14,6 @@ def run_turn(session_id: str, customer_id: int | None, text: str, negotiation_ac
         "tasks": [], "plan": [], "planned_agents": [], "draft_reply": "", "needs_human": False,
         "handover_reason": None, "set_mode": None, "route": "", "safety": False, "slots_updated": False,
         "negotiation_active": negotiation_active, "mode": mode, "conversation_reason": None,
+        "sales_signals": {},
     }
     return get_graph().invoke(turn_input, config)

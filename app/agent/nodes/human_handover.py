@@ -27,5 +27,5 @@ def human_handover(state: AgentState) -> dict:
         reply = f"{partial}\n\n{reply}"
     # Timeout HUMAN_PENDING (không ai nhận sau HANDOVER_TIMEOUT_MINUTES -> nhắn hotline) xử lý ở conversation.py
     return {"draft_reply": reply, "set_mode": ConversationMode.HUMAN_PENDING.value,
-            "pending_intent": None, "pending_text": None, "active_flow": None,
+            "pending_intent": None, "pending_text": None, "active_flow": None, "sales_question": None,
             "trace": step(state, "human_handover")}

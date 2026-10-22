@@ -140,7 +140,7 @@ def appointment(state: AgentState) -> dict:
     # Đủ slot → tạo lịch hẹn
     try:
         result = get_services().booking.create_appointment(
-            state["session_id"], ServiceType(slots["service_type"]), slots["when_text"], slots["phone"]
+            state.get("session_id", ""), ServiceType(slots["service_type"]), slots["when_text"], slots["phone"]
         )
     except Exception:  # lỗi hệ thống đặt lịch: không báo thành công, giữ slot để thử lại
         result = None

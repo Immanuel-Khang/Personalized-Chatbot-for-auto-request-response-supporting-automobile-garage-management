@@ -28,6 +28,12 @@ class AgentState(TypedDict, total=False):
     # Bước bot vừa GỢI Ý (chưa thực hiện), vd {intent: APPOINTMENT, text}: chỉ router ghi, hiệu lực đúng 1 lượt.
     # Khách đồng ý / trả lời giờ ở lượt sau → mới vào flow; khác đi → bỏ.
     offer: dict | None
+    # Câu hỏi tư vấn mua xe bot vừa hỏi, vd {asked: intended_use | cargo_details | browse_offer | budget_more}.
+    # Câu hỏi có/không kèm action để thực hiện khi khách đồng ý, vd {type: budget, budget_vnd, offset} | {type: browse}.
+    # Chỉ sales ghi; router xóa mỗi lượt (hiệu lực đúng 1 lượt kế tiếp), human_handover xóa khi chuyển người.
+    sales_question: dict | None
+    # Diễn giải mua xe đã kiểm tra của lượt này (catalog_request, answered, uncertain, source): reset mỗi lượt
+    sales_signals: dict
     # payload riêng của từng nhánh (router gửi qua Send)
     task_text: str
     task_order: int

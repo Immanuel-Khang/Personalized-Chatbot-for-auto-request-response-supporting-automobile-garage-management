@@ -46,6 +46,38 @@ class CustomerSlots(BaseModel):
     decided_price: Optional[float] = Field(default=None, description="Mức giá cuối cùng khách chốt mua (VNĐ)")
     service_type: Optional[str] = Field(default=None, description="Loại dịch vụ: MAINTENANCE | REPAIR | TEST_DRIVE | SHOWROOM_VISIT")
     appointment_when: Optional[str] = Field(default=None, description="Thời điểm hẹn (VD: sáng thứ 3, ngày mai, 15/10)")
+    payload_tons: Optional[float] = Field(default=None, description="Tải trọng hàng khách cần chở (tấn), chỉ khi khách nói rõ")
+
+
+class UseCategory(str, Enum):
+    """Nhóm mục đích dùng xe: chỉ để chọn cách trả lời, KHÔNG dùng để xếp hạng xe."""
+    CARGO = "CARGO"  # chở hàng, vật liệu, kinh doanh vận tải
+    PASSENGER = "PASSENGER"  # gia đình, đi lại, chở người
+    OTHER = "OTHER"
+
+
+class SalesField(str, Enum):
+    """Yêu cầu mua xe khách có thể yêu cầu xóa (VD 'không giới hạn ngân sách nữa')."""
+    INTENDED_USE = "intended_use"
+    BUDGET = "budget_vnd"
+    CAR_MODEL = "car_model"
+    PAYLOAD = "payload_tons"
+
+
+class SalesSignals(BaseModel):
+    """Diễn giải hội thoại mua xe của LLM. Code kiểm tra lại trước khi ghi vào slots (preprocess.merge_sales_slots)."""
+    answers_pending_question: bool = Field(
+        default=False, description="Tin nhắn là câu trả lời cho câu bot vừa hỏi (chỉ khi có câu hỏi đang chờ)")
+    catalog_request: bool = Field(
+        default=False, description="Khách yêu cầu RÕ RÀNG xem danh sách/tất cả mẫu xe; 'muốn mua xe' KHÔNG phải")
+    intended_use_stated: bool = Field(
+        default=False, description="Khách TỰ NÓI mục đích dùng xe trong tin nhắn này (không phải bạn suy đoán)")
+    use_category: Optional[UseCategory] = Field(default=None, description="Nhóm của mục đích khách vừa nói")
+    uncertain: bool = Field(default=False, description="Khách nói chưa biết / chưa rõ nhu cầu")
+    accepts_offer: Optional[bool] = Field(
+        default=None, description="Bot vừa hỏi có/không: true = khách đồng ý, false = từ chối, null = không phải trả lời có/không")
+    cleared_fields: list[SalesField] = Field(
+        default_factory=list, description="Yêu cầu khách nói rõ muốn bỏ (VD bỏ giới hạn ngân sách)")
 
 
 class IntentTask(BaseModel):
@@ -60,6 +92,7 @@ class IntentAndSlotExtraction(BaseModel):
     tasks: list[IntentTask] = Field(default_factory=list,
                                     description="Mỗi intent kèm phần câu tương ứng, theo thứ tự trong tin nhắn")
     extracted_slots: CustomerSlots = Field(default_factory=CustomerSlots)
+    sales: SalesSignals = Field(default_factory=SalesSignals)
 
 
 # ---- API ----
