@@ -43,32 +43,36 @@ def _get_llm():
     return _llm
 
 
-def generate(system: str, user: str) -> str | None:
+def _messages(system: str, user: str, history: list[dict] | None) -> list:
+    """[system, *lịch sử phiên (cũ → mới), tin hiện tại]. history: [{role: user|ai, content}], không chứa tin hiện tại."""
+    from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+    past = [HumanMessage(content=m["content"]) if m["role"] == "user" else AIMessage(content=m["content"])
+            for m in history or []]
+    return [SystemMessage(content=system), *past, HumanMessage(content=user)]
+
+
+def generate(system: str, user: str, history: list[dict] | None = None) -> str | None:
     """Gọi LLM chat completion. Trả None nếu không có LLM."""
     llm = _get_llm()
     if llm is None:
         return None
     try:
-        from langchain_core.messages import HumanMessage, SystemMessage
-        response = llm.invoke([SystemMessage(content=system), HumanMessage(content=user)])
+        response = llm.invoke(_messages(system, user, history))
         return response.content
     except Exception as e:
         logger.error(f"LLM generate error: {e}")
         return None
 
 
-def generate_structured(system: str, user: str, output_schema: type[T]) -> T | None:
+def generate_structured(system: str, user: str, output_schema: type[T],
+                        history: list[dict] | None = None) -> T | None:
     """Gọi LLM với structured output (Pydantic model). Trả None nếu không có LLM."""
     llm = _get_llm()
     if llm is None:
         return None
     try:
-        from langchain_core.messages import HumanMessage, SystemMessage
         structured_llm = llm.with_structured_output(output_schema)
-        result = structured_llm.invoke([
-            SystemMessage(content=system),
-            HumanMessage(content=user),
-        ])
+        result = structured_llm.invoke(_messages(system, user, history))
         return cast(T, result)
     except Exception as e:
         logger.error(f"LLM structured output error: {e}")

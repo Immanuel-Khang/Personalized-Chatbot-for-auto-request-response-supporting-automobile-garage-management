@@ -48,7 +48,8 @@ def contract(state: AgentState) -> dict:
             f"Câu hỏi/tin nhắn của khách: {state.get("task_text") or state.get("user_text", "")}\n\n"
             f"📋 THÔNG TIN ĐÃ CÓ: {json.dumps(present_fields, ensure_ascii=False)}\n\n"
             f"⚠️ THÔNG TIN CÒN THIẾU: {missing_fields}\n\n"
-            f"Hãy chúc mừng khách và xin nốt các thông tin còn thiếu."
+            f"Hãy chúc mừng khách và xin nốt các thông tin còn thiếu.",
+            history=state.get("history"),
         )
         if llm_reply:
             reply = llm_reply
@@ -62,7 +63,8 @@ def contract(state: AgentState) -> dict:
             CONTRACT_SYSTEM_PROMPT,
             f"Câu hỏi/tin nhắn của khách: {state.get("task_text") or state.get("user_text", "")}\n\n"
             f"📋 THÔNG TIN ĐẦY ĐỦ: {json.dumps(present_fields, ensure_ascii=False)}\n\n"
-            f"Đã đủ tất cả thông tin. Hãy tóm tắt hợp đồng và hẹn ngày ký kết."
+            f"Đã đủ tất cả thông tin. Hãy tóm tắt hợp đồng và hẹn ngày ký kết.",
+            history=state.get("history"),
         )
         if llm_reply:
             reply = llm_reply

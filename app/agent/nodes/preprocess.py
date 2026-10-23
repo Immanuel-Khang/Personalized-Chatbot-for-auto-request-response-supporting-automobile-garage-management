@@ -291,7 +291,9 @@ def _llm_preprocess(state: AgentState) -> dict:
     """Dùng LLM structured output để phân loại intent, tách task và trích xuất slot."""
     text = state.get("user_text", "")
     message, with_context = _llm_input(state, text)
-    result = generate_structured(INTENT_SYSTEM_PROMPT, message, IntentAndSlotExtraction)
+    history = state.get("history")
+    result = generate_structured(INTENT_SYSTEM_PROMPT, message, IntentAndSlotExtraction, history=history)
+    with_context = with_context or bool(history)  # có lịch sử: task.text vẫn phải trích từ tin nhắn mới
     if result is None:
         return _rule_based_preprocess(state)
 

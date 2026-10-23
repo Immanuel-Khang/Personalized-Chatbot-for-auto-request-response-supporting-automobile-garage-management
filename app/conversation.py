@@ -56,6 +56,17 @@ def _save_phone(db: Session, session: ChatSession, phone: str) -> None:
         ticket.summary = f"{ticket.summary or ''}\nSĐT khách: {phone}".strip()
 
 
+def _history(db: Session, session_id: str, current_id: int) -> list[dict]:
+    """Tin user/ai của phiên trước tin hiện tại, theo id (thứ tự ghi DB, xác định). Gọi trong khóa phiên.
+    Mọi tin ai đều thuộc lượt đã xong (lượt này chưa ghi trả lời), kể cả tin có id lớn hơn tin hiện tại khi khách
+    gửi dồn; tin user id >= current_id là tin hiện tại hoặc tin đang chờ khóa -> bỏ. Tin staff/system không vào LLM."""
+    rows = (db.query(Message.role, Message.content)
+            .filter(Message.session_id == session_id,
+                    (Message.role == "ai") | ((Message.role == "user") & (Message.id < current_id)))
+            .order_by(Message.id).all())
+    return [{"role": role, "content": content} for role, content in rows]
+
+
 def handle_message(req: ChatRequest) -> ChatResponse:
     # Ghi nhận phiên và lưu tin của khách trước khi lấy khóa
     with SessionLocal() as db:
@@ -84,8 +95,9 @@ def handle_message(req: ChatRequest) -> ChatResponse:
                                     message_id=user_msg.id)
             negotiation_active, mode = session.negotiation_active, session.mode
             customer_id = verified_customer_id(db, session)
+            history = _history(db, session_id, user_msg.id)
 
-        result = run_turn(session_id, customer_id, req.message, negotiation_active, mode)
+        result = run_turn(session_id, customer_id, req.message, negotiation_active, mode, history)
 
         with SessionLocal() as db:
             session = db.get(ChatSession, session_id)

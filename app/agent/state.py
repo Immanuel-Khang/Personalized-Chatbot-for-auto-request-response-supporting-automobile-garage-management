@@ -8,6 +8,9 @@ class AgentState(TypedDict, total=False):
     customer_id: int | None  # chỉ có khi SĐT đã xác minh OTP (được phép đọc dữ liệu cá nhân)
     user_text: str
     mode: str  # BOT (graph không chạy ở HUMAN_PENDING / HUMAN_ACTIVE)
+    # Các tin user/ai TRƯỚC lượt này của phiên (cũ → mới), đọc từ bảng messages: [{role, content}].
+    # Không chứa tin hiện tại (đã ở user_text); runner ghi đè mỗi lượt, nguồn sự thật là DB.
+    history: list[dict]
     # preprocess (chỉ đọc, không side effect)
     intents: list[str]
     tasks: list[dict]  # [{intent, text}]: mỗi intent kèm phần câu của nó

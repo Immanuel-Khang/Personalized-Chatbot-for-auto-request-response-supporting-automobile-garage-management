@@ -1,7 +1,7 @@
 """[TRACK B] Conversation Agent: xử lý greeting, out-of-scope, cancel, hỏi lại khi chưa rõ ý,
 và truy vấn thông tin từ hội thoại. Chỉ đọc, không ghi dữ liệu."""
 from app.agent.llm import generate
-from app.agent.nodes.common import STYLE_RULES, answer, conversation_history, step
+from app.agent.nodes.common import STYLE_RULES, answer, step
 from app.agent.nodes.service_type import detect_component
 from app.agent.state import AgentState
 from app.config import settings
@@ -86,10 +86,9 @@ def conversation(state: AgentState) -> dict:
     question = state.get("task_text") or state.get("user_text", "")
     reason = _reason(state)
 
-    # Lấy thông tin khách và lịch sử hội thoại từ DB
+    # Lấy thông tin khách từ DB (lịch sử hội thoại đi dạng message qua state['history'])
     session_id = state.get("session_id", "")
     name, phone = _get_customer_profile(session_id)
-    history = conversation_history(session_id, limit=8)
 
     if name or phone:
         profile_text = f"Thông tin khách đã lưu: Tên: {name or 'chưa có'}, SĐT: {phone or 'chưa có'}"
@@ -105,15 +104,13 @@ def conversation(state: AgentState) -> dict:
     context = f"""
 {INTENT_CONTEXT[reason]}
 {documents}
-Lịch sử hội thoại gần đây:
-{history}
-
 {profile_text}
 
 Tin nhắn mới của khách: {question}
 """
 
-    reply = generate(CONVERSATION_SYSTEM_PROMPT.format(hotline=settings.hotline, style=STYLE_RULES), context)
+    reply = generate(CONVERSATION_SYSTEM_PROMPT.format(hotline=settings.hotline, style=STYLE_RULES), context,
+                     history=state.get("history"))
     fallback = FALLBACK[reason].format(component=detect_component(question) or "tình trạng xe")
     update["answers"] = [answer(state, "conversation", reply or fallback)]
     return update

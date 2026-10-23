@@ -57,7 +57,8 @@ def knowledge(state: AgentState) -> dict:
         # Dùng LLM sinh câu trả lời
         body = generate(
             KNOWLEDGE_SYSTEM_PROMPT,
-            f"Câu hỏi: {question}\n\nTài liệu:\n{full_context}"
+            f"Câu hỏi: {question}\n\nTài liệu:\n{full_context}",
+            history=state.get("history"),
         ) or (extra_context if extra_context else f"Theo tài liệu của xưởng: {chunks[0].text}")
 
     prefix = SAFETY_PREFIX if state.get("safety") else ""

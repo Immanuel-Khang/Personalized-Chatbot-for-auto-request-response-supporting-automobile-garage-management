@@ -1,6 +1,6 @@
 """[TRACK B gọi, TRACK C cài BookingService] Appointment Agent: slot-filling nhiều lượt, bắt buộc có SĐT."""
 from app.agent.llm import generate
-from app.agent.nodes.common import STYLE_RULES, answer, conversation_history, step
+from app.agent.nodes.common import STYLE_RULES, answer, step
 from app.agent.nodes.router import BOOKING_SLOTS, _affirm
 from app.agent.nodes.service_type import LABELS, clarify_question, resolve_service_type
 from app.agent.state import AgentState
@@ -27,9 +27,6 @@ Thông tin cần thu thập:
 1. service_type: Loại dịch vụ (bảo dưỡng | sửa chữa | lái thử | xem xe trực tiếp tại showroom)
 2. when_text: Ngày giờ hẹn (VD: thứ 3 tuần sau, ngày mai sáng, 15/10)
 3. phone: Số điện thoại liên hệ
-
-Lịch sử hội thoại:
-{history}
 
 Thông tin đã có:
 {filled_slots}
@@ -72,10 +69,6 @@ def _missing_slots(slots: dict) -> list[str]:
 
 def _generate_slot_question(state: AgentState, slots: dict, missing: list[str]) -> str:
     """Dùng LLM sinh câu hỏi tự nhiên cho slot còn thiếu."""
-    # Lấy lịch sử hội thoại từ DB
-    session_id = state.get("session_id", "")
-    history = conversation_history(session_id, limit=6)
-
     # Format slot đã có và còn thiếu
     slot_names = {
         "service_type": "Loại dịch vụ",
@@ -95,13 +88,13 @@ def _generate_slot_question(state: AgentState, slots: dict, missing: list[str]) 
 
     question = generate(
         APPOINTMENT_SYSTEM_PROMPT.format(
-            history=history,
             filled_slots=filled_text,
             missing_slots=missing_text,
             user_text=state.get("user_text", ""),
             style=STYLE_RULES,
         ),
-        "Hãy hỏi khách về thông tin còn thiếu một cách tự nhiên và thân thiện."
+        "Hãy hỏi khách về thông tin còn thiếu một cách tự nhiên và thân thiện.",
+        history=state.get("history"),
     )
 
     # Fallback nếu LLM không khả dụng

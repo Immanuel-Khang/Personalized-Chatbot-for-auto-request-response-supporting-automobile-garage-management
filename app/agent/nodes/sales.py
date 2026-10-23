@@ -190,7 +190,8 @@ def sales(state: AgentState) -> dict:
         f"Lưu ý: {MODE_GUIDE[mode]}\n"
         f"Phạm vi catalog: {_scope()}\n"
         f"Thông tin đã biết về khách: {slots}\n"
-        f"Hãy tư vấn dựa trên dữ liệu trên."
+        f"Hãy tư vấn dựa trên dữ liệu trên.",
+        history=state.get("history"),
     )
     reply = llm_reply or (f"{FALLBACK_INTRO[mode]}\n" + product_info +
                           "\nBạn muốn mình tư vấn kỹ hơn hay đặt lịch lái thử không?")
