@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: garage
       POSTGRES_DB: garage
     ports:
-      - "127.0.0.1:5432:5432" # Mở port để bạn có thể dùng DBeaver/psql kết nối vào soi DB
+      - "0.0.0.0:5432:5432" # Mở port để bạn có thể dùng DBeaver/psql kết nối vào soi DB
     volumes:
       - garage-pg-dev-data:/var/lib/postgresql/data
     healthcheck:
@@ -21,7 +21,7 @@ services:
       context: .
       dockerfile: dockerfile
     container_name: garage-web-dev
-    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload"
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     ports:
       - "8000:8000"
     env_file:

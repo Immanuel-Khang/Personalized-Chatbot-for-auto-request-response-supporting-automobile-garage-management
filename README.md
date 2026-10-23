@@ -33,7 +33,8 @@ make dev
 docker compose -f docker-compose.dev.yml up --build
 ```
 Once started, access the services:
-- **Web Chat UI**: [http://localhost:8000](http://localhost:8000)
+- **Client:** http://localhost:8000/
+- **Admin:** http://localhost:8000/admin
 - **Interactive API Docs (Swagger)**: [http://localhost:8000/docs](http://localhost:8000/docs)
 - **PostgreSQL Database**: `localhost:5432` (`garage` / `garage`)
 
