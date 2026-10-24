@@ -86,6 +86,31 @@ class IntentTask(BaseModel):
     text: str = Field(description="Trích nguyên văn phần câu của khách thuộc intent này")
 
 
+class BotReply(str, Enum):
+    ACCEPT = "ACCEPT"  # đồng ý gợi ý / câu hỏi có-không bot vừa đưa
+    DECLINE = "DECLINE"  # từ chối
+    ANSWER = "ANSWER"  # trả lời câu bot vừa hỏi bằng thông tin (ngày, mục đích...)
+
+
+class OfferAction(str, Enum):
+    """Việc bot đã gợi ý mà khách có thể nhận lời; code chỉ thực hiện các việc trong danh sách này."""
+    BOOK_APPOINTMENT = "BOOK_APPOINTMENT"
+    PRODUCT_DETAIL = "PRODUCT_DETAIL"
+    SHOW_CATALOG = "SHOW_CATALOG"
+
+
+class FollowUp(BaseModel):
+    """Diễn giải tin nhắn mới theo lịch sử hội thoại. Code kiểm tra lại với lịch sử + catalog (nodes/followup.py)."""
+    reply_to_bot: Optional[BotReply] = Field(
+        default=None, description="Tin nhắn mới trả lời tin cuối của bot: ACCEPT | DECLINE | ANSWER; null nếu là yêu cầu mới")
+    accepted_action: Optional[OfferAction] = Field(
+        default=None, description="Chỉ khi ACCEPT: việc bot đã gợi ý mà khách nhận lời")
+    product_name: Optional[str] = Field(
+        default=None, description="Mẫu xe khách nhắc tới (xe thứ 3, nó, tên mẫu): chép NGUYÊN VĂN tên từ tin trước của bot")
+    needs_clarification: bool = Field(
+        default=False, description="Tham chiếu hoặc câu có/không mơ hồ (nhiều lựa chọn, nhiều danh sách)")
+
+
 class IntentAndSlotExtraction(BaseModel):
     """Kết quả LLM structured output: tất cả intent, từng việc tách theo vế câu + slots."""
     intents: list[Intent] = Field(description="Tất cả intent trong tin nhắn mới nhất, ý định chính đứng trước")
@@ -93,6 +118,7 @@ class IntentAndSlotExtraction(BaseModel):
                                     description="Mỗi intent kèm phần câu tương ứng, theo thứ tự trong tin nhắn")
     extracted_slots: CustomerSlots = Field(default_factory=CustomerSlots)
     sales: SalesSignals = Field(default_factory=SalesSignals)
+    followup: FollowUp = Field(default_factory=FollowUp)
 
 
 # ---- API ----

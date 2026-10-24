@@ -8,6 +8,7 @@ import re
 
 from app.agent.llm import generate_structured
 from app.agent.nodes.common import step
+from app.agent.nodes.followup import apply_followup
 from app.agent.nodes.router import AFFIRM, CANCEL
 from app.agent.nodes.segments import split_clauses
 from app.agent.nodes.service_type import detect_component, detect_service_type
@@ -51,7 +52,7 @@ NOT_AN_ANSWER = ("chào", "cảm ơn", "cám ơn", "thank", "tạm biệt", "th�
                  "không muốn", "để sau")
 
 # Thời điểm hẹn: ngày + giờ + buổi. Thiếu ngày mà lượt trước đã có ngày → ghép ("10 giờ sáng" sau "ngày mai")
-DAY_RE = re.compile(r"(thứ\s*[2-7]|chủ nhật|ngày mai|ngày kia|hôm nay|\d{1,2}/\d{1,2})")
+DAY_RE = re.compile(r"(thứ\s*(?:[2-7]\b|hai|ba|tư|năm|sáu|bảy)|chủ nhật|ngày mai|ngày kia|hôm nay|\d{1,2}/\d{1,2})")
 HOUR_RE = re.compile(r"(?<!\d)(\d{1,2})\s*(?:giờ|h)(?:\s*(\d{2}))?(?!\w)")
 PERIOD_RE = re.compile(r"(sáng|trưa|chiều|tối)")
 
@@ -77,6 +78,16 @@ Never guess slot values: only extract a field when the customer states it explic
 The input may start with context (the question the bot just asked, known purchase requirements) followed by
 "Tin nhắn mới của khách". Classify and extract ONLY from the new customer message; quote tasks only from it.
 A short reply that answers the bot's pending question about buying a car is SALES.
+Earlier turns are given as chat messages. Read them to interpret the new message, but classify only the new message;
+an explicit new request always wins over the bot's earlier question.
+`followup` fields:
+- reply_to_bot: ACCEPT / DECLINE when the new message says yes/no ("Có", "Được", "Không", "Vậy đặt giúp tôi") to the
+  bot's LAST question or offer; ANSWER when it gives the information the bot just asked for (VD a date); else null.
+  A bare yes/no that answers the bot is not a new intent: return OTHER unless it also makes a new request.
+- accepted_action (ACCEPT only): BOOK_APPOINTMENT | PRODUCT_DETAIL | SHOW_CATALOG = what the bot offered.
+- product_name: the vehicle the customer refers to ("xe thứ 3", "mẫu đầu tiên", "nó"), copied EXACTLY from the
+  bot's earlier list. Count positions in the bot's most recent list. Never invent a name; null if not shown.
+- needs_clarification: true when the reference or the yes/no could mean more than one thing.
 `sales` fields (vehicle purchase only):
 - answers_pending_question: true only when the new message answers the bot's pending question.
 - catalog_request: true only when the customer explicitly asks to see the list/all models. "Tôi muốn mua xe" is false.
@@ -284,6 +295,7 @@ def _rule_based_preprocess(state: AgentState) -> dict:
     result = {"intents": intents, "tasks": tasks, "slots": slots, "sales_signals": {**sales_signals, "source": "rules"},
               "slots_updated": _slots_updated(old_slots, slots), "complexity": _complexity(raw)}
     _ensure_sales_task(result, raw)
+    apply_followup(result, state, raw)
     return result
 
 
@@ -326,6 +338,7 @@ def _llm_preprocess(state: AgentState) -> dict:
     output = {"intents": intents, "tasks": tasks, "slots": merged_slots, "sales_signals": {**sales_signals, "source": "llm"},
               "slots_updated": _slots_updated(old_slots, merged_slots), "complexity": _complexity(text)}
     _ensure_sales_task(output, text)
+    apply_followup(output, state, text, result.followup)
     return output
 
 

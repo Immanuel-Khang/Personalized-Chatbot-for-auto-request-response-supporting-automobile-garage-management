@@ -40,6 +40,9 @@ INTENT_CONTEXT = {
     "contract_inquiry": ("Khách hỏi thủ tục/giấy tờ mua xe hoặc hợp đồng, CHƯA phải chốt mua. Chỉ trả lời theo tài liệu bên dưới; "
                          "tài liệu không có thì nói nhân viên tư vấn sẽ xác nhận danh mục giấy tờ chính xác. KHÔNG tự liệt kê "
                          "giấy tờ pháp lý, KHÔNG hứa duyệt vay, KHÔNG xin thông tin cá nhân."),
+    "decline": ("Khách vừa từ chối câu hỏi/gợi ý cuối của bạn. Ghi nhận ngắn gọn, KHÔNG lặp lại gợi ý đó, "
+                "KHÔNG tự mở việc khác; chỉ nói khách cần gì thêm thì cứ nhắn."),
+    "clarify_offer": "Câu trả lời của khách có thể ứng với nhiều gợi ý bạn vừa đưa. Hỏi lại đúng một câu: {question}",
     "other": ("Tin nhắn chưa thuộc chủ đề nào bạn xử lý được. Nếu đó là câu nói tiếp chủ đề trước thì trả lời theo ngữ cảnh; "
               "nếu chưa rõ ý thì hỏi lại; nếu ngoài phạm vi thì hướng dẫn lịch sự các chủ đề bạn hỗ trợ."),
 }
@@ -52,6 +55,8 @@ FALLBACK = {
                         "Nếu anh/chị muốn, em có thể sắp xếp để anh/chị mang xe qua xưởng kiểm tra."),
     "contract_inquiry": ("Dạ, danh mục giấy tờ cụ thể sẽ do nhân viên tư vấn xác nhận theo hình thức mua của anh/chị ạ. "
                          "Anh/chị cần em chuyển câu hỏi này cho nhân viên tư vấn không?"),
+    "decline": "Dạ vâng ạ. Anh/chị cần em hỗ trợ gì thêm thì cứ nhắn nhé.",
+    "clarify_offer": "{question}",
     "other": "Mình chưa hiểu rõ ý bạn. Bạn có thể hỏi về giá xe, đặt lịch bảo dưỡng/lái thử, hoặc kiến thức kỹ thuật nhé.",
 }
 
@@ -101,8 +106,9 @@ def conversation(state: AgentState) -> dict:
         documents = "\n".join(c.text for c in chunks) or "(không có tài liệu liên quan)"
         documents = f"\nTài liệu của xưởng (nguồn duy nhất được dùng):\n{documents}\n"
 
+    offer_question = (state.get("followup") or {}).get("question", "")
     context = f"""
-{INTENT_CONTEXT[reason]}
+{INTENT_CONTEXT[reason].format(question=offer_question)}
 {documents}
 {profile_text}
 
@@ -111,6 +117,6 @@ Tin nhắn mới của khách: {question}
 
     reply = generate(CONVERSATION_SYSTEM_PROMPT.format(hotline=settings.hotline, style=STYLE_RULES), context,
                      history=state.get("history"))
-    fallback = FALLBACK[reason].format(component=detect_component(question) or "tình trạng xe")
+    fallback = FALLBACK[reason].format(component=detect_component(question) or "tình trạng xe", question=offer_question)
     update["answers"] = [answer(state, "conversation", reply or fallback)]
     return update

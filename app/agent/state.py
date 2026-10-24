@@ -37,6 +37,9 @@ class AgentState(TypedDict, total=False):
     sales_question: dict | None
     # Diễn giải mua xe đã kiểm tra của lượt này (catalog_request, answered, uncertain, source): reset mỗi lượt
     sales_signals: dict
+    # Tin nhắn mới trả lời tin cuối của bot (đã kiểm tra, nodes/followup.py): {reply: ACCEPT|DECLINE|ANSWER,
+    # action: BOOK_APPOINTMENT|PRODUCT_DETAIL|SHOW_CATALOG, offer: câu bot đã hỏi, clarify: bool}. Reset mỗi lượt.
+    followup: dict
     # payload riêng của từng nhánh (router gửi qua Send)
     task_text: str
     task_order: int

@@ -106,7 +106,16 @@ def router(state: AgentState) -> dict:
         update.update(_route_to_conversation(state, text, "cancel"))
         return update
 
+    followup = state.get("followup") or {}
+    declined = followup.get("reply") == "DECLINE"
     groups, slot_answer = _groups(state)
+    if not groups and followup.get("clarify"):  # 'Có' khớp nhiều gợi ý → hỏi lại đúng các lựa chọn
+        update.update(_route_to_conversation(state, text, "clarify_offer"))
+        return update
+    if not groups and declined and not state.get("active_flow"):
+        # Từ chối gợi ý / việc đang chờ: ghi nhận, không mở việc chờ, không lặp lại gợi ý (offer/sales_question đã xóa)
+        update.update(_route_to_conversation(state, text, "decline"), pending_intent=None, pending_text=None)
+        return update
     reads = [g for g in groups if g["agent"] in READ_ONLY][:MAX_READ_AGENTS]
     writers = sorted((g for g in groups if g["agent"] in WRITERS), key=lambda g: WRITERS.index(g["agent"]))
     active = state.get("active_flow") if state.get("active_flow") in WRITERS else None

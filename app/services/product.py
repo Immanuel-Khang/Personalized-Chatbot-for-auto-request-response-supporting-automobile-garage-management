@@ -93,6 +93,12 @@ class DbProductService:
                      .order_by(CatalogItem.id).limit(limit).all())
             return [_to_product(i) for i in items]
 
+    def get_by_id(self, product_id: int) -> Optional[Product]:
+        """Tra đúng một mẫu xe theo id (định danh ổn định) sau khi đã xác định khách nhắc mẫu nào."""
+        with SessionLocal() as db:
+            item = db.get(CatalogItem, product_id)
+            return _to_product(item) if item and item.kind in VEHICLE_KINDS else None
+
     def get_by_name(self, name: str) -> Optional[Product]:
         """Tìm xe theo tên (case-insensitive partial match)."""
         with SessionLocal() as db:

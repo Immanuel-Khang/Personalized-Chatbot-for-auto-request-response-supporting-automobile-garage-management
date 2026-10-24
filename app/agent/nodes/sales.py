@@ -44,6 +44,8 @@ class SalesMode(str, Enum):
     NEEDS_DETAILS = "NEEDS_DETAILS"  # đã biết mục đích, thiếu tải trọng/ngân sách để lọc
     UNCERTAIN = "UNCERTAIN"  # khách nói chưa biết nhu cầu
     DISCOVERY = "DISCOVERY"  # mới chỉ muốn mua xe: hỏi mục đích sử dụng
+    PRODUCT_DETAIL = "PRODUCT_DETAIL"  # khách nhắc mẫu bot đã hiển thị ('xe thứ 3', 'nó'): tra đúng id
+    CLARIFY_PRODUCT = "CLARIFY_PRODUCT"  # tham chiếu mơ hồ / không có danh sách → hỏi lại, không đoán xe
 
 
 def sales_mode(state: AgentState) -> tuple[SalesMode, list[Product]]:
@@ -53,7 +55,13 @@ def sales_mode(state: AgentState) -> tuple[SalesMode, list[Product]]:
     question = state.get("task_text") or state.get("user_text", "")
     text = question.lower()
     svc = get_services().product
+    followup = state.get("followup") or {}
 
+    if product_id := followup.get("product_id"):  # followup.py đã đối chiếu với lịch sử: tra catalog theo id
+        product = svc.get_by_id(product_id)
+        return (SalesMode.PRODUCT_DETAIL, [product]) if product else (SalesMode.CLARIFY_PRODUCT, [])
+    if followup.get("clarify_product"):
+        return SalesMode.CLARIFY_PRODUCT, []
     if signals.get("catalog_request"):
         return SalesMode.CATALOG_BROWSE, svc.list_vehicles(limit=BROWSE_LIMIT)
     if car_model := slots.get("car_model"):
@@ -148,12 +156,16 @@ MODE_GUIDE = {
                               "[trong ngân sách]; xe [vượt ngân sách] phải nói rõ là vượt."),
     SalesMode.POPULAR_PRODUCTS: ("Hệ thống CHƯA có số liệu bán chạy: giới thiệu đây là một số mẫu trong catalog, "
                                  "KHÔNG nói là bán chạy hay phổ biến nhất."),
+    SalesMode.PRODUCT_DETAIL: ("Khách hỏi về ĐÚNG mẫu xe này (đã xác định từ danh sách trước). Chỉ mô tả mẫu này bằng "
+                               "dữ liệu được cung cấp; thông số không có thì nói chưa có, KHÔNG bịa."),
 }
 FALLBACK_INTRO = {
     SalesMode.MODEL_LOOKUP: "Mình tìm thấy các mẫu có tên khớp với yêu cầu:",
     SalesMode.BUDGET_SEARCH: "Các mẫu xe theo ngân sách bạn nêu:",
     SalesMode.POPULAR_PRODUCTS: "Hệ thống chưa có số liệu bán chạy; đây là một số mẫu trong catalog:",
+    SalesMode.PRODUCT_DETAIL: "Dạ, thông tin mẫu xe anh/chị hỏi theo catalog:",
 }
+CLARIFY_PRODUCT_REPLY = "Dạ, anh/chị đang hỏi mẫu xe nào ạ? Anh/chị cho em xin tên mẫu hoặc số thứ tự trong danh sách em vừa gửi nhé."
 
 
 def sales(state: AgentState) -> dict:
@@ -173,6 +185,9 @@ def sales(state: AgentState) -> dict:
             reply += "\nAnh/chị cho em biết mục đích sử dụng hoặc ngân sách để em lọc giúp nhé."
         return {**update, "answers": [answer(state, "sales", reply)],
                 "allowed_amounts": [fmt_vnd(p.list_price_vnd) for p in products]}
+
+    if mode == SalesMode.CLARIFY_PRODUCT:  # không đoán xe: không đưa số liệu, hỏi đúng một câu
+        return {**update, "answers": [answer(state, "sales", CLARIFY_PRODUCT_REPLY)]}
 
     if not products:  # các chế độ không tra catalog: hỏi đúng một câu, không đưa xe
         statement, ask, asked = _discovery_reply(mode, state)
