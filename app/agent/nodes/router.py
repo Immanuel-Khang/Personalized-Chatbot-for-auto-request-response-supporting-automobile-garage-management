@@ -126,8 +126,9 @@ def router(state: AgentState) -> dict:
     if writers:
         writer = writers[0]
         deferred = writers[1] if len(writers) > 1 else None
-    elif active and (state.get("slots_updated") or slot_answer):
-        writer = {"agent": active, "text": text}  # trả lời slot cho flow đang làm dở
+    elif active and (state.get("slots_updated") or slot_answer
+                     or (active == "appointment" and state.get("phone_rejected"))):
+        writer = {"agent": active, "text": text}  # trả lời slot cho flow đang làm dở (SĐT sai → flow hỏi lại SĐT)
     elif not groups and not is_greeting and not active and _accepts_offer(state, text):
         writer = {"agent": "appointment", "text": offer.get("text") or text}  # khách nhận lời gợi ý đặt lịch
     elif not groups and not is_greeting and pending in WRITERS:

@@ -13,7 +13,7 @@ def run_turn(session_id: str, customer_id: int | None, text: str, negotiation_ac
         "session_id": session_id, "customer_id": customer_id, "user_text": text, "history": history or [],
         "trace": Overwrite([]), "answers": Overwrite([]), "allowed_amounts": Overwrite([]),
         "tasks": [], "plan": [], "planned_agents": [], "draft_reply": "", "needs_human": False,
-        "handover_reason": None, "set_mode": None, "route": "", "safety": False, "slots_updated": False,
+        "handover_reason": None, "set_mode": None, "route": "", "safety": False, "slots_updated": False, "phone_rejected": False,
         "negotiation_active": negotiation_active, "mode": mode, "conversation_reason": None,
         "sales_signals": {}, "followup": {},
     }

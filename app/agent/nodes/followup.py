@@ -100,10 +100,10 @@ def _add_task(result: dict, intent: str, text: str) -> None:
 
 
 def _reply(text: str, question: str, llm: FollowUp | None) -> str | None:
+    if not question:  # bot không hỏi gì → 'Có'/'Không' không phải câu trả lời (kể cả khi LLM nói ACCEPT)
+        return None
     if llm and llm.reply_to_bot:
         return llm.reply_to_bot.value
-    if not question:  # bot không hỏi gì → 'Có'/'Không' không phải câu trả lời
-        return None
     bare = text.rstrip(".!?, ")
     if bare in AFFIRM or ACCEPT_BOOK_RE.search(text):
         return BotReply.ACCEPT.value

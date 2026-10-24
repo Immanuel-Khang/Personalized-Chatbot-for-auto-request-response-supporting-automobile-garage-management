@@ -16,6 +16,8 @@ class AgentState(TypedDict, total=False):
     tasks: list[dict]  # [{intent, text}]: mỗi intent kèm phần câu của nó
     slots: dict[str, Any]  # được giữ qua các lượt nhờ checkpoint -> slot-filling nhiều lượt
     slots_updated: bool  # lượt này khách có cung cấp thêm slot không
+    # Tin nhắn có SĐT không hợp lệ (đã bị bỏ, không vào slots/hồ sơ): appointment hỏi lại đúng SĐT. Reset mỗi lượt.
+    phone_rejected: bool
     complexity: str  # LOW | HIGH
     active_flow: str | None  # luồng ghi dữ liệu đang làm dở (appointment | contract), giữ nhờ checkpoint
     # policy guard

@@ -8,14 +8,17 @@ import re
 
 from app.agent.llm import generate_structured
 from app.agent.nodes.common import step
-from app.agent.nodes.followup import apply_followup
+from sqlalchemy import select
+
+from app.agent.nodes.followup import DECLINE, apply_followup
 from app.agent.nodes.router import AFFIRM, CANCEL
 from app.agent.nodes.segments import split_clauses
 from app.agent.nodes.service_type import detect_component, detect_service_type
 from app.agent.state import AgentState
 from app.contracts.schemas import Intent, IntentAndSlotExtraction, SalesField, SalesSignals
-from app.db.models import ChatSession, Customer
+from app.db.models import Customer
 from app.db.session import SessionLocal
+from app.identity import attach_phone, get_or_create_session, normalize_phone
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +50,9 @@ UNSURE_RE = re.compile(r"(?:chưa|không)\s+(?:biết|rõ|chắc)|chưa nghĩ")
 BUDGET_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(triệu|tỷ)")
 PAYLOAD_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*tấn")
 PHONE_RE = re.compile(r"\b0\d{9}\b")
+PHONE_TRY_RE = re.compile(r"(?<!\d)(?:\+84|0)\d{7,11}(?!\d)")  # chuỗi trông như SĐT (kể cả sai độ dài)
+# 'Có' / 'Không' một mình không phải yêu cầu ghi dữ liệu mới: hiểu theo câu bot đang chờ (followup/router)
+WRITE_INTENTS = {Intent.CONTRACT.value, Intent.APPOINTMENT.value}
 # Không phải câu trả lời cho câu hỏi tư vấn: chào/cảm ơn/từ chối → để router xử lý như bình thường
 NOT_AN_ANSWER = ("chào", "cảm ơn", "cám ơn", "thank", "tạm biệt", "thôi", "không cần", "không mua",
                  "không muốn", "để sau")
@@ -158,6 +164,36 @@ def extract_when(text: str, previous: str | None = None) -> str | None:
         day_text = prev_day.group(1)
     hour_text = f"{hour.group(1)} giờ" + (f" {hour.group(2)}" if hour.group(2) else "") if hour else None
     return " ".join(p for p in (day_text, hour_text, period.group(1) if period else None) if p)
+
+
+def merge_when(previous: str | None, new: str) -> str:
+    """Giá trị LLM trích được ghép với ngày đã có: 'Thứ bảy' rồi '8 giờ sáng' → 'Thứ bảy 8 giờ sáng'.
+    Khách nêu lại ngày → dùng giá trị mới (khách sửa lịch)."""
+    prev_day = DAY_RE.search(previous.lower()) if previous else None
+    if not prev_day or DAY_RE.search(new.lower()):
+        return new
+    return f"{previous} {new}" if not HOUR_RE.search(previous.lower()) else f"{prev_day.group(1)} {new}"
+
+
+def _bare_reply(text: str) -> bool:
+    bare = " ".join(text.lower().split()).rstrip(".!?, ")
+    return bare in AFFIRM or bare in DECLINE
+
+
+def _check_phone(old: dict, slots: dict, text: str) -> bool:
+    """True khi khách vừa đưa SĐT không hợp lệ. SĐT sai không vào slots (không lưu hồ sơ, không đặt lịch),
+    SĐT hợp lệ cũ được giữ. Chỉ flow đang hỏi SĐT dùng cờ này để hỏi lại đúng SĐT."""
+    value = slots.get("customer_phone")
+    if value and normalize_phone(str(value)) is None:
+        if old.get("customer_phone"):
+            slots["customer_phone"] = old["customer_phone"]
+        else:
+            slots.pop("customer_phone")
+        return True
+    if value and value != old.get("customer_phone"):
+        return False
+    compact = re.sub(r"[\s.\-]", "", text)
+    return any(normalize_phone(m) is None for m in PHONE_TRY_RE.findall(compact))
 
 
 def _booking_context(state: AgentState, intents: list[str]) -> bool:
@@ -292,8 +328,10 @@ def _rule_based_preprocess(state: AgentState) -> dict:
     extracted, signals = _rule_sales_signals(state, raw, intents)
     pending = (state.get("sales_question") or {}).get("asked")
     slots, sales_signals = merge_sales_slots(old_slots, slots, extracted, signals, pending)
+    phone_rejected = _check_phone(old_slots, slots, raw)
     result = {"intents": intents, "tasks": tasks, "slots": slots, "sales_signals": {**sales_signals, "source": "rules"},
-              "slots_updated": _slots_updated(old_slots, slots), "complexity": _complexity(raw)}
+              "slots_updated": _slots_updated(old_slots, slots), "complexity": _complexity(raw),
+              "phone_rejected": phone_rejected}
     _ensure_sales_task(result, raw)
     apply_followup(result, state, raw)
     return result
@@ -320,6 +358,9 @@ def _llm_preprocess(state: AgentState) -> dict:
     intents = intents or [Intent.OTHER.value]
     if not tasks:  # model không tách vế → mỗi intent dùng cả câu
         tasks = [{"intent": i, "text": text} for i in intents if i not in NO_TASK]
+    if _bare_reply(text):  # LLM gắn CONTRACT/APPOINTMENT cho 'Có' không đủ để mở flow ghi dữ liệu
+        tasks = [t for t in tasks if t["intent"] not in WRITE_INTENTS]
+        intents = [i for i in intents if i not in WRITE_INTENTS] or [Intent.OTHER.value]
 
     # Merge slots: giữ slot cũ, chỉ cập nhật trường có giá trị mới
     old_slots = dict(state.get("slots", {}))
@@ -327,16 +368,20 @@ def _llm_preprocess(state: AgentState) -> dict:
     extracted = result.extracted_slots.model_dump(exclude_unset=True) if result.extracted_slots else {}
     for key, value in extracted.items():
         if value is not None and value != "" and key not in SALES_SLOT_KEYS:
+            if key == "appointment_when" and isinstance(value, str):
+                value = merge_when(old_slots.get("appointment_when"), value)
             merged_slots[key] = value
     if not _booking_context(state, intents):
         merged_slots = _keep_old_booking_slots(old_slots, merged_slots)
     pending = (state.get("sales_question") or {}).get("asked")
     merged_slots, sales_signals = merge_sales_slots(old_slots, merged_slots, extracted,
                                                     result.sales or SalesSignals(), pending)
+    phone_rejected = _check_phone(old_slots, merged_slots, text)
 
     # Policy Guard xử lý complexity HIGH trước khi router lập kế hoạch
     output = {"intents": intents, "tasks": tasks, "slots": merged_slots, "sales_signals": {**sales_signals, "source": "llm"},
-              "slots_updated": _slots_updated(old_slots, merged_slots), "complexity": _complexity(text)}
+              "slots_updated": _slots_updated(old_slots, merged_slots), "complexity": _complexity(text),
+              "phone_rejected": phone_rejected}
     _ensure_sales_task(output, text)
     apply_followup(output, state, text, result.followup)
     return output
@@ -374,33 +419,28 @@ def _save_profile_to_db(session_id: str, name: str | None, phone: str | None) ->
     if not name and not phone:
         return
 
+    contact = normalize_phone(phone) if phone else None  # SĐT sai không bao giờ vào hồ sơ khách
+    if not name and not contact:
+        return
     db = SessionLocal()
     try:
-        # Tìm hoặc tạo chat_session
-        chat_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
-        if not chat_session:
-            chat_session = ChatSession(id=session_id)
-            db.add(chat_session)
-            db.flush()
-
-        # Tìm hoặc tạo customer
-        customer = None
-        if chat_session.customer_id:
-            customer = db.query(Customer).filter(Customer.id == chat_session.customer_id).first()
-
-        if not customer:
-            # Tạo customer mới
+        chat_session = get_or_create_session(db, session_id)
+        customer = db.get(Customer, chat_session.customer_id) if chat_session.customer_id else None
+        if customer is None and contact:
+            customer = attach_phone(db, chat_session, contact)  # cùng định dạng +84 với BookingService
+        elif customer is None:
             customer = Customer()
             db.add(customer)
             db.flush()
-            # Link customer với chat_session
             chat_session.customer_id = customer.id
+        elif contact and not customer.phone_number:
+            # Không gán SĐT đã thuộc khách khác (uq_customers_phone_number)
+            taken = db.scalars(select(Customer.id).where(Customer.phone_number == contact)).first()
+            if taken is None:
+                customer.phone_number = contact
 
-        # Cập nhật thông tin
         if name and not customer.full_name:
             customer.full_name = name
-        if phone and not customer.phone_number:
-            customer.phone_number = phone
 
         db.commit()
     except Exception as e:

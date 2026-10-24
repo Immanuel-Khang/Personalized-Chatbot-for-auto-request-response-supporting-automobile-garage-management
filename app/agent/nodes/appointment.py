@@ -10,6 +10,7 @@ from app.identity import normalize_phone
 from app.services import get_services
 
 CONFIRM = "Em ghi nhận lịch {label} ({when}) cho anh/chị. Anh/chị xác nhận đặt lịch này giúp em nhé?"
+PHONE_INVALID = "Số điện thoại anh/chị vừa gửi chưa đúng định dạng (10 số, bắt đầu bằng 0), anh/chị kiểm tra lại giúp em nhé."
 BOOKING_FAILED = ("Hiện em chưa xác nhận được lịch {when} trên hệ thống ạ. Em vẫn giữ thông tin anh/chị đã cung cấp, "
                   "anh/chị có thể nhắn lại để em thử lại hoặc gọi hotline {hotline} để nhân viên hỗ trợ.")
 
@@ -118,6 +119,8 @@ def appointment(state: AgentState) -> dict:
         else:
             # Còn thiếu slot → hỏi bằng LLM
             question = _generate_slot_question(state, slots, missing)
+        if "phone" in missing and state.get("phone_rejected"):  # preprocess đã bỏ SĐT sai, slot khác giữ nguyên
+            question = PHONE_INVALID if missing == ["phone"] else f"{PHONE_INVALID} {question}"
         return {"answers": [answer(state, "appointment", question)],
                 "active_flow": "appointment", "slots": slots,
                 "trace": step(state, "appointment")}
