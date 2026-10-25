@@ -1,38 +1,27 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách muốn đặt lịch đến xem xe tải số 1; khách nói 'xe số 1 là xe gif'.",
+      "message_summary": "Khách xác nhận muốn loại xe dạng chassis.",
       "tasks": [
         {
-          "task_id": "t1",
-          "domain": "APPOINTMENT",
-          "action": "book_appointment",
-          "text": "Tôi muốn đặt lịch để đến xem xe số 1",
-          "relationship": "CONTINUE_TASK",
-          "referenced_interaction_id": "appointment_b84d0cbc",
-          "depends_on": [],
-          "requires_clarification": false,
-          "clarification_question": null,
-          "entity_id": null,
-          "entity_type": null
-        },
-        {
-          "task_id": "t2",
-          "domain": "OTHER",
-          "action": "general_conversation",
-          "text": "Xe số 1 là xe gif",
-          "relationship": "UNCLEAR",
+          "task_id": "task_1",
+          "domain": "SALES",
+          "action": "search_catalog",
+          "text": "Tôi muốn chassis",
+          "relationship": "NEW_REQUEST",
           "referenced_interaction_id": null,
           "depends_on": [],
           "requires_clarification": true,
-          "clarification_question": "“xe gif” bạn muốn xác nhận là mẫu nào trong các xe tải số 1 bên em? Anh/chị cho em xin đúng tên/mã xe giúp em.",
+          "clarification_question": "Dạ em xin anh/chị cho biết anh/chị muốn chassis tải trọng khoảng bao nhiêu (tấn) và ngân sách dự kiến để em lọc đúng mẫu ạ? Nếu anh/chị có loại thùng định lắp (mui bạt/thùng kín), cho em biết thêm giúp em.",
           "entity_id": null,
           "entity_type": null
         }
       ],
       "slot_updates": [],
       "unresolved_ambiguities": [
-        "Khách xác nhận 'xe số 1 là xe gif' nhưng không rõ 'gif' là tên/mã nào."
+        "Chassis tải trọng mong muốn (tấn) chưa rõ",
+        "Ngân sách chưa rõ",
+        "Loại thùng/định lắp (mui bạt/thùng kín...) chưa nêu trong tin nhắn mới"
       ],
       "complexity": "LOW",
       "answers_pending_question": false,
@@ -42,22 +31,7 @@
       "uncertain": true,
       "catalog_request": false
     },
-    "known_facts": {
-      "intended_use": {
-        "key": "intended_use",
-        "value": "chở hàng",
-        "source": "USER_EXPLICIT",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "service_type": {
-        "key": "service_type",
-        "value": "SHOWROOM_VISIT",
-        "source": "USER_EXPLICIT",
-        "updated_at_message_id": null,
-        "confidence": null
-      }
-    },
+    "known_facts": {},
     "complexity": "LOW",
     "trace": [
       "preprocess"

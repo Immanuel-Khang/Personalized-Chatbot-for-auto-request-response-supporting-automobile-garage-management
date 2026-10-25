@@ -1,7 +1,9 @@
 """Book appointments using only canonical known facts and workflow state."""
+import json
 import uuid
 
-from app.agent.nodes.common import answer, step
+from app.agent.llm import generate
+from app.agent.nodes.common import STYLE_RULES, answer, step
 from app.agent.nodes.service_type import LABELS, clarify_question, resolve_service_type
 from app.agent.state import AgentState
 from app.config import settings
@@ -13,10 +15,26 @@ from app.identity import normalize_phone
 from app.services import get_services
 
 
+APPOINTMENT_SYSTEM_PROMPT = """\
+Bạn là chuyên viên đặt lịch của xưởng Foton chuyên nghiệp, thân thiện.
+QUY TẮC:
+1. Luôn trả lời bằng tiếng Việt.
+2. Xin thông tin còn thiếu một cách tự nhiên, không rập khuôn.
+3. PHẢI xác nhận/ghi nhận thông tin khách vừa cung cấp trước khi hỏi tiếp.
+4. KHÔNG tự bịa thông tin khách chưa cung cấp.
+5. Khi khách nói về sản phẩm/xe, ghi nhận và tiếp tục hỏi thông tin đặt lịch còn thiếu.
+6. Chỉ hỏi thông tin trong danh sách còn thiếu, KHÔNG hỏi thêm.
+""" + STYLE_RULES
+
 ASK = {
     "service_type": "Bạn muốn đặt lịch bảo dưỡng, sửa chữa, lái thử hay xem xe tại showroom?",
     "appointment_when": "Bạn muốn đến vào ngày giờ nào?",
     "customer_phone": "Bạn cho mình xin số điện thoại để xác nhận lịch nhé?",
+}
+FIELD_LABELS = {
+    "service_type": "Loại dịch vụ (bảo dưỡng/sửa chữa/lái thử/xem xe)",
+    "appointment_when": "Ngày giờ hẹn",
+    "customer_phone": "Số điện thoại",
 }
 CONFIRM = "Em ghi nhận lịch {label} ({when}) cho anh/chị. Anh/chị xác nhận đặt lịch này giúp em nhé?"
 PHONE_INVALID = "Số điện thoại anh/chị vừa gửi chưa đúng định dạng (10 số, bắt đầu bằng 0), anh/chị kiểm tra lại giúp em nhé."
@@ -50,6 +68,27 @@ def _ask_text(missing: list[str], detection) -> str:
     if "service_type" in missing and detection.ambiguous:
         return clarify_question(detection.candidates)
     return ASK[missing[0]]
+
+
+def _ask_contextual(state: AgentState, missing: list[str], detection, collected: dict) -> str:
+    """Generate contextual question using LLM, with fallback to static."""
+    if "service_type" in missing and detection.ambiguous:
+        return clarify_question(detection.candidates)
+
+    user_message = state.get("task_text") or state.get("user_text", "")
+    missing_labels = [FIELD_LABELS[key] for key in missing if key in FIELD_LABELS]
+    collected_display = {FIELD_LABELS.get(k, k): v for k, v in collected.items() if v is not None}
+
+    prompt = (
+        f"Tin nhắn của khách: {user_message}\n\n"
+        f"📋 THÔNG TIN ĐÃ CÓ: {json.dumps(collected_display, ensure_ascii=False)}\n\n"
+        f"⚠️ THÔNG TIN CÒN THIẾU: {', '.join(missing_labels)}\n\n"
+        f"Hãy xác nhận/ghi nhận thông tin khách vừa cung cấp (nếu có), "
+        f"sau đó hỏi thông tin còn thiếu đầu tiên một cách tự nhiên."
+    )
+
+    llm_reply = generate(APPOINTMENT_SYSTEM_PROMPT, prompt, history=state.get("history"))
+    return llm_reply or ASK[missing[0]]
 
 
 def _new_pending(state: AgentState, question: str, missing: list[str], kind=InteractionKind.QUESTION):
@@ -95,7 +134,8 @@ def appointment(state: AgentState) -> dict:
         )
 
     if missing:
-        question = _ask_text(missing, detection)
+        collected = {key: _value(facts, key) for key in ("service_type", "appointment_when", "customer_phone") if _value(facts, key)}
+        question = _ask_contextual(state, missing, detection, collected)
         return {
             "answers": [answer(state, "appointment", question)],
             "known_facts": facts,

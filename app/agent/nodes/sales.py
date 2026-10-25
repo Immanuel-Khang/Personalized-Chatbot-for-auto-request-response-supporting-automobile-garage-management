@@ -8,6 +8,7 @@ from app.agent.nodes.product_reference import resolve_product
 from app.agent.state import AgentState
 from app.config import settings
 from app.contracts.schemas import (
+    ActiveWorkflow,
     InteractionKind,
     InteractionStatus,
     KnownFact,
@@ -18,8 +19,9 @@ from app.services import get_services
 from app.utils import fmt_vnd
 
 
-SUGGESTION_KEYWORDS = ("phổ biến", "bán chạy", "gợi ý", "nên mua", "nào tốt", "xe gì", "dòng xe nào", "loại xe nào")
+SUGGESTION_KEYWORDS = ("phổ biến", "bán chạy", "gợi ý", "nên mua", "nào tốt", "xe gì", "dòng xe nào", "loại xe nào", "nổi bật", "tốt nhất", "hàng đầu", "ưu tiên")
 PURCHASE_WORDS = ("mua xe", "tìm xe", "mẫu xe", "dòng xe", "chiếc xe")
+SEARCH_CRITERIA_KEYWORDS = ("tấn", "kg", "chở", "hàng", "đường", "thành phố", "trường", "đèo", "tải trọng", "payload", "chassis", "thùng", "mui bạt", "kín", "lửng")
 WRITERS = ("contract", "appointment")
 BROWSE_LIMIT = 10
 KIND_LABEL = {"TRUCK": "xe tải", "CAR": "xe con"}
@@ -50,6 +52,7 @@ class SalesMode(str, Enum):
     DISCOVERY = "DISCOVERY"
     PRODUCT_DETAIL = "PRODUCT_DETAIL"
     CLARIFY_PRODUCT = "CLARIFY_PRODUCT"
+    TEXT_SEARCH = "TEXT_SEARCH"
 
 
 def _fact_value(facts: dict, key: str):
@@ -134,6 +137,16 @@ def sales_mode(state: AgentState) -> tuple[SalesMode, list[Product]]:
 
     if interpretation and interpretation.product_reference_ambiguous:
         return SalesMode.CLARIFY_PRODUCT, []
+
+    # Check if interpretation contains entity_id for direct product reference
+    if interpretation and interpretation.tasks:
+        for task in interpretation.tasks:
+            if (hasattr(task, 'entity_id') and task.entity_id is not None and
+                hasattr(task, 'entity_type') and task.entity_type == "PRODUCT"):
+                product = service.get_by_id(task.entity_id)
+                if product:
+                    return SalesMode.PRODUCT_DETAIL, [product]
+
     if interpretation and interpretation.referenced_product_name:
         shown = _selected_products(state)
         product, ambiguous = resolve_product(
@@ -142,6 +155,11 @@ def sales_mode(state: AgentState) -> tuple[SalesMode, list[Product]]:
         )
         return ((SalesMode.PRODUCT_DETAIL, [product]) if product and not ambiguous
                 else (SalesMode.CLARIFY_PRODUCT, []))
+
+    # Check for suggestion keywords BEFORE generic catalog browse
+    if any(keyword in text for keyword in SUGGESTION_KEYWORDS):
+        return SalesMode.POPULAR_PRODUCTS, service.get_popular(limit=3)
+
     if interpretation and interpretation.catalog_request:
         return SalesMode.CATALOG_BROWSE, service.list_vehicles(limit=BROWSE_LIMIT)
 
@@ -152,14 +170,19 @@ def sales_mode(state: AgentState) -> tuple[SalesMode, list[Product]]:
     budget = _fact_value(facts, "budget_vnd")
     if budget is not None:
         return SalesMode.BUDGET_SEARCH, service.search_by_budget(float(budget), limit=3)
-    if any(keyword in text for keyword in SUGGESTION_KEYWORDS):
-        return SalesMode.POPULAR_PRODUCTS, service.get_popular(limit=3)
+
+    # If user provides search criteria (tonnage, cargo details, road type), search immediately
+    # instead of asking more questions - do this BEFORE checking intended_use alone
+    if any(keyword in text for keyword in SEARCH_CRITERIA_KEYWORDS):
+        products = service.search(question, limit=3, fallback=True)
+        return (SalesMode.TEXT_SEARCH, products) if products else (SalesMode.TEXT_SEARCH, service.get_popular(limit=3))
 
     intended_use = _fact_value(facts, "intended_use")
     if intended_use:
         if _fact_value(facts, "use_category") == "PASSENGER":
             return SalesMode.UNSUPPORTED_USE, []
         return SalesMode.NEEDS_DETAILS, []
+
     if interpretation and interpretation.uncertain:
         return SalesMode.UNCERTAIN, []
     return SalesMode.DISCOVERY, []
@@ -207,12 +230,14 @@ MODE_GUIDE = {
     SalesMode.BUDGET_SEARCH: "Chỉ nói xe nằm trong ngân sách khi được đánh dấu [trong ngân sách]; xe [vượt ngân sách] phải nói rõ.",
     SalesMode.POPULAR_PRODUCTS: "Chưa có số liệu bán chạy; giới thiệu đây là một số mẫu trong catalog, không nói là phổ biến nhất.",
     SalesMode.PRODUCT_DETAIL: "Chỉ mô tả đúng mẫu xe đã xác định bằng dữ liệu được cung cấp; không bịa thông số.",
+    SalesMode.TEXT_SEARCH: "Đây là kết quả tìm kiếm dựa trên yêu cầu của khách. Tư vấn dựa trên thông số thực tế.",
 }
 FALLBACK_INTRO = {
     SalesMode.MODEL_LOOKUP: "Mình tìm thấy các mẫu có tên khớp với yêu cầu:",
     SalesMode.BUDGET_SEARCH: "Các mẫu xe theo ngân sách bạn nêu:",
     SalesMode.POPULAR_PRODUCTS: "Hệ thống chưa có số liệu bán chạy; đây là một số mẫu trong catalog:",
     SalesMode.PRODUCT_DETAIL: "Dạ, thông tin mẫu xe anh/chị hỏi theo catalog:",
+    SalesMode.TEXT_SEARCH: "Dạ, dựa trên yêu cầu của anh/chị, em tìm thấy các mẫu sau:",
 }
 CLARIFY_PRODUCT_REPLY = "Dạ, anh/chị đang hỏi mẫu xe nào ạ? Anh/chị cho em xin tên mẫu hoặc số thứ tự trong danh sách em vừa gửi nhé."
 
@@ -222,6 +247,9 @@ def sales(state: AgentState) -> dict:
     question = state.get("task_text") or state.get("user_text", "")
     mode, products = sales_mode(state)
     active_workflow = state.get("active_workflow")
+    # Checkpoint may deserialize as dict; reconstruct if needed
+    if isinstance(active_workflow, dict):
+        active_workflow = ActiveWorkflow(**active_workflow)
     writer_owns_turn = bool((active_workflow is not None and active_workflow.workflow_type in WRITERS)
                             or any(agent in WRITERS for agent in state.get("planned_agents", [])))
     update: dict = {"trace": step(state, "sales")}
