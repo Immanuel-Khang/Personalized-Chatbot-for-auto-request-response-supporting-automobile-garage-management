@@ -15,7 +15,7 @@ def assert_no_booking(conv: Conversation, result: dict) -> None:
     """Câu hỏi không phải yêu cầu đặt lịch: không vào flow, không tạo lịch, không xin slot, tối đa 1 câu hỏi."""
     state = conv.state
     assert "appointment" not in result["trace"]
-    assert state.get("active_flow") is None and not state.get("pending_intent")
+    assert state.get("active_workflow") is None
     assert conv.appointments() == []
     assert not mentions(result["reply"], DATE_ASK + PHONE_ASK)
     assert questions(result["reply"]) <= 1
@@ -39,7 +39,7 @@ def test_tc01_answers_the_service_question(client):
 def test_tc01_inquiry_collects_no_booking_slot(client):
     conv = Conversation(client, "tc01-slots")
     conv.say(TC01)
-    assert not BOOKING_SLOTS & set(conv.state.get("slots", {}))
+    assert not BOOKING_SLOTS & set(conv.state.get("known_facts", {}))
 
 
 # ---- TC02: mô tả hư hỏng, không đòi đặt lịch ----

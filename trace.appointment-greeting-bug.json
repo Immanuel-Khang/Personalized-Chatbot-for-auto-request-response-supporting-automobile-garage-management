@@ -1,0 +1,53 @@
+{
+  "preprocess_result": {
+    "conversation_interpretation": {
+      "message_summary": "Khách muốn đặt lịch bảo dưỡng xe.",
+      "tasks": [
+        {
+          "task_id": "task_1",
+          "domain": "APPOINTMENT",
+          "action": "book_appointment",
+          "text": "Tôi muốn đặt lịch bảo dưỡng xe",
+          "relationship": "CONTINUE_TASK",
+          "referenced_interaction_id": "appointment_45454a94",
+          "depends_on": [],
+          "requires_clarification": true,
+          "clarification_question": "Bạn muốn đến vào ngày giờ nào? (và vui lòng cho mình số điện thoại để bên em xác nhận lịch)",
+          "entity_id": null,
+          "entity_type": null
+        }
+      ],
+      "slot_updates": [],
+      "unresolved_ambiguities": [
+        "Thiếu thông tin ngày giờ",
+        "Thiếu số điện thoại để xác nhận lịch"
+      ],
+      "complexity": "LOW",
+      "answers_pending_question": false,
+      "accepts_offer": null,
+      "referenced_product_name": null,
+      "product_reference_ambiguous": false,
+      "uncertain": false,
+      "catalog_request": false
+    },
+    "known_facts": {
+      "service_type": {
+        "key": "service_type",
+        "value": "MAINTENANCE",
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      }
+    },
+    "complexity": "LOW",
+    "trace": [
+      "preprocess"
+    ]
+  },
+  "fields": [
+    "conversation_interpretation",
+    "known_facts",
+    "complexity",
+    "trace"
+  ]
+}

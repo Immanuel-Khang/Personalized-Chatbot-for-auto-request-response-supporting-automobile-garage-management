@@ -103,7 +103,7 @@ def test_cancel_during_active_flow(session_with_profile):
     }, {"configurable": {"thread_id": session_with_profile}})
 
     assert "appointment" in result1["planned_agents"]
-    assert result1.get("active_flow") == "appointment"
+    assert result1.get("active_workflow").workflow_type == "appointment"
 
     # Now cancel
     config = {"configurable": {"thread_id": session_with_profile}}
@@ -115,5 +115,5 @@ def test_cancel_during_active_flow(session_with_profile):
     }, config)
 
     assert "conversation" in result2["planned_agents"]
-    assert result2.get("active_flow") is None  # Flow cleared
-    assert not result2.get("pending_intent")  # Pending cleared
+    assert result2.get("active_workflow") is None  # Flow cleared
+    assert all(item.status.value != "OPEN" for item in result2.get("pending_interactions", []))  # Pending cleared

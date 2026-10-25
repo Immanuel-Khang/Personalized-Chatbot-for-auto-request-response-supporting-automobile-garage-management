@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.agent.runner import run_turn
 from app.config import settings
-from app.contracts.schemas import ChatRequest, ChatResponse, ConversationMode
+from app.contracts.schemas import ChatRequest, ChatResponse, ConversationMode, KnownFact
 from app.db.models import ChatSession, Message
 from app.db.session import SessionLocal
 from app.identity import attach_phone, get_or_create_session, verified_customer_id
@@ -80,7 +80,9 @@ def handle_message(req: ChatRequest) -> ChatResponse:
     with _locks[session_id]:
         with SessionLocal() as db:
             session = db.get(ChatSession, session_id)
-            if session.mode in (ConversationMode.HUMAN_ACTIVE.value, ConversationMode.HUMAN_PENDING.value):
+            if session is None:
+                raise RuntimeError(f"Chat session {session_id!r} disappeared before processing")
+            if session.mode == ConversationMode.HUMAN_ACTIVE.value:
                 # Không gọi graph/LLM; nhân viên xem tin đã lưu qua inbox hiện có.
                 ticket = open_ticket(db, session_id)
                 if ticket:
@@ -96,21 +98,29 @@ def handle_message(req: ChatRequest) -> ChatResponse:
             negotiation_active, mode = session.negotiation_active, session.mode
             customer_id = verified_customer_id(db, session)
             history = _history(db, session_id, user_msg.id)
-
+            
         result = run_turn(session_id, customer_id, req.message, negotiation_active, mode, history)
 
         with SessionLocal() as db:
             session = db.get(ChatSession, session_id)
+            if session is None:
+                raise RuntimeError(f"Chat session {session_id!r} disappeared during processing")
             session.negotiation_active = session.negotiation_active or bool(result.get("negotiation_active"))  # sticky
             # the response requires the system to change mode or not
             if result.get("set_mode") and session.mode == ConversationMode.BOT.value:  # không ghi đè khi nhân viên vừa nhận
                 session.mode = result["set_mode"]
 
-            # update the customer's phone number both in customers and in ticket summary
-            # LLM preprocess stores phone as "customer_phone"; rule-based stores it as "phone"
-            _slots = result.get("slots", {})
-            if phone := (_slots.get("phone") or _slots.get("customer_phone")):
-                _save_phone(db, session, phone)
+            # Update the customer phone from the canonical fact store.
+            facts = result.get("known_facts", {}) or {}
+            phone_fact = facts.get("customer_phone") or facts.get("phone")
+            if isinstance(phone_fact, KnownFact):
+                phone = phone_fact.value
+            elif isinstance(phone_fact, dict):
+                phone = phone_fact.get("value")
+            else:
+                phone = None
+            if phone:
+                _save_phone(db, session, str(phone))
 
             # record the bot reply to the database
             reply, trace = result["final_reply"], result["trace"]

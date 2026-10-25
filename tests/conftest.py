@@ -4,7 +4,9 @@ import os
 # Dùng 127.0.0.1 thay vì localhost: localhost thử IPv6 (::1) trước và chờ hết timeout mới sang IPv4.
 os.environ["DATABASE_URL"] = os.getenv(
     "TEST_DATABASE_URL", "postgresql+psycopg://garage:garage@127.0.0.1:5432/garage_test?connect_timeout=5")
-os.environ["LLM_PROVIDER"] = "none"  # test chạy rule-based, không cần API key
+# LLM_PROVIDER is configured by the environment so local integration runs can
+# use the real provider; CI/test runs can explicitly set it to "none".
+os.environ.setdefault("LLM_PROVIDER", "none")  # tests run rule-based unless explicitly enabled
 # RAG chạy BM25-only: không gọi OpenAI embeddings (mỗi câu hỏi 1 request mạng, mạng chậm -> treo cả suite)
 os.environ["EMBEDDING_PROVIDER"] = "none"
 

@@ -58,7 +58,10 @@ def generate(system: str, user: str, history: list[dict] | None = None) -> str |
         return None
     try:
         response = llm.invoke(_messages(system, user, history))
-        return response.content
+        content = response.content
+        if isinstance(content, str):
+            return content
+        return "".join(part.get("text", "") if isinstance(part, dict) else str(part) for part in content)
     except Exception as e:
         logger.error(f"LLM generate error: {e}")
         return None
@@ -71,7 +74,7 @@ def generate_structured(system: str, user: str, output_schema: type[T],
     if llm is None:
         return None
     try:
-        structured_llm = llm.with_structured_output(output_schema)
+        structured_llm = llm.with_structured_output(output_schema, method="function_calling")
         result = structured_llm.invoke(_messages(system, user, history))
         return cast(T, result)
     except Exception as e:

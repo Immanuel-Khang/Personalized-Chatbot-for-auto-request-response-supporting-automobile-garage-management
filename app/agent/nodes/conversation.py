@@ -5,7 +5,7 @@ from app.agent.nodes.common import STYLE_RULES, answer, step
 from app.agent.nodes.service_type import detect_component
 from app.agent.state import AgentState
 from app.config import settings
-from app.contracts.schemas import Intent
+from app.contracts.schemas import InteractionStatus, Intent, PendingInteraction
 from app.db.models import ChatSession, Customer
 from app.db.session import SessionLocal
 from app.services import get_services
@@ -77,10 +77,11 @@ def _get_customer_profile(session_id: str) -> tuple[str | None, str | None]:
 
 
 def _reason(state: AgentState) -> str:
-    """Router quyết định cancel/clarify; còn lại theo intent."""
-    if reason := state.get("conversation_reason"):
+    """Use router's canonical reason, then infer greeting from canonical tasks."""
+    if reason := state.get("route_reason"):
         return reason
-    if Intent.GREETING.value in state.get("intents", []):
+    interpretation = state.get("conversation_interpretation")
+    if interpretation and any(task.domain == Intent.GREETING for task in interpretation.tasks):
         return "greeting"
     return "other"
 
@@ -106,7 +107,12 @@ def conversation(state: AgentState) -> dict:
         documents = "\n".join(c.text for c in chunks) or "(không có tài liệu liên quan)"
         documents = f"\nTài liệu của xưởng (nguồn duy nhất được dùng):\n{documents}\n"
 
-    offer_question = (state.get("followup") or {}).get("question", "")
+    open_pending = []
+    for item in state.get("pending_interactions", []) or []:
+        pending = item if isinstance(item, PendingInteraction) else PendingInteraction.model_validate(item)
+        if pending.status == InteractionStatus.OPEN:
+            open_pending.append(pending)
+    offer_question = open_pending[-1].text if open_pending else ""
     context = f"""
 {INTENT_CONTEXT[reason].format(question=offer_question)}
 {documents}

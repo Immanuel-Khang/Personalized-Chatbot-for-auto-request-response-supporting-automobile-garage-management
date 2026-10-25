@@ -11,7 +11,14 @@ TC12 = ["Tôi muốn đặt lịch bảo dưỡng xe.", "À mà thay dầu xe Fo
 TC13 = "Gara bên bạn có sửa hệ thống pin của xe điện bị lỗi không?"
 CAPABILITY_CLAIMS = ("có sửa", "sửa được", "nhận sửa", "có thể sửa", "có hỗ trợ sửa")
 UNAVAILABLE_CLAIMS = ("không sửa", "không nhận", "không hỗ trợ", "không có dịch vụ")
-DIAGNOSIS_CLAIMS = ("chắc chắn", "nguyên nhân là", "chắc là do")
+def _fact(state, key):
+    fact = state.get("known_facts", {}).get(key)
+    return fact.value if fact else None
+
+
+def _workflow(state):
+    workflow = state.get("active_workflow")
+    return workflow.workflow_type if workflow else None
 
 
 # ---- TC11: câu trả lời ngắn phụ thuộc ngữ cảnh ----
@@ -23,7 +30,7 @@ def test_tc11_short_reply_stays_in_brake_topic(client):
         assert "knowledge" in result["trace"] and "appointment" not in result["trace"]
         assert not mentions(result["reply"], DIAGNOSIS_CLAIMS)
     assert "phanh" in second["reply"].lower() and "kiểm tra" in second["reply"].lower()  # khuyên đi kiểm tra
-    assert conv.state.get("active_flow") is None and conv.appointments() == []
+    assert _workflow(conv.state) is None and conv.appointments() == []
     assert "đã dừng" not in second["reply"]  # 'thôi' không bị hiểu là hủy
 
 
@@ -38,15 +45,15 @@ def test_tc11_follow_up_is_not_a_verbatim_repeat(client):
 def test_tc12_price_question_pauses_and_resumes_booking(client):
     conv = Conversation(client, "tc12")
     first = conv.say(TC12[0])
-    assert mentions(first["reply"], DATE_ASK) and conv.state["active_flow"] == "appointment"
+    assert mentions(first["reply"], DATE_ASK) and _workflow(conv.state) == "appointment"
     second = conv.say(TC12[1])
     state = conv.state
     assert "appointment" not in second["trace"] and not mentions(second["reply"], DATE_ASK)  # không ép trả lời ngày
-    assert state["active_flow"] == "appointment" and state["slots"]["service_type"] == "MAINTENANCE"
-    assert not {"appointment_when", "when_text"} & set(state["slots"])  # câu hỏi giá không lấp slot ngày
+    assert _workflow(state) == "appointment" and _fact(state, "service_type") == "MAINTENANCE"
+    assert not {"appointment_when"} & set(state.get("known_facts", {}))  # câu hỏi giá không lấp slot ngày
     assert "đã dừng" not in second["reply"] and unsupported_amounts(second["reply"]) == []
     resumed = conv.say("Sáng thứ 7")
-    assert "appointment" in resumed["trace"] and "thứ 7" in conv.state["slots"]["when_text"]
+    assert "appointment" in resumed["trace"] and "thứ 7" in _fact(conv.state, "appointment_when")
     assert mentions(resumed["reply"], PHONE_ASK) and conv.appointments() == []
 
 
@@ -62,7 +69,7 @@ def test_tc12_oil_change_price_is_not_a_vehicle_price(client):
 def test_tc13_unknown_service_makes_no_claim_either_way(client):
     conv = Conversation(client, "tc13")
     result = conv.say(TC13)
-    assert "appointment" not in result["trace"] and conv.state.get("active_flow") is None
+    assert "appointment" not in result["trace"] and conv.state.get("active_workflow") is None
     assert conv.appointments() == [] and result["mode"] == "BOT"
     # Không có dữ liệu năng lực -> không được khẳng định có, cũng không được khẳng định không
     assert not mentions(result["reply"], CAPABILITY_CLAIMS + UNAVAILABLE_CLAIMS)
@@ -77,7 +84,7 @@ def test_tc13_says_availability_needs_verification(client):
 def test_tc13_collects_no_booking_slot(client):
     conv = Conversation(client, "tc13-slots")
     conv.say(TC13)
-    assert not BOOKING_SLOTS & set(conv.state.get("slots", {}))
+    assert not BOOKING_SLOTS & set(conv.state.get("known_facts", {}))
 
 
 # ---- Bất biến chung: câu hỏi không xin SĐT/ngày giờ, tối đa một câu hỏi ----
@@ -97,12 +104,12 @@ def test_inquiries_collect_no_personal_or_booking_data(client, text):
     conv = Conversation(client, "inquiry")
     result = conv.say(text)
     assert not mentions(result["reply"], DATE_ASK + PHONE_ASK) and questions(result["reply"]) <= 1
-    assert conv.state.get("active_flow") is None and conv.appointments() == []
+    assert _workflow(conv.state) is None and conv.appointments() == []
 
 
 def test_conversations_are_isolated(client):
     booking, other = Conversation(client, "iso-a"), Conversation(client, "iso-b")
     booking.say(TC12[0])
     result = other.say("Sáng thứ 7")  # phiên khác không đang đặt lịch
-    assert "appointment" not in result["trace"] and other.state.get("active_flow") is None
-    assert booking.state["active_flow"] == "appointment"
+    assert "appointment" not in result["trace"] and _workflow(other.state) is None
+    assert _workflow(booking.state) == "appointment"
