@@ -1,34 +1,30 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách xác nhận muốn loại xe dạng chassis.",
+      "message_summary": "Khách xác nhận muốn được tư vấn xe.",
       "tasks": [
         {
           "task_id": "task_1",
           "domain": "SALES",
-          "action": "search_catalog",
-          "text": "Tôi muốn chassis",
+          "action": "general_conversation",
+          "text": "Tôi muốn tư vấn xe",
           "relationship": "NEW_REQUEST",
           "referenced_interaction_id": null,
           "depends_on": [],
-          "requires_clarification": true,
-          "clarification_question": "Dạ em xin anh/chị cho biết anh/chị muốn chassis tải trọng khoảng bao nhiêu (tấn) và ngân sách dự kiến để em lọc đúng mẫu ạ? Nếu anh/chị có loại thùng định lắp (mui bạt/thùng kín), cho em biết thêm giúp em.",
+          "requires_clarification": false,
+          "clarification_question": null,
           "entity_id": null,
           "entity_type": null
         }
       ],
       "slot_updates": [],
-      "unresolved_ambiguities": [
-        "Chassis tải trọng mong muốn (tấn) chưa rõ",
-        "Ngân sách chưa rõ",
-        "Loại thùng/định lắp (mui bạt/thùng kín...) chưa nêu trong tin nhắn mới"
-      ],
+      "unresolved_ambiguities": [],
       "complexity": "LOW",
       "answers_pending_question": false,
       "accepts_offer": null,
       "referenced_product_name": null,
       "product_reference_ambiguous": false,
-      "uncertain": true,
+      "uncertain": false,
       "catalog_request": false
     },
     "known_facts": {},

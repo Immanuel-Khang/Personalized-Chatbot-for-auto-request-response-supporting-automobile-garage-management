@@ -1,297 +1,297 @@
-"""Read-only vehicle sales specialist backed by canonical conversation state."""
-from enum import Enum
-import uuid
+"""Read-only vehicle sales specialist using LLM tool calling.
 
-from app.agent.llm import generate
+This agent gives the LLM direct access to product search tools, allowing it to
+make intelligent decisions based on conversation context rather than brittle keyword matching.
+"""
+from typing import Any
+
+from app.agent.llm import generate_with_tools
 from app.agent.nodes.common import STYLE_RULES, answer, step
-from app.agent.nodes.product_reference import resolve_product
 from app.agent.state import AgentState
-from app.config import settings
-from app.contracts.schemas import (
-    ActiveWorkflow,
-    InteractionKind,
-    InteractionStatus,
-    KnownFact,
-    PendingInteraction,
-    Product,
-)
+from app.contracts.schemas import Product
 from app.services import get_services
 from app.utils import fmt_vnd
 
 
-SUGGESTION_KEYWORDS = ("phổ biến", "bán chạy", "gợi ý", "nên mua", "nào tốt", "xe gì", "dòng xe nào", "loại xe nào", "nổi bật", "tốt nhất", "hàng đầu", "ưu tiên")
-PURCHASE_WORDS = ("mua xe", "tìm xe", "mẫu xe", "dòng xe", "chiếc xe")
-SEARCH_CRITERIA_KEYWORDS = ("tấn", "kg", "chở", "hàng", "đường", "thành phố", "trường", "đèo", "tải trọng", "payload", "chassis", "thùng", "mui bạt", "kín", "lửng")
-WRITERS = ("contract", "appointment")
-BROWSE_LIMIT = 10
-KIND_LABEL = {"TRUCK": "xe tải", "CAR": "xe con"}
-
 
 SALES_SYSTEM_PROMPT = """\
 Bạn là trợ lý tư vấn xe của xưởng Foton chuyên nghiệp, thân thiện.
-QUY TẮC:
-1. Luôn trả lời bằng tiếng Việt.
-2. Khi nêu giá, PHẢI dùng đúng số liệu được cung cấp, KHÔNG ĐƯỢC tự bịa giá.
-3. Kèm ngày hiệu lực giá (price_as_of) khi báo giá.
-4. KHÔNG hứa giảm giá, quà tặng hay cam kết nào.
-5. Chỉ trả lời phần câu hỏi được giao; KHÔNG tự hỏi ngày giờ hay số điện thoại đặt lịch.
-6. Chỉ dùng thông tin khách hàng được cung cấp trong phần dữ liệu đã biết.
-7. KHÔNG khẳng định xe phù hợp nhu cầu khi dữ liệu xe không có thông số đó.
+
+NGUYÊN TẮC HOẠT ĐỘNG:
+1. Phân tích nhu cầu khách hàng từ lịch sử hội thoại và tin nhắn hiện tại
+2. Sử dụng tools để tìm kiếm sản phẩm phù hợp
+3. Tư vấn dựa trên kết quả tìm kiếm thực tế từ tools
+4. Luôn trả lời bằng tiếng Việt
+
+QUY TẮC BẮT BUỘC:
+1. Khi nêu giá, PHẢI dùng đúng số liệu từ tool, KHÔNG bịa giá
+2. Kèm ngày hiệu lực giá (price_as_of) khi báo giá
+3. KHÔNG hứa giảm giá, quà tặng hay cam kết nào
+4. Chỉ tư vấn xe; KHÔNG hỏi về ngày giờ hay số điện thoại đặt lịch
+5. Chỉ dùng thông tin khách được cung cấp trong dữ liệu đã biết
+6. KHÔNG khẳng định xe phù hợp khi dữ liệu xe không có thông số đó
+
+KHI NÀO GỌI TOOL:
+- Khách hỏi về xe, cần tư vấn, muốn xem sản phẩm → Gọi tool tìm kiếm ngay
+- Khách cung cấp tiêu chí (tải trọng, ngân sách, loại thùng...) → Gọi tool với tiêu chí đó
+- Khách hỏi xe phổ biến/nổi bật → Gọi get_popular_products
+- Khách muốn xem danh sách → Gọi browse_catalog
+- Khách nói tên xe cụ thể → Gọi find_by_model_name
+- Khách có ngân sách cụ thể → Gọi search_by_budget
+- Không rõ tool nào → Gọi search_products với mô tả nhu cầu
+
+SAU KHI CÓ KẾT QUẢ:
+- Giới thiệu các mẫu xe tìm được
+- Làm rõ ưu điểm phù hợp với nhu cầu khách
+- Hỏi thêm thông tin chỉ khi thực sự cần thiết để tư vấn tốt hơn
 """ + STYLE_RULES
 
 
-class SalesMode(str, Enum):
-    MODEL_LOOKUP = "MODEL_LOOKUP"
-    NO_MATCH = "NO_MATCH"
-    BUDGET_SEARCH = "BUDGET_SEARCH"
-    CATALOG_BROWSE = "CATALOG_BROWSE"
-    POPULAR_PRODUCTS = "POPULAR_PRODUCTS"
-    UNSUPPORTED_USE = "UNSUPPORTED_USE"
-    NEEDS_DETAILS = "NEEDS_DETAILS"
-    UNCERTAIN = "UNCERTAIN"
-    DISCOVERY = "DISCOVERY"
-    PRODUCT_DETAIL = "PRODUCT_DETAIL"
-    CLARIFY_PRODUCT = "CLARIFY_PRODUCT"
-    TEXT_SEARCH = "TEXT_SEARCH"
+PRODUCT_SEARCH_TOOLS = [
+    {
+        "name": "search_products",
+        "description": "Tìm kiếm xe theo mô tả tự nhiên. Dùng khi khách cung cấp tiêu chí như 'chở hàng 10 tấn', 'xe chạy đường phố', 'chassis', 'thùng kín'...",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Mô tả nhu cầu của khách hàng để tìm kiếm"
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Số lượng kết quả tối đa (mặc định 3)",
+                    "default": 3
+                }
+            },
+            "required": ["query"]
+        }
+    },
+    {
+        "name": "find_by_model_name",
+        "description": "Tìm xe theo tên mẫu cụ thể. Dùng khi khách nói tên mẫu như 'FUSO Canter', 'ISUZU Forward'...",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "model_name": {
+                    "type": "string",
+                    "description": "Tên mẫu xe khách hỏi"
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Số lượng kết quả tối đa (mặc định 3)",
+                    "default": 3
+                }
+            },
+            "required": ["model_name"]
+        }
+    },
+    {
+        "name": "search_by_budget",
+        "description": "Tìm xe trong ngân sách. Dùng khi khách nêu rõ ngân sách (VNĐ)",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "budget_vnd": {
+                    "type": "number",
+                    "description": "Ngân sách của khách (VNĐ)"
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Số lượng kết quả tối đa (mặc định 3)",
+                    "default": 3
+                }
+            },
+            "required": ["budget_vnd"]
+        }
+    },
+    {
+        "name": "get_popular_products",
+        "description": "Lấy các mẫu xe phổ biến, nổi bật. Dùng khi khách hỏi 'xe nào phổ biến', 'mẫu nổi bật', 'xe bán chạy'...",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer",
+                    "description": "Số lượng mẫu (mặc định 3)",
+                    "default": 3
+                }
+            },
+            "required": []
+        }
+    },
+    {
+        "name": "browse_catalog",
+        "description": "Xem danh sách xe trong catalog. Dùng khi khách muốn 'xem tất cả', 'có mẫu nào', 'danh sách xe'...",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer",
+                    "description": "Số lượng hiển thị (mặc định 10)",
+                    "default": 10
+                }
+            },
+            "required": []
+        }
+    },
+    {
+        "name": "get_product_details",
+        "description": "Lấy thông tin chi tiết 1 mẫu xe cụ thể. Dùng khi khách hỏi về mẫu đã được giới thiệu",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "product_id": {
+                    "type": "integer",
+                    "description": "ID của sản phẩm"
+                }
+            },
+            "required": ["product_id"]
+        }
+    }
+]
 
 
-def _fact_value(facts: dict, key: str):
-    fact = facts.get(key)
-    if isinstance(fact, KnownFact):
-        return fact.value
-    return fact.get("value") if isinstance(fact, dict) else None
+def _execute_tool(tool_name: str, tool_input: dict[str, Any]) -> dict[str, Any]:
+    """Execute a product search tool and return results."""
+    service = get_services().product
 
+    try:
+        if tool_name == "search_products":
+            products = service.search(
+                query=tool_input["query"],
+                limit=tool_input.get("limit", 3),
+                fallback=True
+            )
+            return {"products": [_product_to_dict(p) for p in products]}
 
-def _facts_as_values(state: AgentState) -> dict:
-    return {key: _fact_value(state.get("known_facts", {}) or {}, key)
-            for key in (state.get("known_facts", {}) or {})}
+        elif tool_name == "find_by_model_name":
+            products = service.find_model(
+                name=tool_input["model_name"],
+                limit=tool_input.get("limit", 3)
+            )
+            if not products:
+                return {"products": [], "message": f"Không tìm thấy mẫu '{tool_input['model_name']}'"}
+            return {"products": [_product_to_dict(p) for p in products]}
 
+        elif tool_name == "search_by_budget":
+            products = service.search_by_budget(
+                budget_vnd=tool_input["budget_vnd"],
+                limit=tool_input.get("limit", 3)
+            )
+            if not products:
+                return {"products": [], "message": f"Không có xe trong ngân sách {fmt_vnd(tool_input['budget_vnd'])}"}
+            return {"products": [_product_to_dict(p) for p in products]}
 
-def _pending(state: AgentState) -> list[PendingInteraction]:
-    result = []
-    for item in state.get("pending_interactions", []) or []:
-        pending = item if isinstance(item, PendingInteraction) else PendingInteraction.model_validate(item)
-        if pending.status == InteractionStatus.OPEN:
-            result.append(pending)
-    return result
+        elif tool_name == "get_popular_products":
+            products = service.get_popular(limit=tool_input.get("limit", 3))
+            return {"products": [_product_to_dict(p) for p in products]}
 
+        elif tool_name == "browse_catalog":
+            products = service.list_vehicles(limit=tool_input.get("limit", 10))
+            summary = service.vehicle_summary()
+            scope = ", ".join(f"{count} mẫu xe {'tải' if kind == 'TRUCK' else 'con'}"
+                            for kind, count in summary.items())
+            return {
+                "products": [_product_to_dict(p) for p in products],
+                "catalog_summary": scope
+            }
 
-def _replace_sales_pending(state: AgentState, interaction: PendingInteraction | None) -> list[PendingInteraction]:
-    result = []
-    for item in _pending(state):
-        if item.metadata.get("owner") == "sales":
-            result.append(item.model_copy(update={"status": InteractionStatus.EXPIRED}))
+        elif tool_name == "get_product_details":
+            product = service.get_by_id(tool_input["product_id"])
+            if not product:
+                return {"error": f"Không tìm thấy sản phẩm ID {tool_input['product_id']}"}
+            return {"product": _product_to_dict(product)}
+
         else:
-            result.append(item)
-    if interaction:
-        result.append(interaction)
-    return result
+            return {"error": f"Unknown tool: {tool_name}"}
+
+    except Exception as e:
+        return {"error": str(e)}
 
 
-def _selected_products(state: AgentState) -> list[Product]:
-    service = get_services().product
-    products = []
-    for item in state.get("selected_entities", []) or []:
-        if not isinstance(item, dict) or item.get("entity_type") != "PRODUCT":
-            continue
-        product_id = item.get("entity_id")
-        if isinstance(product_id, int) and (product := service.get_by_id(product_id)):
-            products.append(product)
-    return products
+def _product_to_dict(product: Product) -> dict:
+    """Convert Product to dict for LLM."""
+    return {
+        "id": product.id,
+        "name": product.name,
+        "list_price_vnd": product.list_price_vnd,
+        "price_as_of": str(product.price_as_of),
+        "specs": product.specs or {},
+        "kind": product.kind
+    }
 
 
-def _with_products(state: AgentState, products: list[Product]) -> dict:
-    selected = list(state.get("selected_entities", []) or [])
-    existing = {item.get("entity_id") for item in selected if isinstance(item, dict)}
-    selected.extend({"entity_type": "PRODUCT", "entity_id": product.id, "name": product.name}
-                    for product in products if product.id not in existing)
-    return {"selected_entities": selected}
-
-
-def _scope() -> str:
-    summary = get_services().product.vehicle_summary()
-    return ", ".join(f"{count} mẫu {KIND_LABEL.get(kind, kind.lower())}"
-                      for kind, count in summary.items()) or "chưa có mẫu xe"
-
-
-def _only_trucks() -> bool:
-    return set(get_services().product.vehicle_summary()) == {"TRUCK"}
-
-
-def _use_text(facts: dict) -> str:
-    return str(_fact_value(facts, "intended_use") or "").strip().rstrip(".!?").lower()
-
-
-def _history_assistant_messages(state: AgentState) -> list[str]:
-    return [str(item.get("content", "")) for item in state.get("history", []) or []
-            if isinstance(item, dict) and item.get("role") == "ai"]
-
-
-def sales_mode(state: AgentState) -> tuple[SalesMode, list[Product]]:
-    """Choose a catalog operation without inferring facts or selecting unseen products."""
+def _format_known_facts(state: AgentState) -> str:
+    """Format known facts about customer for LLM context."""
     facts = state.get("known_facts", {}) or {}
-    interpretation = state.get("conversation_interpretation")
-    question = state.get("task_text") or state.get("user_text", "")
-    text = question.casefold()
-    service = get_services().product
+    if not facts:
+        return "Chưa có thông tin về nhu cầu khách."
 
-    if interpretation and interpretation.product_reference_ambiguous:
-        return SalesMode.CLARIFY_PRODUCT, []
+    lines = []
+    for key, fact in facts.items():
+        value = fact.value if hasattr(fact, 'value') else fact.get('value') if isinstance(fact, dict) else None
+        if value is not None:
+            lines.append(f"- {key}: {value}")
 
-    # Check if interpretation contains entity_id for direct product reference
-    if interpretation and interpretation.tasks:
-        for task in interpretation.tasks:
-            if (hasattr(task, 'entity_id') and task.entity_id is not None and
-                hasattr(task, 'entity_type') and task.entity_type == "PRODUCT"):
-                product = service.get_by_id(task.entity_id)
-                if product:
-                    return SalesMode.PRODUCT_DETAIL, [product]
-
-    if interpretation and interpretation.referenced_product_name:
-        shown = _selected_products(state)
-        product, ambiguous = resolve_product(
-            question, _history_assistant_messages(state), shown,
-            interpretation.referenced_product_name,
-        )
-        return ((SalesMode.PRODUCT_DETAIL, [product]) if product and not ambiguous
-                else (SalesMode.CLARIFY_PRODUCT, []))
-
-    # Check for suggestion keywords BEFORE generic catalog browse
-    if any(keyword in text for keyword in SUGGESTION_KEYWORDS):
-        return SalesMode.POPULAR_PRODUCTS, service.get_popular(limit=3)
-
-    if interpretation and interpretation.catalog_request:
-        return SalesMode.CATALOG_BROWSE, service.list_vehicles(limit=BROWSE_LIMIT)
-
-    car_model = _fact_value(facts, "car_model")
-    if car_model:
-        products = service.find_model(str(car_model), limit=3)
-        return (SalesMode.MODEL_LOOKUP, products) if products else (SalesMode.NO_MATCH, [])
-    budget = _fact_value(facts, "budget_vnd")
-    if budget is not None:
-        return SalesMode.BUDGET_SEARCH, service.search_by_budget(float(budget), limit=3)
-
-    # If user provides search criteria (tonnage, cargo details, road type), search immediately
-    # instead of asking more questions - do this BEFORE checking intended_use alone
-    if any(keyword in text for keyword in SEARCH_CRITERIA_KEYWORDS):
-        products = service.search(question, limit=3, fallback=True)
-        return (SalesMode.TEXT_SEARCH, products) if products else (SalesMode.TEXT_SEARCH, service.get_popular(limit=3))
-
-    intended_use = _fact_value(facts, "intended_use")
-    if intended_use:
-        if _fact_value(facts, "use_category") == "PASSENGER":
-            return SalesMode.UNSUPPORTED_USE, []
-        return SalesMode.NEEDS_DETAILS, []
-
-    if interpretation and interpretation.uncertain:
-        return SalesMode.UNCERTAIN, []
-    return SalesMode.DISCOVERY, []
-
-
-def _discovery_reply(mode: SalesMode, facts: dict) -> tuple[str, str, str | None]:
-    use = _use_text(facts)
-    if mode == SalesMode.DISCOVERY:
-        return ("Dạ, em có thể hỗ trợ anh/chị chọn xe phù hợp ạ.",
-                "Anh/chị dự định sử dụng xe chủ yếu để làm gì, ví dụ chở hàng, phục vụ gia đình hay đi lại hằng ngày?",
-                "intended_use")
-    if mode == SalesMode.UNCERTAIN:
-        return (f"Dạ không sao ạ. Hiện catalog bên em có {_scope()}.",
-                "Anh/chị cho em biết loại hàng hoặc khối lượng thường chở, ngân sách dự kiến, hoặc em gửi danh sách các mẫu để anh/chị tham khảo nhé?",
-                "intended_use")
-    if mode == SalesMode.UNSUPPORTED_USE:
-        return (f"Dạ, em ghi nhận anh/chị cần xe để {use} ạ. Hiện catalog bên em chỉ có {_scope()}, chưa có xe chở người/xe gia đình nên em chưa thể gợi ý mẫu phù hợp.",
-                f"Anh/chị có muốn xem danh sách các mẫu xe hiện có, hoặc gọi hotline {settings.hotline} để nhân viên tư vấn thêm không?",
-                "browse_offer")
-    if mode == SalesMode.NO_MATCH:
-        model = _fact_value(facts, "car_model") or "anh/chị nêu"
-        return (f"Dạ, hiện catalog bên em chưa có mẫu {model} ạ.",
-                "Anh/chị có muốn xem danh sách các mẫu xe đang có không?", "browse_offer")
-    known = f"Dạ, em ghi nhận nhu cầu {use} ạ. Hiện catalog bên em có {_scope()}"
-    if _fact_value(facts, "use_category") != "CARGO" and _only_trucks():
-        return (known + ", chưa có xe chở người/xe gia đình.",
-                "Nếu anh/chị cần xe tải chở hàng, cho em biết tải trọng và ngân sách dự kiến; hoặc em gửi danh sách các mẫu xe hiện có để anh/chị tham khảo nhé?",
-                "cargo_details")
-    payload = _fact_value(facts, "payload_tons")
-    if payload is not None:
-        return (known + f". Dữ liệu xe chưa có thông số tải trọng chi tiết để lọc theo {payload:g} tấn.",
-                "Anh/chị cho em biết ngân sách dự kiến, hoặc em gửi danh sách các mẫu để anh/chị tham khảo nhé?",
-                "cargo_details")
-    return (known + ".", "Anh/chị thường chở khoảng bao nhiêu tấn hàng và ngân sách dự kiến khoảng bao nhiêu ạ?", "cargo_details")
-
-
-def _product_line(product: Product, budget: float | None = None) -> str:
-    specs = ", ".join(f"{key}: {value}" for key, value in product.specs.items()) if product.specs else ""
-    label = " [trong ngân sách]" if budget and product.list_price_vnd <= budget else " [vượt ngân sách]" if budget else ""
-    return f"- {product.name}: giá niêm yết {fmt_vnd(product.list_price_vnd)} (cập nhật {product.price_as_of}){label}" + (f" | {specs}" if specs else "")
-
-
-MODE_GUIDE = {
-    SalesMode.MODEL_LOOKUP: "Đây là các mẫu có tên khớp với từ khách nêu. Không giới thiệu mẫu thay thế như phù hợp.",
-    SalesMode.BUDGET_SEARCH: "Chỉ nói xe nằm trong ngân sách khi được đánh dấu [trong ngân sách]; xe [vượt ngân sách] phải nói rõ.",
-    SalesMode.POPULAR_PRODUCTS: "Chưa có số liệu bán chạy; giới thiệu đây là một số mẫu trong catalog, không nói là phổ biến nhất.",
-    SalesMode.PRODUCT_DETAIL: "Chỉ mô tả đúng mẫu xe đã xác định bằng dữ liệu được cung cấp; không bịa thông số.",
-    SalesMode.TEXT_SEARCH: "Đây là kết quả tìm kiếm dựa trên yêu cầu của khách. Tư vấn dựa trên thông số thực tế.",
-}
-FALLBACK_INTRO = {
-    SalesMode.MODEL_LOOKUP: "Mình tìm thấy các mẫu có tên khớp với yêu cầu:",
-    SalesMode.BUDGET_SEARCH: "Các mẫu xe theo ngân sách bạn nêu:",
-    SalesMode.POPULAR_PRODUCTS: "Hệ thống chưa có số liệu bán chạy; đây là một số mẫu trong catalog:",
-    SalesMode.PRODUCT_DETAIL: "Dạ, thông tin mẫu xe anh/chị hỏi theo catalog:",
-    SalesMode.TEXT_SEARCH: "Dạ, dựa trên yêu cầu của anh/chị, em tìm thấy các mẫu sau:",
-}
-CLARIFY_PRODUCT_REPLY = "Dạ, anh/chị đang hỏi mẫu xe nào ạ? Anh/chị cho em xin tên mẫu hoặc số thứ tự trong danh sách em vừa gửi nhé."
+    return "\n".join(lines) if lines else "Chưa có thông tin về nhu cầu khách."
 
 
 def sales(state: AgentState) -> dict:
-    facts = state.get("known_facts", {}) or {}
-    question = state.get("task_text") or state.get("user_text", "")
-    mode, products = sales_mode(state)
-    active_workflow = state.get("active_workflow")
-    # Checkpoint may deserialize as dict; reconstruct if needed
-    if isinstance(active_workflow, dict):
-        active_workflow = ActiveWorkflow(**active_workflow)
-    writer_owns_turn = bool((active_workflow is not None and active_workflow.workflow_type in WRITERS)
-                            or any(agent in WRITERS for agent in state.get("planned_agents", [])))
-    update: dict = {"trace": step(state, "sales")}
+    """Sales agent that uses LLM tool calling to search products."""
+    user_message = state.get("task_text") or state.get("user_text", "")
+    known_facts_text = _format_known_facts(state)
 
-    if mode == SalesMode.CATALOG_BROWSE:
-        if not products:
-            return {**update, "answers": [answer(state, "sales", "Hiện catalog chưa có mẫu xe nào để giới thiệu ạ.")]}
-        reply = (f"Dạ, hiện catalog bên em có {_scope()}. Dưới đây là {len(products)} mẫu đầu theo danh mục (chưa phải gợi ý theo nhu cầu):\n"
-                 + "\n".join(_product_line(product) for product in products))
-        if not writer_owns_turn:
-            reply += "\nAnh/chị cho em biết mục đích sử dụng hoặc ngân sách để em lọc giúp nhé."
-        return {**update, **_with_products(state, products), "answers": [answer(state, "sales", reply)],
-                "allowed_amounts": [fmt_vnd(product.list_price_vnd) for product in products]}
+    context = f"""Tin nhắn của khách: {user_message}
 
-    if mode == SalesMode.CLARIFY_PRODUCT:
-        return {**update, "answers": [answer(state, "sales", CLARIFY_PRODUCT_REPLY)]}
+Thông tin đã biết về khách:
+{known_facts_text}
 
-    if not products:
-        statement, ask, asked = _discovery_reply(mode, facts)
-        if writer_owns_turn:
-            # Writer owns turn: provide informative statement without creating pending question
-            combined = f"{statement} {ask}" if statement else ask
-            return {**update, "answers": [answer(state, "sales", combined)]}
-        pending = PendingInteraction(
-            interaction_id=f"sales_{uuid.uuid4().hex[:8]}",
-            kind=InteractionKind.QUESTION if asked != "browse_offer" else InteractionKind.OFFER,
-            text=ask, status=InteractionStatus.OPEN, related_task_id=None,
-            created_at_message_id=None, metadata={"owner": "sales", "asked": asked},
-        )
-        return {**update, "answers": [answer(state, "sales", f"{statement} {ask}")],
-                "pending_interactions": _replace_sales_pending(state, pending)}
+Hãy phân tích nhu cầu và gọi tool phù hợp để tìm sản phẩm, sau đó tư vấn khách dựa trên kết quả."""
 
-    budget_value = _fact_value(facts, "budget_vnd") if mode == SalesMode.BUDGET_SEARCH else None
-    budget = float(budget_value) if budget_value is not None else None
-    product_info = "\n".join(_product_line(product, budget) for product in products)
-    llm_reply = generate(
-        SALES_SYSTEM_PROMPT,
-        f"Câu hỏi của khách: {question}\n\nDữ liệu xe từ hệ thống:\n{product_info}\n\n"
-        f"Lưu ý: {MODE_GUIDE[mode]}\nPhạm vi catalog: {_scope()}\n"
-        f"Thông tin đã biết về khách: {_facts_as_values(state)}\nHãy tư vấn dựa trên dữ liệu trên.",
+    # Call LLM with tools
+    result = generate_with_tools(
+        system_prompt=SALES_SYSTEM_PROMPT,
+        user_message=context,
+        tools=PRODUCT_SEARCH_TOOLS,
+        tool_executor=_execute_tool,
         history=state.get("history"),
+        max_turns=3  # Allow up to 3 tool calls
     )
-    reply = llm_reply or (f"{FALLBACK_INTRO[mode]}\n{product_info}\nBạn muốn mình tư vấn kỹ hơn hay đặt lịch lái thử không?")
-    return {**update, **_with_products(state, products), "answers": [answer(state, "sales", reply)],
-            "allowed_amounts": [fmt_vnd(product.list_price_vnd) for product in products]}
+
+    if result.get("error"):
+        reply = f"Xin lỗi, có lỗi khi xử lý: {result['error']}"
+    else:
+        reply = result.get("final_response", "Xin lỗi, em chưa thể tư vấn được ạ.")
+
+    # Extract products that were found
+    products_found = []
+    for tool_call in result.get("tool_calls", []):
+        tool_result = tool_call.get("result", {})
+        if "products" in tool_result:
+            for p_dict in tool_result["products"]:
+                products_found.append(p_dict)
+
+    update = {
+        "trace": step(state, "sales"),
+        "answers": [answer(state, "sales", reply)]
+    }
+
+    # Track which products were shown
+    if products_found:
+        selected_entities = list(state.get("selected_entities", []) or [])
+        existing_ids = {item.get("entity_id") for item in selected_entities if isinstance(item, dict)}
+        for p_dict in products_found:
+            if p_dict["id"] not in existing_ids:
+                selected_entities.append({
+                    "entity_type": "PRODUCT",
+                    "entity_id": p_dict["id"],
+                    "name": p_dict["name"]
+                })
+        update["selected_entities"] = selected_entities
+
+        # Track allowed amounts for pricing
+        update["allowed_amounts"] = [fmt_vnd(p_dict["list_price_vnd"]) for p_dict in products_found]
+
+    return update
+
