@@ -41,7 +41,8 @@ KHI NÀO GỌI TOOL:
 - Không rõ tool nào → Gọi search_products với mô tả nhu cầu
 
 SAU KHI CÓ KẾT QUẢ:
-- Giới thiệu các mẫu xe tìm được
+- Nếu mẫu xe MỚI chưa từng giới thiệu trong lịch sử chat: Giới thiệu ngắn gọn các mẫu tìm được kèm giá niêm yết (price_as_of) và ưu điểm phù hợp.
+- Nếu mẫu xe ĐÃ ĐƯỢC GIỚI THIỆU ở các tin nhắn trước: TUYỆT ĐỐI KHÔNG giới thiệu hay liệt kê lại thông số kỹ thuật, giá niêm yết, động cơ, hộp số... từ đầu. Chỉ trả lời trực tiếp câu hỏi hoặc phân tích điểm khác biệt cho chi tiết mới mà khách vừa cung cấp.
 - Làm rõ ưu điểm phù hợp với nhu cầu khách
 - Hỏi thêm thông tin chỉ khi thực sự cần thiết để tư vấn tốt hơn
 """ + STYLE_RULES
@@ -247,7 +248,8 @@ def sales(state: AgentState) -> dict:
 Thông tin đã biết về khách:
 {known_facts_text}
 
-Hãy phân tích nhu cầu và gọi tool phù hợp để tìm sản phẩm, sau đó tư vấn khách dựa trên kết quả."""
+Hãy phân tích nhu cầu và gọi tool phù hợp nếu cần tìm sản phẩm, sau đó tư vấn khách dựa trên kết quả.
+LƯU Ý: Nếu khách đang tiếp tục trao đổi về các mẫu xe đã giới thiệu ở các lượt trước, KHÔNG giới thiệu lại toàn bộ thông số hay so sánh từ đầu mà đi thẳng vào ý mới."""
 
     # Call LLM with tools
     result = generate_with_tools(

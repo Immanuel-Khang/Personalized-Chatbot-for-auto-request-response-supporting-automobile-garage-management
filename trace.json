@@ -1,13 +1,13 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách xác nhận muốn được tư vấn xe.",
+      "message_summary": "Khách cho biết tầm 5 tấn/chuyến để chốt lựa chọn giữa F170 và F170L.",
       "tasks": [
         {
-          "task_id": "task_1",
+          "task_id": "t1",
           "domain": "SALES",
-          "action": "general_conversation",
-          "text": "Tôi muốn tư vấn xe",
+          "action": "search_catalog",
+          "text": "Chắc tầm 5 tấn",
           "relationship": "NEW_REQUEST",
           "referenced_interaction_id": null,
           "depends_on": [],
@@ -18,13 +18,15 @@
         }
       ],
       "slot_updates": [],
-      "unresolved_ambiguities": [],
+      "unresolved_ambiguities": [
+        "Dữ liệu hiện có chưa nêu rõ khác biệt về chiều dài thùng/khả năng chở giữa FI170 và FI170L để kết luận chắc chắn theo tải 5 tấn."
+      ],
       "complexity": "LOW",
       "answers_pending_question": false,
       "accepts_offer": null,
       "referenced_product_name": null,
       "product_reference_ambiguous": false,
-      "uncertain": false,
+      "uncertain": true,
       "catalog_request": false
     },
     "known_facts": {},

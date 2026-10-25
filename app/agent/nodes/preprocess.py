@@ -57,6 +57,7 @@ Nguyên tắc bắt buộc:
 - catalog_request chỉ true khi khách rõ ràng yêu cầu xem danh sách/danh mục.
 - Nếu không chắc, đặt uncertain=true và tạo task general_conversation với
   requires_clarification=true thay vì đoán.
+- tasks và message_summary CHỈ phân tích nội dung/yêu cầu mới trong tin nhắn mới nhất; KHÔNG lặp lại các tasks hoặc gom lại toàn bộ yêu cầu cũ đã xử lý từ các lượt trước.
 - Không biến showroom/appointment thành yêu cầu tìm danh mục.
 
 Các action hợp lệ và context đầy đủ được đặt trong user message bên dưới.
