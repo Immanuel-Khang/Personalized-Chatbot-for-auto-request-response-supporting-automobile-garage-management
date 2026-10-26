@@ -38,7 +38,7 @@ def _define_available_actions() -> list[dict]:
         {"action": "product_detail", "domain": "SALES", "description": "Show a previously displayed product",
          "required_fields": ["product_id"], "optional_fields": []},
         {"action": "book_appointment", "domain": "APPOINTMENT", "description": "Book service, showroom, or test-drive appointment",
-         "required_fields": ["service_type", "appointment_when", "customer_phone"], "optional_fields": ["service_detail"]},
+         "required_fields": ["service_type", "appointment_when", "customer_phone"], "optional_fields": ["service_detail", "customer_name"]},
         {"action": "answer_knowledge", "domain": "KNOWLEDGE", "description": "Answer technical or service questions",
          "required_fields": ["question"], "optional_fields": []},
         {"action": "show_service_history", "domain": "AFTER_SALES", "description": "Show authorized customer service history",

@@ -11,6 +11,7 @@ STYLE_RULES = """\
 - Gợi ý một việc (đặt lịch, lái thử, hợp đồng) KHÔNG phải là đã làm; KHÔNG nói đã đặt/xác nhận/áp dụng khi hệ thống chưa báo thành công.
 - Chỉ dùng dữ liệu được cung cấp (catalog, tài liệu, kết quả hệ thống); thiếu dữ liệu thì nói rõ phần nào cần nhân viên xác nhận.
 - Lịch sự, tự nhiên như nhân viên cố vấn dịch vụ; không lộ tên luồng, intent hay lỗi kỹ thuật nội bộ.
+- Nếu các mẫu xe, bảng so sánh hoặc thông số kỹ thuật đã được trình bày ở các lượt trả lời trước đó trong lịch sử trò chuyện, TUYỆT ĐỐI KHÔNG liệt kê hay trình bày lại từ đầu. Đi thẳng vào giải đáp, phân tích điểm khác biệt cho chi tiết mới mà khách vừa nhắn.
 """
 
 # "Chào Khang," / "Xin chào bạn!" / "Chào anh/chị." ở đầu câu trả lời

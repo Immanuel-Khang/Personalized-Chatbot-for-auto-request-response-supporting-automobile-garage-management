@@ -33,10 +33,30 @@ logger = logging.getLogger(__name__)
 
 _NO_ACTION_DOMAINS = {Intent.GREETING, Intent.OTHER}
 _PHONE_RE = re.compile(r"(?<!\d)(?:\+84|0)\d{9}(?!\d)")
+# (pattern, need_caps): the last pattern is a whole-message self-introduction such as "Em Lan",
+# too ambiguous without capitalised name words ("em đi", "em ok").
 _NAME_PATTERNS = (
-    re.compile(r"(?:tên\s+(?:tôi|mình|em)\s+(?:là\s+)?|(?:tôi|mình|em)\s+tên\s+)([^,.!?]+)", re.I),
-    re.compile(r"(?:tôi|mình|em)\s+là\s+([^,.!?]+)", re.I),
+    (re.compile(r"(?:tên\s+(?:tôi|mình|em|anh|chị)\s+(?:là\s+)?|(?:tôi|mình|em|anh|chị)\s+tên\s+(?:là\s+)?)([^,.!?\n]+)", re.I), False),
+    (re.compile(r"(?:tôi|mình|em|anh|chị)\s+là\s+([^,.!?\n]+)", re.I), False),
+    (re.compile(r"^\s*(?i:em|anh|chị|mình)\s+([^\W\d_]+(?:\s+[^\W\d_]+){0,3})\s*[.!]?\s*$"), True),
 )
+# Words that end a captured name ("Nam sdt 09...", "Nam muốn đặt lịch").
+_NAME_BOUNDARY = {
+    "sdt", "sđt", "số", "và", "muốn", "cần", "ở", "để", "đến", "xin", "nhé", "nha", "ạ", "đang", "vừa",
+    "cho", "hỏi", "đặt", "mua", "gọi", "liên", "hệ", "với", "thì", "nên", "vì",
+}
+# Words that never appear in a person's name: greetings, vehicles, scheduling, roles, places.
+_NON_NAME_WORDS = {
+    "xin", "chào", "alo", "hello", "hi", "vâng", "dạ", "ok", "okay", "được", "không", "có", "ạ", "nhé",
+    "cảm", "ơn", "xe", "tải", "tấn", "ben", "khách", "người", "muốn", "cần", "mua", "bán", "đặt", "lịch",
+    "hẹn", "bảo", "dưỡng", "sửa", "chữa", "lái", "thử", "showroom", "xưởng", "giá", "tiền", "triệu", "tỷ",
+    "ngày", "tuần", "tháng", "giờ", "mai", "hôm", "nay", "sáng", "chiều", "tối", "ở", "tại", "là", "của",
+    "và", "với", "đang", "sẽ", "đã", "rất", "đây", "này", "foton", "gara", "garage", "sdt", "sđt",
+}
+_PLACE_NAMES = {"hà nội", "sài gòn", "hồ chí minh", "đà nẵng", "hải phòng", "cần thơ"}
+_NAME_WORD_RE = re.compile(r"[^\W\d_]+(?:['’-][^\W\d_]+)*")
+_MAX_NAME_WORDS = 5
+_MAX_NAME_LENGTH = 60
 
 INTERPRETATION_PROMPT = """\
 Bạn là bộ phân tích hội thoại của trợ lý quản lý gara. Hãy trả về đúng schema
@@ -59,6 +79,11 @@ Nguyên tắc bắt buộc:
   requires_clarification=true thay vì đoán.
 - tasks và message_summary CHỈ phân tích nội dung/yêu cầu mới trong tin nhắn mới nhất; KHÔNG lặp lại các tasks hoặc gom lại toàn bộ yêu cầu cũ đã xử lý từ các lượt trước.
 - Không biến showroom/appointment thành yêu cầu tìm danh mục.
+- customer_name: chỉ tạo slot_update khi khách tự xưng tên mình (ví dụ "tôi tên Nam",
+  "anh là Minh Tuấn", "em Lan") hoặc trả lời đúng câu hỏi tên của bot. value chỉ là tên
+  người, không kèm xưng hô hay số điện thoại. KHÔNG dùng cho tên xe/sản phẩm, địa danh,
+  lời chào, con số, ngày giờ hay vai trò (khách, người mua). Nếu known_facts đã có
+  customer_name, chỉ cập nhật khi khách sửa rõ ràng (CORRECT_PREVIOUS_INFO).
 
 Các action hợp lệ và context đầy đủ được đặt trong user message bên dưới.
 """
@@ -127,8 +152,16 @@ def _evidence_is_current(update: SlotUpdate, text: str) -> bool:
 
 def _validated_updates(state: AgentState, interpretation: ConversationInterpretation) -> list[SlotUpdate]:
     text = state.get("user_text", "")
+    corrects = any(task.relationship == TaskRelationship.CORRECT_PREVIOUS_INFO for task in interpretation.tasks)
     updates: list[SlotUpdate] = []
     for update in interpretation.slot_updates:
+        if update.key == "customer_name" and update.operation != SlotOperation.CLEAR:
+            name = _valid_name(update.value)
+            old_name = _fact_value(state.get("known_facts", {}).get("customer_name"))
+            if name is None or (old_name and old_name != name and not corrects):
+                logger.warning("Discarding customer_name update: invalid or would overwrite known name")
+                continue
+            update = update.model_copy(update={"value": name})
         if not _evidence_is_current(update, text):
             logger.warning("Discarding slot update with invalid current-turn evidence: %s", update.key)
             continue
@@ -163,12 +196,39 @@ def _apply_interpretation(state: AgentState, interpretation: ConversationInterpr
     }
 
 
+def _valid_name(value) -> str | None:
+    """Return a cleaned person name, or None when the value cannot plausibly be one.
+
+    Shared by the LLM slot update and the regex fallback so both reject numbers,
+    phone numbers, greetings, vehicle/scheduling words and places.
+    """
+    if not isinstance(value, str):
+        return None
+    name = " ".join(value.split()).strip(" .,;:!?-")
+    if not name or len(name) > _MAX_NAME_LENGTH or any(ch.isdigit() for ch in name):
+        return None
+    words = name.split()
+    if len(words) > _MAX_NAME_WORDS or not all(_NAME_WORD_RE.fullmatch(word) for word in words):
+        return None
+    if name.casefold() in _PLACE_NAMES or any(word.casefold() in _NON_NAME_WORDS for word in words):
+        return None
+    return name
+
+
 def _extract_name(text: str) -> str | None:
-    for pattern in _NAME_PATTERNS:
+    for pattern, need_caps in _NAME_PATTERNS:
         match = pattern.search(text)
-        if match:
-            name = match.group(1).strip()
-            return name if name else None
+        if not match:
+            continue
+        words = []
+        for word in match.group(1).split():
+            if word.casefold() in _NAME_BOUNDARY or any(ch.isdigit() for ch in word):
+                break
+            words.append(word)
+        if need_caps and not all(word[0].isupper() for word in words):
+            continue
+        if name := _valid_name(" ".join(words)):
+            return name
     return None
 
 
@@ -234,7 +294,9 @@ def preprocess(state: AgentState) -> dict:
     interpretation = _interpret(state)
     result = _apply_interpretation(state, interpretation)
     facts = result["known_facts"]
-    name = _extract_name(state.get("user_text", ""))
+    name = _fact_value(facts.get("customer_name"))
+    if not name and (name := _extract_name(state.get("user_text", ""))):
+        facts["customer_name"] = KnownFact(key="customer_name", value=name, source=FactSource.USER_EXPLICIT)
     phone = _fact_value(facts.get("customer_phone"))
     if state.get("session_id") and (name or phone):
         _save_profile_to_db(state["session_id"], name, phone)

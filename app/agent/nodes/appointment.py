@@ -106,7 +106,7 @@ def appointment(state: AgentState) -> dict:
     interpretation = state.get("conversation_interpretation")
     text = state.get("task_text") or state.get("user_text", "")
     for update in interpretation.slot_updates if interpretation else []:
-        if update.key in {"service_type", "appointment_when", "when_text", "customer_phone", "phone", "service_detail"}:
+        if update.key in {"service_type", "appointment_when", "when_text", "customer_phone", "phone", "service_detail", "customer_name"}:
             if update.operation.value == "CLEAR":
                 facts.pop(update.key, None)
             else:
