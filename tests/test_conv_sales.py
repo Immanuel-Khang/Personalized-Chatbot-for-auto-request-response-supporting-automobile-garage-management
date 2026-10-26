@@ -20,7 +20,7 @@ def test_tc08_vehicle_interest_starts_no_booking_or_contract(client):
     result = conv.say(TC08)
     state = conv.state
     assert not {"appointment", "contract", "knowledge"} & set(result["trace"])
-    assert state.get("active_flow") is None and conv.appointments() == []
+    assert state.get("active_workflow") is None and conv.appointments() == []
     assert not mentions(result["reply"], DATE_ASK + PHONE_ASK) and questions(result["reply"]) <= 1
     assert unsupported_amounts(result["reply"]) == []
 
@@ -41,7 +41,7 @@ def test_tc09_discount_request_goes_to_human_without_promise(client):
     assert ticket.status == "OPEN" and "NEGOTIATION" in f"{ticket.reason} {ticket.summary}"
     with SessionLocal() as db:
         assert db.get(ChatSession, conv.id).negotiation_active  # sticky
-    assert conv.appointments() == [] and conv.state.get("active_flow") is None
+    assert conv.appointments() == [] and conv.state.get("active_workflow") is None
 
 
 def test_tc09_generated_discount_promise_is_blocked(client, monkeypatch):
@@ -73,5 +73,5 @@ def test_tc10_documents_question_fabricates_no_legal_list(client):
 def test_tc10_inquiry_does_not_start_contract_collection(client):
     conv = Conversation(client, "tc10-flow")
     result = conv.say(TC10)
-    assert conv.state.get("active_flow") is None
+    assert conv.state.get("active_workflow") is None
     assert not mentions(result["reply"], PHONE_ASK + ("địa chỉ", "giá chốt"))

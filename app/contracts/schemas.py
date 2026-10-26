@@ -1,9 +1,8 @@
 """
 HỢP ĐỒNG DỮ LIỆU giữa các module.
-QUY TẮC: sửa file này phải được CẢ 3 người đồng ý (mở PR, 2 người approve).
 """
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -31,35 +30,6 @@ class ServiceType(str, Enum):
     REPAIR = "REPAIR"
     TEST_DRIVE = "TEST_DRIVE"
     SHOWROOM_VISIT = "SHOWROOM_VISIT"
-
-
-# ---- Slot-filling: thông tin khách hàng thu thập dần qua nhiều lượt ----
-class CustomerSlots(BaseModel):
-    """Dùng cho LLM structured output: trích xuất thông tin từ tin nhắn khách."""
-    car_model: Optional[str] = Field(default=None, description="Dòng xe khách đang quan tâm (VD: Vios, Cross, Camry)")
-    budget_vnd: Optional[float] = Field(default=None, description="Ngân sách tối đa của khách")
-    intended_use: Optional[str] = Field(default=None, description="Mục đích sử dụng: Gia đình, dịch vụ, đi làm...")
-    current_mileage_km: Optional[int] = Field(default=None, description="Số km hiện tại của xe")
-    customer_name: Optional[str] = Field(default=None, description="Họ tên khách hàng")
-    customer_phone: Optional[str] = Field(default=None, description="Số điện thoại liên hệ")
-    customer_address: Optional[str] = Field(default=None, description="Địa chỉ nơi ở hoặc địa chỉ nhận xe")
-    decided_price: Optional[float] = Field(default=None, description="Mức giá cuối cùng khách chốt mua (VNĐ)")
-    service_type: Optional[str] = Field(default=None, description="Loại dịch vụ: MAINTENANCE | REPAIR | TEST_DRIVE | SHOWROOM_VISIT")
-    appointment_when: Optional[str] = Field(default=None, description="Thời điểm hẹn (VD: sáng thứ 3, ngày mai, 15/10)")
-
-
-class IntentTask(BaseModel):
-    """Một việc trong tin nhắn nhiều ý: intent + đúng phần câu của khách thuộc intent đó."""
-    intent: Intent
-    text: str = Field(description="Trích nguyên văn phần câu của khách thuộc intent này")
-
-
-class IntentAndSlotExtraction(BaseModel):
-    """Kết quả LLM structured output: tất cả intent, từng việc tách theo vế câu + slots."""
-    intents: list[Intent] = Field(description="Tất cả intent trong tin nhắn mới nhất, ý định chính đứng trước")
-    tasks: list[IntentTask] = Field(default_factory=list,
-                                    description="Mỗi intent kèm phần câu tương ứng, theo thứ tự trong tin nhắn")
-    extracted_slots: CustomerSlots = Field(default_factory=CustomerSlots)
 
 
 # ---- API ----
@@ -118,3 +88,155 @@ class MaintenanceResult(BaseModel):
     model_name: str
     tasks: list[str]
     estimated_cost: float
+
+
+# ---- New Conversation Interpretation Architecture ----
+
+class TaskRelationship(str, Enum):
+    """How the current task relates to conversation context."""
+    NEW_REQUEST = "NEW_REQUEST"  # Explicit new request
+    ANSWER_TO_QUESTION = "ANSWER_TO_QUESTION"  # Answers a pending question
+    ACCEPT_OFFER = "ACCEPT_OFFER"  # Accepts a pending offer
+    REJECT_OFFER = "REJECT_OFFER"  # Rejects a pending offer
+    CORRECT_PREVIOUS_INFO = "CORRECT_PREVIOUS_INFO"  # Corrects earlier information
+    CONTINUE_TASK = "CONTINUE_TASK"  # Continues an active workflow
+    CHANGE_TOPIC = "CHANGE_TOPIC"  # Switches to a different topic
+    CANCEL_TASK = "CANCEL_TASK"  # Cancels active workflow or pending task
+    UNCLEAR = "UNCLEAR"  # Ambiguous; requires clarification
+
+
+class SlotOperation(str, Enum):
+    """Type of slot update operation."""
+    SET = "SET"  # Set a new value
+    CORRECT = "CORRECT"  # Correct an existing value
+    CLEAR = "CLEAR"  # Remove the value
+
+
+class FactSource(str, Enum):
+    """Origin of a known fact."""
+    USER_EXPLICIT = "USER_EXPLICIT"  # User stated directly
+    USER_CORRECTED = "USER_CORRECTED"  # User corrected previous value
+    APPLICATION_VERIFIED = "APPLICATION_VERIFIED"  # Verified by app logic
+    INFERRED = "INFERRED"  # Inferred from context
+
+
+class InteractionKind(str, Enum):
+    """Type of pending interaction."""
+    QUESTION = "QUESTION"  # Bot asked a question
+    OFFER = "OFFER"  # Bot offered an action
+    CONFIRMATION = "CONFIRMATION"  # Bot requested confirmation
+
+
+class InteractionStatus(str, Enum):
+    """Lifecycle status of a pending interaction."""
+    OPEN = "OPEN"  # Awaiting response
+    RESOLVED = "RESOLVED"  # Response received and processed
+    REJECTED = "REJECTED"  # User declined
+    EXPIRED = "EXPIRED"  # No longer relevant
+
+
+class WorkflowStatus(str, Enum):
+    """Status of active workflow."""
+    NONE = "NONE"  # No active workflow
+    ACTIVE = "ACTIVE"  # Collecting information
+    WAITING_FOR_USER = "WAITING_FOR_USER"  # Waiting for user input
+    WAITING_FOR_APPROVAL = "WAITING_FOR_APPROVAL"  # Awaiting approval
+
+
+class SlotUpdate(BaseModel):
+    """A proposed update to a known fact/slot."""
+    key: str = Field(description="Canonical fact name")
+    operation: SlotOperation = Field(description="Type of update: SET, CORRECT, or CLEAR")
+    value: Optional[Any] = Field(default=None, description="New value (null for CLEAR)")
+    evidence: str = Field(description="Quoted text from user message supporting this update")
+    source_message_id: Optional[int] = Field(default=None, description="Message ID where this update originated")
+    related_task_id: Optional[str] = Field(default=None, description="Task ID this update relates to")
+
+
+class TaskInterpretation(BaseModel):
+    """Interpretation of a single task within the user's message."""
+    task_id: str = Field(description="Application-generated unique ID for this task in this turn")
+    domain: Intent = Field(description="Domain: SALES, APPOINTMENT, KNOWLEDGE, etc.")
+    action: str = Field(description="Canonical action name from available_actions")
+    text: str = Field(description="Relevant excerpt from user message for this task")
+    relationship: TaskRelationship = Field(description="How this task relates to conversation context")
+    referenced_interaction_id: Optional[str] = Field(
+        default=None, description="ID of the pending interaction this task responds to")
+    depends_on: list[str] = Field(
+        default_factory=list, description="Other task_ids in this turn that must complete first")
+    requires_clarification: bool = Field(
+        default=False, description="True when task cannot proceed without clarification")
+    clarification_question: Optional[str] = Field(
+        default=None, description="Question to ask if clarification needed")
+    entity_id: Optional[int] = Field(
+        default=None, description="Resolved catalog/entity identifier for this task")
+    entity_type: Optional[str] = Field(
+        default=None, description="Resolved entity type, e.g. PRODUCT")
+
+
+class ConversationInterpretation(BaseModel):
+    """Structured interpretation of the current user message."""
+    message_summary: str = Field(description="Concise summary of user's request")
+    tasks: list[TaskInterpretation] = Field(
+        default_factory=list, description="Deduplicated, ordered task interpretations")
+    slot_updates: list[SlotUpdate] = Field(
+        default_factory=list, description="Proposed fact/slot changes with explicit operations")
+    unresolved_ambiguities: list[str] = Field(
+        default_factory=list, description="Issues requiring clarification")
+    # Interpretation signals consumed by application policy; these are not duplicated task state.
+    complexity: str = Field(default="LOW", description="LOW or HIGH complexity of this turn")
+    answers_pending_question: bool = Field(default=False)
+    accepts_offer: Optional[bool] = Field(default=None)
+    referenced_product_name: Optional[str] = Field(default=None)
+    product_reference_ambiguous: bool = Field(default=False)
+    uncertain: bool = Field(default=False)
+    catalog_request: bool = Field(default=False)
+
+
+class KnownFact(BaseModel):
+    """A fact known about the customer or conversation."""
+    key: str = Field(description="Canonical fact name")
+    value: Any = Field(description="Fact value (typed)")
+    source: FactSource = Field(description="Origin of this fact")
+    updated_at_message_id: Optional[int] = Field(
+        default=None, description="Message ID of the last update")
+    confidence: Optional[float] = Field(
+        default=None, description="Confidence score for inferred facts (0.0-1.0)")
+
+
+class PendingInteraction(BaseModel):
+    """A question, offer, or confirmation awaiting user response."""
+    interaction_id: str = Field(description="Stable application-generated ID")
+    kind: InteractionKind = Field(description="Type: QUESTION, OFFER, or CONFIRMATION")
+    text: str = Field(description="The question/offer presented to the user")
+    status: InteractionStatus = Field(description="Lifecycle status")
+    related_task_id: Optional[str] = Field(default=None, description="Associated task ID if any")
+    created_at_message_id: Optional[int] = Field(default=None, description="Message ID when this interaction was created")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional context (e.g., asked field name)")
+
+
+class ActiveWorkflow(BaseModel):
+    """Currently active multi-turn workflow."""
+    workflow_id: str = Field(description="Stable workflow identifier")
+    workflow_type: str = Field(description="Type: 'appointment', 'contract', etc.")
+    status: WorkflowStatus = Field(description="Current workflow status")
+    collected_facts: dict[str, Any] = Field(
+        default_factory=dict, description="Facts collected during this workflow")
+
+
+class ConversationContext(BaseModel):
+    """Complete context passed to the conversation interpreter."""
+    schema_version: str = Field(default="1.0", description="Version of this context schema")
+    current_message: dict = Field(description="Current user message: {id, text, timestamp}")
+    history: list[dict] = Field(
+        default_factory=list, description="Chronological conversation history")
+    known_facts: dict[str, KnownFact] = Field(
+        default_factory=dict, description="Facts known about the customer")
+    pending_interactions: list[PendingInteraction] = Field(
+        default_factory=list, description="Open questions/offers awaiting response")
+    active_workflow: Optional[ActiveWorkflow] = Field(
+        default=None, description="Currently active workflow if any")
+    selected_entities: list[dict] = Field(
+        default_factory=list, description="Resolved entities (products, bookings) from prior turns")
+    available_actions: list[dict] = Field(
+        default_factory=list, description="Canonical actions the application permits")

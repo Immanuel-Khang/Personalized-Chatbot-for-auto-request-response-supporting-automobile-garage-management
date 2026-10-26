@@ -1,272 +1,311 @@
+"""Canonical conversation interpretation for one chat turn.
+
+The structured ``ConversationInterpretation`` returned by the configured LLM is
+ the only interpretation consumed by the graph.  This module deliberately does
+not translate from the former intent/slot extraction format.
 """
-[TRACK B] Preprocess: tách intent + task theo vế câu + slot + độ phức tạp + lưu thông tin khách hàng.
-CHỈ ĐỌC ngoại trừ việc lưu profile vào DB khi phát hiện tên/SĐT.
-Khi có LLM: structured output (intents + tasks). Fallback: rule-based theo từ khóa, tách vế bằng segments.
-"""
+import json
 import logging
 import re
+import uuid
+from pathlib import Path
 
 from app.agent.llm import generate_structured
 from app.agent.nodes.common import step
-from app.agent.nodes.segments import split_clauses
-from app.agent.nodes.service_type import detect_component, detect_service_type
+from app.agent.nodes.context import assemble_context
 from app.agent.state import AgentState
-from app.contracts.schemas import Intent, IntentAndSlotExtraction
+from app.contracts.schemas import (
+    ConversationInterpretation,
+    FactSource,
+    Intent,
+    InteractionKind,
+    InteractionStatus,
+    KnownFact,
+    SlotOperation,
+    SlotUpdate,
+    TaskInterpretation,
+    TaskRelationship,
+)
 from app.db.models import ChatSession, Customer
 from app.db.session import SessionLocal
 
 logger = logging.getLogger(__name__)
 
-# ---- Fallback rule-based ----
-KEYWORDS: dict[Intent, list[str]] = {
-    Intent.DISCOUNT: ["giảm giá", "bớt", "mặc cả", "khuyến mãi thêm", "ưu đãi thêm", "chiết khấu", "giảm cho"],
-    Intent.CONTRACT: ["hợp đồng", "chốt mua", "ký hợp đồng", "đặt cọc"],
-    Intent.APPOINTMENT: ["đặt lịch", "đặt hẹn", "lái thử", "chạy thử", "hẹn", "mang xe qua", "mang xe đến", "book",
-                         "đến showroom", "ghé showroom", "qua showroom", "tới showroom", "xem xe trực tiếp"],
-    Intent.AFTER_SALES: ["lịch sử bảo dưỡng", "lịch sử sửa chữa", "lịch sử dịch vụ", "lần trước", "đã sửa gì", "đã làm gì"],
-    Intent.MAINTENANCE: ["bảo dưỡng", "bao lâu thay dầu", "mốc km", "số km"],
-    Intent.SALES: ["giá", "mua xe", "muốn mua", "tìm mua", "tìm một chiếc", "tìm xe", "bao nhiêu", "so sánh",
-                   "trả góp", "xe nào", "tư vấn xe"],
-    Intent.KNOWLEDGE: ["tại sao", "vì sao", "bao lâu", "khi nào", "dấu hiệu", "đèn", "phanh", "dầu", "lốp"],
+_NO_ACTION_DOMAINS = {Intent.GREETING, Intent.OTHER}
+_PHONE_RE = re.compile(r"(?<!\d)(?:\+84|0)\d{9}(?!\d)")
+# (pattern, need_caps): the last pattern is a whole-message self-introduction such as "Em Lan",
+# too ambiguous without capitalised name words ("em đi", "em ok").
+_NAME_PATTERNS = (
+    (re.compile(r"(?:tên\s+(?:tôi|mình|em|anh|chị)\s+(?:là\s+)?|(?:tôi|mình|em|anh|chị)\s+tên\s+(?:là\s+)?)([^,.!?\n]+)", re.I), False),
+    (re.compile(r"(?:tôi|mình|em|anh|chị)\s+là\s+([^,.!?\n]+)", re.I), False),
+    (re.compile(r"^\s*(?i:em|anh|chị|mình)\s+([^\W\d_]+(?:\s+[^\W\d_]+){0,3})\s*[.!]?\s*$"), True),
+)
+# Words that end a captured name ("Nam sdt 09...", "Nam muốn đặt lịch").
+_NAME_BOUNDARY = {
+    "sdt", "sđt", "số", "và", "muốn", "cần", "ở", "để", "đến", "xin", "nhé", "nha", "ạ", "đang", "vừa",
+    "cho", "hỏi", "đặt", "mua", "gọi", "liên", "hệ", "với", "thì", "nên", "vì",
 }
-NO_TASK = {Intent.GREETING.value, Intent.OTHER.value}
-PRICE_QUESTION = ["giá", "bao nhiêu", "so sánh", "trả góp"]
-DISCOUNT_PERCENT = re.compile(r"giảm\s*(?:giá\s*)?\d+\s*%")  # "hứa giảm 15% rồi" cũng là mặc cả
-NEGATED_BOOKING = re.compile(r"(?:chưa|không)\s+(?:muốn\s+|định\s+|cần\s+)?(?:đặt lịch|đặt hẹn|book)")
-BOOKING_SLOT_KEYS = ("service_type", "appointment_when", "service_detail")
+# Words that never appear in a person's name: greetings, vehicles, scheduling, roles, places.
+_NON_NAME_WORDS = {
+    "xin", "chào", "alo", "hello", "hi", "vâng", "dạ", "ok", "okay", "được", "không", "có", "ạ", "nhé",
+    "cảm", "ơn", "xe", "tải", "tấn", "ben", "khách", "người", "muốn", "cần", "mua", "bán", "đặt", "lịch",
+    "hẹn", "bảo", "dưỡng", "sửa", "chữa", "lái", "thử", "showroom", "xưởng", "giá", "tiền", "triệu", "tỷ",
+    "ngày", "tuần", "tháng", "giờ", "mai", "hôm", "nay", "sáng", "chiều", "tối", "ở", "tại", "là", "của",
+    "và", "với", "đang", "sẽ", "đã", "rất", "đây", "này", "foton", "gara", "garage", "sdt", "sđt",
+}
+_PLACE_NAMES = {"hà nội", "sài gòn", "hồ chí minh", "đà nẵng", "hải phòng", "cần thơ"}
+_NAME_WORD_RE = re.compile(r"[^\W\d_]+(?:['’-][^\W\d_]+)*")
+_MAX_NAME_WORDS = 5
+_MAX_NAME_LENGTH = 60
 
-# Thời điểm hẹn: ngày + giờ + buổi. Thiếu ngày mà lượt trước đã có ngày → ghép ("10 giờ sáng" sau "ngày mai")
-DAY_RE = re.compile(r"(thứ\s*[2-7]|chủ nhật|ngày mai|ngày kia|hôm nay|\d{1,2}/\d{1,2})")
-HOUR_RE = re.compile(r"(?<!\d)(\d{1,2})\s*(?:giờ|h)(?:\s*(\d{2}))?(?!\w)")
-PERIOD_RE = re.compile(r"(sáng|trưa|chiều|tối)")
+INTERPRETATION_PROMPT = """\
+Bạn là bộ phân tích hội thoại của trợ lý quản lý gara. Hãy trả về đúng schema
+ConversationInterpretation và chỉ phân tích tin nhắn mới nhất.
 
-# Từ khóa gợi ý độ phức tạp cao ngay từ đầu
-COMPLEX_SIGNALS = [
-    "so sánh chi tiết", "phân tích", "tư vấn toàn bộ", "giải thích kỹ",
-    "tại sao lại", "cơ chế hoạt động", "chi tiết kỹ thuật",
-]
+Nguyên tắc bắt buộc:
+- tasks phải là các việc ứng dụng thực sự có thể thực hiện, theo thứ tự xuất hiện.
+- Một yêu cầu xem xe trực tiếp/showroom hoặc đặt lịch lái thử là APPOINTMENT;
+  chỉ thêm SALES khi khách cũng hỏi giá, thông số, mẫu xe hoặc danh mục.
+- Không suy đoán intended_use, tải trọng, mẫu xe, ngày giờ, số điện thoại hay
+  bất kỳ fact nào. Chỉ tạo slot_updates khi người dùng nói rõ trong tin nhắn mới.
+- evidence phải là một đoạn nguyên văn (hoặc gần nguyên văn) của tin nhắn mới.
+- Dùng ANSWER_TO_QUESTION/ACCEPT_OFFER/REJECT_OFFER khi tin nhắn trả lời một
+  pending interaction đang mở; dùng CHANGE_TOPIC khi bỏ workflow cũ để yêu cầu
+  việc khác; dùng CORRECT_PREVIOUS_INFO khi sửa fact đã biết.
+- Chỉ dùng entity_id khi nó có trong selected_entities được cung cấp. Với "xe số
+  1", "xe thứ 2" hoặc "nó", không tự chọn sản phẩm ngoài selected_entities.
+- catalog_request chỉ true khi khách rõ ràng yêu cầu xem danh sách/danh mục.
+- Nếu không chắc, đặt uncertain=true và tạo task general_conversation với
+  requires_clarification=true thay vì đoán.
+- tasks và message_summary CHỈ phân tích nội dung/yêu cầu mới trong tin nhắn mới nhất; KHÔNG lặp lại các tasks hoặc gom lại toàn bộ yêu cầu cũ đã xử lý từ các lượt trước.
+- Không biến showroom/appointment thành yêu cầu tìm danh mục.
+- customer_name: chỉ tạo slot_update khi khách tự xưng tên mình (ví dụ "tôi tên Nam",
+  "anh là Minh Tuấn", "em Lan") hoặc trả lời đúng câu hỏi tên của bot. value chỉ là tên
+  người, không kèm xưng hô hay số điện thoại. KHÔNG dùng cho tên xe/sản phẩm, địa danh,
+  lời chào, con số, ngày giờ hay vai trò (khách, người mua). Nếu known_facts đã có
+  customer_name, chỉ cập nhật khi khách sửa rõ ràng (CORRECT_PREVIOUS_INFO).
 
-INTENT_SYSTEM_PROMPT = """\
-Classify the customer's latest request into ALL applicable intent categories.
-Return intents in order of importance, with the main request first.
-Also return `tasks`: one item per intent, where `text` quotes the exact part of the message for that intent.
-A price question plus a test drive request has both SALES and APPOINTMENT, each with its own text.
-A technical question plus a visit request has both KNOWLEDGE and APPOINTMENT.
-Wanting to visit the showroom to see a car is APPOINTMENT; add SALES only if they ask about price or specs.
-A booking request mentioning maintenance as the service is APPOINTMENT, not a separate MAINTENANCE question.
-A service history request is AFTER_SALES, not a separate MAINTENANCE question.
-Asking how to contact the garage (hotline, address) is OTHER, not APPOINTMENT.
-Only classify APPOINTMENT when the customer clearly asks to book/visit. If the message is unclear, garbled,
-or you are not sure what the customer wants, return OTHER and do NOT extract service_type or appointment_when.
-Never guess slot values: only extract a field when the customer states it explicitly.
-- SALES: Inquiring about car features, models, catalog, prices, or budget-based recommendations.
-- MAINTENANCE: Inquiring about service milestones, repair costs, maintenance schedules by mileage.
-- KNOWLEDGE: General automotive knowledge questions (why, how, when, symptoms).
-- CONTRACT: Ready to purchase, deposit, sign agreement, provide KYC.
-- DISCOUNT: Asking for special deals, negotiations, price cuts, discounts.
-- APPOINTMENT: Wanting to book/schedule a service, test drive, or showroom visit.
-- AFTER_SALES: Asking about previous service history, repairs, or work already done.
-- GREETING: Greetings, thanks, or general hello.
-- OTHER: Anything else.
-
-Also extract any relevant customer information from the message:
-- car_model: Tên dòng xe (VD: Vios, Cross, Camry)
-- budget_vnd: Ngân sách dự kiến (VD: 1500000000 cho "một tỷ rưỡi")
-- intended_use: Mục đích mua xe
-- current_mileage_km: Số km hiện tại/bảo dưỡng
-- customer_name: Họ tên khách hàng
-- customer_phone: Số điện thoại
-- customer_address: Địa chỉ
-- decided_price: Mức giá khách đồng ý chốt (VNĐ)
-- service_type: Loại dịch vụ nếu đặt lịch — một trong MAINTENANCE | REPAIR | TEST_DRIVE | SHOWROOM_VISIT
-  (SHOWROOM_VISIT = đến showroom xem xe trực tiếp)
-- appointment_when: Thời điểm hẹn nếu có (VD: "sáng thứ 3", "ngày mai", "15/10")
+Các action hợp lệ và context đầy đủ được đặt trong user message bên dưới.
 """
 
 
-def classify_clause(text: str) -> set[str]:
-    """Intent theo từ khóa cho một vế câu."""
-    lowered = text.lower()
-    found = {i.value for i, kws in KEYWORDS.items() if any(k in lowered for k in kws)}
-    if DISCOUNT_PERCENT.search(lowered):
-        found.add(Intent.DISCOUNT.value)
-    if NEGATED_BOOKING.search(lowered):  # "chưa định đặt lịch" không phải yêu cầu đặt lịch
-        found.discard(Intent.APPOINTMENT.value)
-    if Intent.AFTER_SALES.value in found:  # 'lịch sử bảo dưỡng' không phải câu hỏi bảo dưỡng
-        found -= {Intent.MAINTENANCE.value, Intent.KNOWLEDGE.value}
-    # 'chốt mua xe' là hợp đồng; chỉ thêm SALES khi vế đó thật sự hỏi giá
-    if Intent.CONTRACT.value in found and not any(k in lowered for k in PRICE_QUESTION):
-        found.discard(Intent.SALES.value)
-    return found
+def _context_prompt(context) -> str:
+    # History and current text are supplied as actual chat messages by llm.py;
+    # keep only state metadata here to avoid sending either twice.
+    metadata = context.model_dump(mode="json", exclude={"history", "current_message"})
+    return "\n".join((
+        INTERPRETATION_PROMPT,
+        "\nCONVERSATION STATE JSON:",
+        json.dumps(metadata, ensure_ascii=False, default=str),
+    ))
 
 
-def _complexity(text: str) -> str:
-    has_complex_signal = any(k in text.lower() for k in COMPLEX_SIGNALS)
-    return "HIGH" if (has_complex_signal or len(text) > 300) else "LOW"
+def _neutral_interpretation(text: str, reason: str) -> ConversationInterpretation:
+    """Safe canonical result when structured interpretation is unavailable.
+
+    It intentionally performs no business action and creates no facts.  A missing
+    LLM must never silently reactivate the removed legacy interpreter.
+    """
+    task = TaskInterpretation(
+        task_id=f"task_{uuid.uuid4().hex[:8]}",
+        domain=Intent.OTHER,
+        action="general_conversation",
+        text=text,
+        relationship=TaskRelationship.UNCLEAR,
+        requires_clarification=True,
+        clarification_question="Mình chưa hiểu rõ yêu cầu. Bạn nói rõ hơn giúp mình nhé?",
+    )
+    return ConversationInterpretation(
+        message_summary=f"Structured interpretation unavailable: {reason}",
+        tasks=[task],
+        unresolved_ambiguities=[reason],
+        uncertain=True,
+    )
 
 
-def _slots_updated(old: dict, new: dict) -> bool:
-    return any(old.get(k) != v for k, v in new.items())
+def _interpret(state: AgentState) -> ConversationInterpretation:
+    context = assemble_context(state, message_id=None)
+    text = context.current_message.get("text", "")
+    result = generate_structured(
+        _context_prompt(context), text, ConversationInterpretation, context.history
+    )
+    return result if result is not None else _neutral_interpretation(text, "LLM unavailable")
 
 
-def extract_when(text: str, previous: str | None = None) -> str | None:
-    """'ngày mai lúc 10 giờ sáng' → 'ngày mai 10 giờ sáng'. Chỉ có giờ → ghép với ngày của lượt trước."""
-    lowered = text.lower()
-    day, hour, period = DAY_RE.search(lowered), HOUR_RE.search(lowered), PERIOD_RE.search(lowered)
-    if not (day or hour):
-        return None
-    day_text = day.group(1) if day else None
-    if not day_text and previous and (prev_day := DAY_RE.search(previous.lower())):
-        day_text = prev_day.group(1)
-    hour_text = f"{hour.group(1)} giờ" + (f" {hour.group(2)}" if hour.group(2) else "") if hour else None
-    return " ".join(p for p in (day_text, hour_text, period.group(1) if period else None) if p)
+def _normalise(value: str) -> str:
+    return " ".join(value.casefold().split())
 
 
-def _booking_context(state: AgentState, intents: list[str]) -> bool:
-    """Chỉ lấp slot đặt lịch khi khách đã muốn đặt (hoặc đang đặt dở / có lịch đặt hoãn chờ).
-    Hỏi 'có sửa kính không?' là hỏi thông tin, không phải yêu cầu đặt lịch."""
-    offer = state.get("offer") or {}
-    return (Intent.APPOINTMENT.value in intents or state.get("active_flow") == "appointment"
-            or state.get("pending_intent") == Intent.APPOINTMENT.value
-            or offer.get("intent") == Intent.APPOINTMENT.value)
+def _evidence_is_current(update: SlotUpdate, text: str) -> bool:
+    """Reject fabricated evidence before a model-proposed fact enters state."""
+    if update.operation == SlotOperation.CLEAR:
+        return bool(update.evidence.strip()) and _normalise(update.evidence) in _normalise(text)
+    if update.value is None or not update.evidence.strip():
+        return False
+    evidence = _normalise(update.evidence)
+    current = _normalise(text)
+    return evidence in current and (
+        _normalise(str(update.value)) in current
+        or update.key in {"appointment_when", "when_text", "service_type", "service_detail", "budget_vnd"}
+    )
 
 
-def _keep_old_booking_slots(old: dict, new: dict) -> dict:
-    """Bỏ slot đặt lịch vừa trích ngoài ngữ cảnh đặt lịch, giữ nguyên giá trị của lượt trước."""
-    gated = dict(new)
-    for key in BOOKING_SLOT_KEYS:
-        if key in old:
-            gated[key] = old[key]
-        else:
-            gated.pop(key, None)
-    return gated
-
-
-def _rule_based_preprocess(state: AgentState) -> dict:
-    """Fallback: phân loại intent bằng từ khóa trên từng vế câu (khi không có LLM)."""
-    raw = state.get("user_text", "")
-    text = raw.lower()
-    order = [i.value for i in KEYWORDS]
-
-    tasks = [{"intent": i, "text": clause}
-             for clause, found in split_clauses(raw, classify_clause)
-             for i in sorted(found, key=order.index)]
-    intents = list(dict.fromkeys(t["intent"] for t in tasks))
-    if not intents:
-        short = len(text.split()) <= 4
-        intents = [Intent.GREETING.value] if short and ("chào" in text or "hello" in text) else [Intent.OTHER.value]
-
-    old_slots = dict(state.get("slots", {}))
-    slots = dict(old_slots)
-    if m := re.search(r"\b(0\d{9})\b", text):
-        slots["customer_phone"] = m.group(1)
-    # Câu hỏi thuần ("Phanh kêu có nguy hiểm không?") không phải trả lời slot: không ghi đè loại dịch vụ đang đặt
-    question_only = (Intent.APPOINTMENT.value not in intents
-                     and any(i in intents for i in (Intent.KNOWLEDGE.value, Intent.SALES.value, Intent.AFTER_SALES.value)))
-    if _booking_context(state, intents):
-        if not question_only and (when := extract_when(text, old_slots.get("appointment_when"))):
-            slots["appointment_when"] = when
-        if not question_only and (service := detect_service_type(text).service):  # mơ hồ → appointment hỏi lại
-            slots["service_type"] = service.value
-        if not question_only and (component := detect_component(text)):  # khách đổi hạng mục (kính → điều hòa)
-            slots["service_detail"] = component
-
-    return {"intents": intents, "tasks": tasks, "slots": slots,
-            "slots_updated": _slots_updated(old_slots, slots), "complexity": _complexity(raw)}
-
-
-def _llm_preprocess(state: AgentState) -> dict:
-    """Dùng LLM structured output để phân loại intent, tách task và trích xuất slot."""
+def _validated_updates(state: AgentState, interpretation: ConversationInterpretation) -> list[SlotUpdate]:
     text = state.get("user_text", "")
-    result = generate_structured(INTENT_SYSTEM_PROMPT, text, IntentAndSlotExtraction)
-    if result is None:
-        return _rule_based_preprocess(state)
+    corrects = any(task.relationship == TaskRelationship.CORRECT_PREVIOUS_INFO for task in interpretation.tasks)
+    updates: list[SlotUpdate] = []
+    for update in interpretation.slot_updates:
+        if update.key == "customer_name" and update.operation != SlotOperation.CLEAR:
+            name = _valid_name(update.value)
+            old_name = _fact_value(state.get("known_facts", {}).get("customer_name"))
+            if name is None or (old_name and old_name != name and not corrects):
+                logger.warning("Discarding customer_name update: invalid or would overwrite known name")
+                continue
+            update = update.model_copy(update={"value": name})
+        if not _evidence_is_current(update, text):
+            logger.warning("Discarding slot update with invalid current-turn evidence: %s", update.key)
+            continue
+        old = state.get("known_facts", {}).get(update.key)
+        operation = update.operation
+        if operation == SlotOperation.SET and old is not None and old.value != update.value:
+            operation = SlotOperation.CORRECT
+        updates.append(update.model_copy(update={"operation": operation}))
+    return updates
 
-    tasks = [{"intent": t.intent.value, "text": t.text.strip() or text}
-             for t in result.tasks if t.intent.value not in NO_TASK]
-    intents = list(dict.fromkeys([i.value for i in result.intents] + [t["intent"] for t in tasks]))
-    intents = intents or [Intent.OTHER.value]
-    if not tasks:  # model không tách vế → mỗi intent dùng cả câu
-        tasks = [{"intent": i, "text": text} for i in intents if i not in NO_TASK]
 
-    # Merge slots: giữ slot cũ, chỉ cập nhật trường có giá trị mới
-    old_slots = dict(state.get("slots", {}))
-    merged_slots = dict(old_slots)
-    if result.extracted_slots:
-        for key, value in result.extracted_slots.model_dump(exclude_unset=True).items():
-            if value is not None and value != "":
-                merged_slots[key] = value
-    if not _booking_context(state, intents):
-        merged_slots = _keep_old_booking_slots(old_slots, merged_slots)
+def _apply_interpretation(state: AgentState, interpretation: ConversationInterpretation) -> dict:
+    updates = _validated_updates(state, interpretation)
+    facts = dict(state.get("known_facts", {}))
+    for update in updates:
+        if update.operation == SlotOperation.CLEAR:
+            facts.pop(update.key, None)
+            continue
+        source = (FactSource.USER_CORRECTED if update.operation == SlotOperation.CORRECT
+                  else FactSource.USER_EXPLICIT)
+        facts[update.key] = KnownFact(
+            key=update.key,
+            value=update.value,
+            source=source,
+            updated_at_message_id=update.source_message_id,
+        )
+    applied = interpretation.model_copy(update={"slot_updates": updates})
+    return {
+        "conversation_interpretation": applied,
+        "known_facts": facts,
+        "complexity": applied.complexity,
+    }
 
-    # Policy Guard xử lý complexity HIGH trước khi router lập kế hoạch
-    return {"intents": intents, "tasks": tasks, "slots": merged_slots,
-            "slots_updated": _slots_updated(old_slots, merged_slots), "complexity": _complexity(text)}
+
+def _valid_name(value) -> str | None:
+    """Return a cleaned person name, or None when the value cannot plausibly be one.
+
+    Shared by the LLM slot update and the regex fallback so both reject numbers,
+    phone numbers, greetings, vehicle/scheduling words and places.
+    """
+    if not isinstance(value, str):
+        return None
+    name = " ".join(value.split()).strip(" .,;:!?-")
+    if not name or len(name) > _MAX_NAME_LENGTH or any(ch.isdigit() for ch in name):
+        return None
+    words = name.split()
+    if len(words) > _MAX_NAME_WORDS or not all(_NAME_WORD_RE.fullmatch(word) for word in words):
+        return None
+    if name.casefold() in _PLACE_NAMES or any(word.casefold() in _NON_NAME_WORDS for word in words):
+        return None
+    return name
 
 
 def _extract_name(text: str) -> str | None:
-    """Trích tên khách hàng từ câu nói (tôi tên X, tôi là X)."""
-    patterns = [
-        r"(?:tên\s+(?:tôi|mình|em)\s+(?:là\s+)?|(?:tôi|mình|em)\s+tên\s+)(\w+)",
-        r"(?:tôi|mình|em)\s+là\s+(\w+)",
-    ]
-    for p in patterns:
-        if m := re.search(p, text, re.IGNORECASE):
-            return m.group(1).strip()
+    for pattern, need_caps in _NAME_PATTERNS:
+        match = pattern.search(text)
+        if not match:
+            continue
+        words = []
+        for word in match.group(1).split():
+            if word.casefold() in _NAME_BOUNDARY or any(ch.isdigit() for ch in word):
+                break
+            words.append(word)
+        if need_caps and not all(word[0].isupper() for word in words):
+            continue
+        if name := _valid_name(" ".join(words)):
+            return name
     return None
 
 
+def _fact_value(fact: KnownFact | None):
+    return fact.value if isinstance(fact, KnownFact) else None
+
+
 def _save_profile_to_db(session_id: str, name: str | None, phone: str | None) -> None:
-    """Lưu thông tin khách hàng vào DB nếu phát hiện tên hoặc SĐT."""
     if not name and not phone:
         return
-
     db = SessionLocal()
     try:
-        # Tìm hoặc tạo chat_session
-        chat_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
-        if not chat_session:
-            chat_session = ChatSession(id=session_id)
-            db.add(chat_session)
+        session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+        if not session:
+            session = ChatSession(id=session_id)
+            db.add(session)
             db.flush()
-
-        # Tìm hoặc tạo customer
-        customer = None
-        if chat_session.customer_id:
-            customer = db.query(Customer).filter(Customer.id == chat_session.customer_id).first()
-
+        customer = db.query(Customer).filter(Customer.id == session.customer_id).first() if session.customer_id else None
         if not customer:
-            # Tạo customer mới
             customer = Customer()
             db.add(customer)
             db.flush()
-            # Link customer với chat_session
-            chat_session.customer_id = customer.id
-
-        # Cập nhật thông tin
+            session.customer_id = customer.id
         if name and not customer.full_name:
             customer.full_name = name
         if phone and not customer.phone_number:
             customer.phone_number = phone
-
         db.commit()
-    except Exception as e:
+    except Exception:
         db.rollback()
-        logger.exception("Error saving profile: %s", e)
+        logger.exception("Could not save customer profile")
     finally:
         db.close()
 
 
+def _trace_safe(value, key: str | None = None):
+    sensitive = {"customer_phone", "phone", "customer_name", "customer_address", "evidence"}
+    if key and key.casefold() in sensitive:
+        return "[REDACTED]"
+    if isinstance(value, KnownFact):
+        value = value.model_dump(mode="json")
+    elif hasattr(value, "model_dump"):
+        value = value.model_dump(mode="json")
+    if isinstance(value, dict):
+        return {str(k): _trace_safe(v, str(k)) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_trace_safe(v) for v in value]
+    if isinstance(value, str) and _PHONE_RE.search(value):
+        return "[REDACTED]"
+    return value
+
+
+def _write_preprocess_trace(result: dict) -> None:
+    path = Path(__file__).resolve().parents[3] / "trace.json"
+    payload = {"preprocess_result": _trace_safe(result), "fields": list(result)}
+    try:
+        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    except OSError:
+        logger.exception("Could not write preprocess trace at %s", path)
+
+
 def preprocess(state: AgentState) -> dict:
-    result = _llm_preprocess(state)
-
-    # Lưu profile vào DB nếu phát hiện tên hoặc SĐT
-    text = state.get("user_text", "")
-    name = _extract_name(text)
-    phone = result["slots"].get("customer_phone")
-    session_id = state.get("session_id")
-    if session_id and (name or phone):
-        _save_profile_to_db(session_id, name, phone)
-
+    interpretation = _interpret(state)
+    result = _apply_interpretation(state, interpretation)
+    facts = result["known_facts"]
+    name = _fact_value(facts.get("customer_name"))
+    if not name and (name := _extract_name(state.get("user_text", ""))):
+        facts["customer_name"] = KnownFact(key="customer_name", value=name, source=FactSource.USER_EXPLICIT)
+    phone = _fact_value(facts.get("customer_phone"))
+    if state.get("session_id") and (name or phone):
+        _save_profile_to_db(state["session_id"], name, phone)
     result["trace"] = step(state, "preprocess")
+    _write_preprocess_trace(result)
     return result
+
+
+# Kept as a narrow inspection helper for callers that only need the canonical
+# validation step; it accepts no legacy extraction model.
+def validate_interpretation(state: AgentState, interpretation: ConversationInterpretation) -> ConversationInterpretation:
+    return interpretation.model_copy(update={"slot_updates": _validated_updates(state, interpretation)})

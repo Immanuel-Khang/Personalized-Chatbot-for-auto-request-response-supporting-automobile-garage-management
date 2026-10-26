@@ -1,8 +1,6 @@
 import re
 
 from app.agent.state import AgentState
-from app.db.models import Message
-from app.db.session import SessionLocal
 
 # Quy tắc văn phong chung cho mọi prompt sinh câu trả lời
 STYLE_RULES = """\
@@ -13,6 +11,7 @@ STYLE_RULES = """\
 - Gợi ý một việc (đặt lịch, lái thử, hợp đồng) KHÔNG phải là đã làm; KHÔNG nói đã đặt/xác nhận/áp dụng khi hệ thống chưa báo thành công.
 - Chỉ dùng dữ liệu được cung cấp (catalog, tài liệu, kết quả hệ thống); thiếu dữ liệu thì nói rõ phần nào cần nhân viên xác nhận.
 - Lịch sự, tự nhiên như nhân viên cố vấn dịch vụ; không lộ tên luồng, intent hay lỗi kỹ thuật nội bộ.
+- Nếu các mẫu xe, bảng so sánh hoặc thông số kỹ thuật đã được trình bày ở các lượt trả lời trước đó trong lịch sử trò chuyện, TUYỆT ĐỐI KHÔNG liệt kê hay trình bày lại từ đầu. Đi thẳng vào giải đáp, phân tích điểm khác biệt cho chi tiết mới mà khách vừa nhắn.
 """
 
 # "Chào Khang," / "Xin chào bạn!" / "Chào anh/chị." ở đầu câu trả lời
@@ -37,18 +36,3 @@ def strip_greeting(text: str) -> str:
     if not stripped.strip() or stripped == text:
         return text
     return stripped[0].upper() + stripped[1:]
-
-
-def conversation_history(session_id: str, limit: int = 8, max_chars: int = 300) -> str:
-    """Lịch sử hội thoại gần nhất (cũ → mới) cho prompt."""
-    with SessionLocal() as db:
-        messages = (
-            db.query(Message)
-            .filter(Message.session_id == session_id, Message.role.in_(("user", "ai")))
-            .order_by(Message.created_at.desc(), Message.id.desc())
-            .limit(limit)
-            .all()
-        )
-    if not messages:
-        return "(chưa có tin nhắn trước đó)"
-    return "\n".join(f"{'Khách' if m.role == 'user' else 'Bot'}: {m.content[:max_chars]}" for m in reversed(messages))

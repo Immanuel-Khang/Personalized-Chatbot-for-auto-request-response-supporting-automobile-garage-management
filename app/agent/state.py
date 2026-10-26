@@ -1,44 +1,42 @@
 import operator
-from typing import Annotated, Any, TypedDict
+from typing import Annotated, TypedDict
+
+from app.contracts.schemas import (
+    ActiveWorkflow,
+    ConversationInterpretation,
+    KnownFact,
+    PendingInteraction,
+)
 
 
 class AgentState(TypedDict, total=False):
-    # input mỗi lượt
     session_id: str
-    customer_id: int | None  # chỉ có khi SĐT đã xác minh OTP (được phép đọc dữ liệu cá nhân)
+    customer_id: int | None
     user_text: str
-    mode: str  # BOT (graph không chạy ở HUMAN_PENDING / HUMAN_ACTIVE)
-    # preprocess (chỉ đọc, không side effect)
-    intents: list[str]
-    tasks: list[dict]  # [{intent, text}]: mỗi intent kèm phần câu của nó
-    slots: dict[str, Any]  # được giữ qua các lượt nhờ checkpoint -> slot-filling nhiều lượt
-    slots_updated: bool  # lượt này khách có cung cấp thêm slot không
-    complexity: str  # LOW | HIGH
-    active_flow: str | None  # luồng ghi dữ liệu đang làm dở (appointment | contract), giữ nhờ checkpoint
-    # policy guard
-    negotiation_active: bool  # sticky: đã bật thì giữ (đọc/ghi bảng chat_sessions)
+    mode: str
+    # Previous user/assistant messages only; the current message is in user_text.
+    history: list[dict]
+    complexity: str
+    negotiation_active: bool
     safety: bool
-    route: str  # human | router
-    # router (lập kế hoạch)
-    plan: list[dict]  # [{agent, text, order}]: các agent chỉ đọc + tối đa 1 agent ghi dữ liệu
+    route: str
+    route_reason: str | None
+    plan: list[dict]
     planned_agents: list[str]
-    pending_intent: str | None  # intent ghi dữ liệu bị hoãn sang lượt sau (vd CONTRACT + APPOINTMENT)
-    pending_text: str | None  # phần câu gốc của pending_intent
-    conversation_reason: str | None  # router → conversation: 'cancel' | 'clarify' | 'service_inquiry' | 'contract_inquiry'
-    # Bước bot vừa GỢI Ý (chưa thực hiện), vd {intent: APPOINTMENT, text}: chỉ router ghi, hiệu lực đúng 1 lượt.
-    # Khách đồng ý / trả lời giờ ở lượt sau → mới vào flow; khác đi → bỏ.
-    offer: dict | None
-    # payload riêng của từng nhánh (router gửi qua Send)
     task_text: str
     task_order: int
-    # agent (các nhánh song song chỉ ghi vào key có reducer, trừ agent ghi dữ liệu duy nhất)
-    answers: Annotated[list[dict], operator.add]  # [{agent, order, text, needs_human, handover_reason}]
-    allowed_amounts: Annotated[list[str], operator.add]  # số tiền được phép xuất hiện (lấy từ tool)
-    # compose / guard
+    answers: Annotated[list[dict], operator.add]
+    allowed_amounts: Annotated[list[str], operator.add]
     draft_reply: str
     needs_human: bool
     handover_reason: str | None
     set_mode: str | None
-    # output
     final_reply: str
-    trace: Annotated[list[str], operator.add]  # đường đi qua các node -> dùng cho eval theo trajectory
+    trace: Annotated[list[str], operator.add]
+
+    # Canonical conversation interpretation and persisted conversational state.
+    conversation_interpretation: ConversationInterpretation | None
+    pending_interactions: list[PendingInteraction]
+    known_facts: dict[str, KnownFact]
+    active_workflow: ActiveWorkflow | None
+    selected_entities: list[dict]

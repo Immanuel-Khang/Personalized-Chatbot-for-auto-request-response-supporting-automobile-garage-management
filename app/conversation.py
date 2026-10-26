@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.agent.runner import run_turn
 from app.config import settings
-from app.contracts.schemas import ChatRequest, ChatResponse, ConversationMode
+from app.contracts.schemas import ChatRequest, ChatResponse, ConversationMode, KnownFact
 from app.db.models import ChatSession, Message
 from app.db.session import SessionLocal
 from app.identity import attach_phone, get_or_create_session, verified_customer_id
@@ -56,6 +56,17 @@ def _save_phone(db: Session, session: ChatSession, phone: str) -> None:
         ticket.summary = f"{ticket.summary or ''}\nSĐT khách: {phone}".strip()
 
 
+def _history(db: Session, session_id: str, current_id: int) -> list[dict]:
+    """Tin user/ai của phiên trước tin hiện tại, theo id (thứ tự ghi DB, xác định). Gọi trong khóa phiên.
+    Mọi tin ai đều thuộc lượt đã xong (lượt này chưa ghi trả lời), kể cả tin có id lớn hơn tin hiện tại khi khách
+    gửi dồn; tin user id >= current_id là tin hiện tại hoặc tin đang chờ khóa -> bỏ. Tin staff/system không vào LLM."""
+    rows = (db.query(Message.role, Message.content)
+            .filter(Message.session_id == session_id,
+                    (Message.role == "ai") | ((Message.role == "user") & (Message.id < current_id)))
+            .order_by(Message.id).all())
+    return [{"role": role, "content": content} for role, content in rows]
+
+
 def handle_message(req: ChatRequest) -> ChatResponse:
     # Ghi nhận phiên và lưu tin của khách trước khi lấy khóa
     with SessionLocal() as db:
@@ -69,7 +80,9 @@ def handle_message(req: ChatRequest) -> ChatResponse:
     with _locks[session_id]:
         with SessionLocal() as db:
             session = db.get(ChatSession, session_id)
-            if session.mode in (ConversationMode.HUMAN_ACTIVE.value, ConversationMode.HUMAN_PENDING.value):
+            if session is None:
+                raise RuntimeError(f"Chat session {session_id!r} disappeared before processing")
+            if session.mode == ConversationMode.HUMAN_ACTIVE.value:
                 # Không gọi graph/LLM; nhân viên xem tin đã lưu qua inbox hiện có.
                 ticket = open_ticket(db, session_id)
                 if ticket:
@@ -84,21 +97,30 @@ def handle_message(req: ChatRequest) -> ChatResponse:
                                     message_id=user_msg.id)
             negotiation_active, mode = session.negotiation_active, session.mode
             customer_id = verified_customer_id(db, session)
-
-        result = run_turn(session_id, customer_id, req.message, negotiation_active, mode)
+            history = _history(db, session_id, user_msg.id)
+            
+        result = run_turn(session_id, customer_id, req.message, negotiation_active, mode, history)
 
         with SessionLocal() as db:
             session = db.get(ChatSession, session_id)
+            if session is None:
+                raise RuntimeError(f"Chat session {session_id!r} disappeared during processing")
             session.negotiation_active = session.negotiation_active or bool(result.get("negotiation_active"))  # sticky
             # the response requires the system to change mode or not
             if result.get("set_mode") and session.mode == ConversationMode.BOT.value:  # không ghi đè khi nhân viên vừa nhận
                 session.mode = result["set_mode"]
 
-            # update the customer's phone number both in customers and in ticket summary
-            # LLM preprocess stores phone as "customer_phone"; rule-based stores it as "phone"
-            _slots = result.get("slots", {})
-            if phone := (_slots.get("phone") or _slots.get("customer_phone")):
-                _save_phone(db, session, phone)
+            # Update the customer phone from the canonical fact store.
+            facts = result.get("known_facts", {}) or {}
+            phone_fact = facts.get("customer_phone") or facts.get("phone")
+            if isinstance(phone_fact, KnownFact):
+                phone = phone_fact.value
+            elif isinstance(phone_fact, dict):
+                phone = phone_fact.get("value")
+            else:
+                phone = None
+            if phone:
+                _save_phone(db, session, str(phone))
 
             # record the bot reply to the database
             reply, trace = result["final_reply"], result["trace"]

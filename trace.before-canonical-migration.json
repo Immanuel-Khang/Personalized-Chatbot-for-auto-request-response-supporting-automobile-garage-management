@@ -1,0 +1,606 @@
+{
+  "preprocess_result": {
+    "conversation_interpretation": {
+      "message_summary": "2 task(s): APPOINTMENT, SALES",
+      "tasks": [
+        {
+          "task_id": "task_8b9be688",
+          "domain": "APPOINTMENT",
+          "action": "book_appointment",
+          "text": "Tôi muốn xem trực tiếp xe số 1 tại showroom. Giúp tôi đặt lịch ?",
+          "relationship": "NEW_REQUEST",
+          "referenced_interaction_id": null,
+          "depends_on": [],
+          "requires_clarification": false,
+          "clarification_question": null,
+          "entity_id": null,
+          "entity_type": null
+        },
+        {
+          "task_id": "task_8ecdd32e",
+          "domain": "SALES",
+          "action": "search_catalog",
+          "text": "Tôi muốn xem trực tiếp xe số 1 tại showroom",
+          "relationship": "NEW_REQUEST",
+          "referenced_interaction_id": null,
+          "depends_on": [],
+          "requires_clarification": false,
+          "clarification_question": null,
+          "entity_id": null,
+          "entity_type": null
+        }
+      ],
+      "slot_updates": [
+        {
+          "key": "intended_use",
+          "operation": "SET",
+          "value": "Chở hàng",
+          "evidence": "[REDACTED]",
+          "source_message_id": null,
+          "related_task_id": null
+        },
+        {
+          "key": "service_type",
+          "operation": "SET",
+          "value": "SHOWROOM_VISIT",
+          "evidence": "[REDACTED]",
+          "source_message_id": null,
+          "related_task_id": null
+        }
+      ],
+      "unresolved_ambiguities": []
+    },
+    "intents": [
+      "APPOINTMENT",
+      "SALES"
+    ],
+    "tasks": [
+      {
+        "intent": "APPOINTMENT",
+        "text": "Tôi muốn xem trực tiếp xe số 1 tại showroom. Giúp tôi đặt lịch ?"
+      },
+      {
+        "intent": "SALES",
+        "text": "Tôi muốn xem trực tiếp xe số 1 tại showroom"
+      }
+    ],
+    "slots": {
+      "intended_use": "Chở hàng",
+      "service_type": "SHOWROOM_VISIT"
+    },
+    "known_facts": {
+      "intended_use": {
+        "key": "intended_use",
+        "value": "Chở hàng",
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "service_type": {
+        "key": "service_type",
+        "value": "SHOWROOM_VISIT",
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      }
+    },
+    "slots_updated": true,
+    "complexity": "LOW",
+    "sales_signals": {},
+    "followup": {},
+    "trace": [
+      "preprocess"
+    ]
+  },
+  "fields": [
+    "conversation_interpretation",
+    "intents",
+    "tasks",
+    "slots",
+    "known_facts",
+    "slots_updated",
+    "complexity",
+    "sales_signals",
+    "followup",
+    "trace"
+  ],
+  "previous_trace": {
+    "preprocess_result": {
+      "conversation_interpretation": {
+        "message_summary": "1 task(s): SALES",
+        "tasks": [
+          {
+            "task_id": "task_824b26fe",
+            "domain": "SALES",
+            "action": "show_catalog",
+            "text": "Gửi tôi danh sách tham khảo",
+            "relationship": "NEW_REQUEST",
+            "referenced_interaction_id": null,
+            "depends_on": [],
+            "requires_clarification": false,
+            "clarification_question": null,
+            "entity_id": null,
+            "entity_type": null
+          }
+        ],
+        "slot_updates": [
+          {
+            "key": "intended_use",
+            "operation": "SET",
+            "value": "Chở hàng",
+            "evidence": "[REDACTED]",
+            "source_message_id": null,
+            "related_task_id": null
+          }
+        ],
+        "unresolved_ambiguities": []
+      },
+      "intents": [
+        "SALES"
+      ],
+      "tasks": [
+        {
+          "intent": "SALES",
+          "text": "Gửi tôi danh sách tham khảo"
+        }
+      ],
+      "slots": {
+        "intended_use": "Chở hàng"
+      },
+      "known_facts": {
+        "intended_use": {
+          "key": "intended_use",
+          "value": "Chở hàng",
+          "source": "USER_EXPLICIT",
+          "updated_at_message_id": null,
+          "confidence": null
+        }
+      },
+      "slots_updated": true,
+      "complexity": "LOW",
+      "sales_signals": {
+        "catalog_request": true
+      },
+      "followup": {},
+      "trace": [
+        "preprocess"
+      ]
+    },
+    "fields": [
+      "conversation_interpretation",
+      "intents",
+      "tasks",
+      "slots",
+      "known_facts",
+      "slots_updated",
+      "complexity",
+      "sales_signals",
+      "followup",
+      "trace"
+    ],
+    "previous_trace": {
+      "preprocess_result": {
+        "conversation_interpretation": {
+          "message_summary": "2 task(s): SALES, KNOWLEDGE",
+          "tasks": [
+            {
+              "task_id": "task_4b4170cc",
+              "domain": "SALES",
+              "action": "search_catalog",
+              "text": "Trên 10 tấn",
+              "relationship": "NEW_REQUEST",
+              "referenced_interaction_id": null,
+              "depends_on": [],
+              "requires_clarification": false,
+              "clarification_question": null,
+              "entity_id": null,
+              "entity_type": null
+            },
+            {
+              "task_id": "task_9518582b",
+              "domain": "KNOWLEDGE",
+              "action": "answer_knowledge",
+              "text": "Trên 10 tấn",
+              "relationship": "NEW_REQUEST",
+              "referenced_interaction_id": null,
+              "depends_on": [],
+              "requires_clarification": false,
+              "clarification_question": null,
+              "entity_id": null,
+              "entity_type": null
+            }
+          ],
+          "slot_updates": [
+            {
+              "key": "intended_use",
+              "operation": "SET",
+              "value": "Chở hàng",
+              "evidence": "[REDACTED]",
+              "source_message_id": null,
+              "related_task_id": null
+            }
+          ],
+          "unresolved_ambiguities": []
+        },
+        "intents": [
+          "SALES",
+          "KNOWLEDGE"
+        ],
+        "tasks": [
+          {
+            "intent": "SALES",
+            "text": "Trên 10 tấn"
+          },
+          {
+            "intent": "KNOWLEDGE",
+            "text": "Trên 10 tấn"
+          }
+        ],
+        "slots": {
+          "intended_use": "Chở hàng"
+        },
+        "known_facts": {
+          "intended_use": {
+            "key": "intended_use",
+            "value": "Chở hàng",
+            "source": "USER_EXPLICIT",
+            "updated_at_message_id": null,
+            "confidence": null
+          }
+        },
+        "slots_updated": true,
+        "complexity": "LOW",
+        "sales_signals": {},
+        "followup": {},
+        "trace": [
+          "preprocess"
+        ]
+      },
+      "fields": [
+        "conversation_interpretation",
+        "intents",
+        "tasks",
+        "slots",
+        "known_facts",
+        "slots_updated",
+        "complexity",
+        "sales_signals",
+        "followup",
+        "trace"
+      ],
+      "previous_trace": {
+        "preprocess_result": {
+          "conversation_interpretation": {
+            "message_summary": "2 task(s): SALES, KNOWLEDGE",
+            "tasks": [
+              {
+                "task_id": "task_807e642a",
+                "domain": "SALES",
+                "action": "search_catalog",
+                "text": "Trên 10 tấn",
+                "relationship": "NEW_REQUEST",
+                "referenced_interaction_id": null,
+                "depends_on": [],
+                "requires_clarification": false,
+                "clarification_question": null,
+                "entity_id": null,
+                "entity_type": null
+              },
+              {
+                "task_id": "task_2385151c",
+                "domain": "KNOWLEDGE",
+                "action": "answer_knowledge",
+                "text": "Nếu anh/chị đang chở hàng và cần tư vấn chọn xe phù hợp, anh/chị cho em biết **tải trọng (tấn)** và **loại hàng/hành trình** để em lọc đúng mẫu xe tải phù hợp.",
+                "relationship": "NEW_REQUEST",
+                "referenced_interaction_id": null,
+                "depends_on": [],
+                "requires_clarification": false,
+                "clarification_question": null,
+                "entity_id": null,
+                "entity_type": null
+              }
+            ],
+            "slot_updates": [
+              {
+                "key": "intended_use",
+                "operation": "SET",
+                "value": "Chở hàng",
+                "evidence": "[REDACTED]",
+                "source_message_id": null,
+                "related_task_id": null
+              },
+              {
+                "key": "payload_tons",
+                "operation": "SET",
+                "value": 10.0,
+                "evidence": "[REDACTED]",
+                "source_message_id": null,
+                "related_task_id": null
+              }
+            ],
+            "unresolved_ambiguities": []
+          },
+          "intents": [
+            "SALES",
+            "KNOWLEDGE"
+          ],
+          "tasks": [
+            {
+              "intent": "SALES",
+              "text": "Trên 10 tấn"
+            },
+            {
+              "intent": "KNOWLEDGE",
+              "text": "Nếu anh/chị đang chở hàng và cần tư vấn chọn xe phù hợp, anh/chị cho em biết **tải trọng (tấn)** và **loại hàng/hành trình** để em lọc đúng mẫu xe tải phù hợp."
+            }
+          ],
+          "slots": {
+            "intended_use": "Chở hàng",
+            "payload_tons": 10.0
+          },
+          "known_facts": {
+            "intended_use": {
+              "key": "intended_use",
+              "value": "Chở hàng",
+              "source": "USER_EXPLICIT",
+              "updated_at_message_id": null,
+              "confidence": null
+            },
+            "payload_tons": {
+              "key": "payload_tons",
+              "value": 10.0,
+              "source": "USER_EXPLICIT",
+              "updated_at_message_id": null,
+              "confidence": null
+            }
+          },
+          "slots_updated": true,
+          "complexity": "LOW",
+          "sales_signals": {},
+          "followup": {},
+          "trace": [
+            "preprocess"
+          ]
+        },
+        "fields": [
+          "conversation_interpretation",
+          "intents",
+          "tasks",
+          "slots",
+          "known_facts",
+          "slots_updated",
+          "complexity",
+          "sales_signals",
+          "followup",
+          "trace"
+        ],
+        "previous_trace": {
+          "preprocess_result": {
+            "conversation_interpretation": {
+              "message_summary": "2 task(s): SALES, KNOWLEDGE",
+              "tasks": [
+                {
+                  "task_id": "task_df36cf7c",
+                  "domain": "SALES",
+                  "action": "search_catalog",
+                  "text": "Chở hàng",
+                  "relationship": "NEW_REQUEST",
+                  "referenced_interaction_id": null,
+                  "depends_on": [],
+                  "requires_clarification": false,
+                  "clarification_question": null,
+                  "entity_id": null,
+                  "entity_type": null
+                },
+                {
+                  "task_id": "task_4a1374ad",
+                  "domain": "KNOWLEDGE",
+                  "action": "answer_knowledge",
+                  "text": "Chở hàng",
+                  "relationship": "NEW_REQUEST",
+                  "referenced_interaction_id": null,
+                  "depends_on": [],
+                  "requires_clarification": false,
+                  "clarification_question": null,
+                  "entity_id": null,
+                  "entity_type": null
+                }
+              ],
+              "slot_updates": [
+                {
+                  "key": "intended_use",
+                  "operation": "SET",
+                  "value": "Chở hàng",
+                  "evidence": "[REDACTED]",
+                  "source_message_id": null,
+                  "related_task_id": null
+                }
+              ],
+              "unresolved_ambiguities": []
+            },
+            "intents": [
+              "SALES",
+              "KNOWLEDGE"
+            ],
+            "tasks": [
+              {
+                "intent": "SALES",
+                "text": "Chở hàng"
+              },
+              {
+                "intent": "KNOWLEDGE",
+                "text": "Chở hàng"
+              }
+            ],
+            "slots": {
+              "intended_use": "Chở hàng"
+            },
+            "known_facts": {
+              "intended_use": {
+                "key": "intended_use",
+                "value": "Chở hàng",
+                "source": "USER_EXPLICIT",
+                "updated_at_message_id": null,
+                "confidence": null
+              }
+            },
+            "slots_updated": true,
+            "complexity": "LOW",
+            "sales_signals": {},
+            "followup": {},
+            "trace": [
+              "preprocess"
+            ]
+          },
+          "fields": [
+            "conversation_interpretation",
+            "intents",
+            "tasks",
+            "slots",
+            "known_facts",
+            "slots_updated",
+            "complexity",
+            "sales_signals",
+            "followup",
+            "trace"
+          ],
+          "previous_trace": {
+            "preprocess_result": {
+              "conversation_interpretation": {
+                "message_summary": "1 task(s): SALES",
+                "tasks": [
+                  {
+                    "task_id": "task_6d712b60",
+                    "domain": "SALES",
+                    "action": "search_catalog",
+                    "text": "Tôi muốn được tư vấn xe",
+                    "relationship": "NEW_REQUEST",
+                    "referenced_interaction_id": null,
+                    "depends_on": [],
+                    "requires_clarification": false,
+                    "clarification_question": null,
+                    "entity_id": null,
+                    "entity_type": null
+                  }
+                ],
+                "slot_updates": [],
+                "unresolved_ambiguities": []
+              },
+              "intents": [
+                "SALES"
+              ],
+              "tasks": [
+                {
+                  "intent": "SALES",
+                  "text": "Tôi muốn được tư vấn xe"
+                }
+              ],
+              "slots": {},
+              "known_facts": {},
+              "slots_updated": false,
+              "complexity": "LOW",
+              "sales_signals": {},
+              "followup": {},
+              "trace": [
+                "preprocess"
+              ]
+            },
+            "fields": [
+              "conversation_interpretation",
+              "intents",
+              "tasks",
+              "slots",
+              "known_facts",
+              "slots_updated",
+              "complexity",
+              "sales_signals",
+              "followup",
+              "trace"
+            ],
+            "previous_trace": {
+              "preprocess_result": {
+                "conversation_interpretation": {
+                  "message_summary": "0 task(s): ",
+                  "tasks": [],
+                  "slot_updates": [],
+                  "unresolved_ambiguities": []
+                },
+                "intents": [
+                  "OTHER"
+                ],
+                "tasks": [],
+                "slots": {},
+                "known_facts": {},
+                "slots_updated": false,
+                "complexity": "LOW",
+                "sales_signals": {},
+                "followup": {},
+                "trace": [
+                  "preprocess"
+                ]
+              },
+              "fields": [
+                "conversation_interpretation",
+                "intents",
+                "tasks",
+                "slots",
+                "known_facts",
+                "slots_updated",
+                "complexity",
+                "sales_signals",
+                "followup",
+                "trace"
+              ],
+              "previous_trace": {
+                "message_summary": "2 task(s): APPOINTMENT, SALES",
+                "tasks": [
+                  {
+                    "task_id": "task_8d69e04a",
+                    "domain": "APPOINTMENT",
+                    "action": "book_appointment",
+                    "text": "Tôi muốn xem xe số 1 trực tiếp. Giúp tôi đặt lịch ?",
+                    "relationship": "NEW_REQUEST",
+                    "referenced_interaction_id": null,
+                    "depends_on": [],
+                    "requires_clarification": false,
+                    "clarification_question": null
+                  },
+                  {
+                    "task_id": "task_6592d7df",
+                    "domain": "SALES",
+                    "action": "search_catalog",
+                    "text": "Tôi muốn xem xe số 1",
+                    "relationship": "NEW_REQUEST",
+                    "referenced_interaction_id": null,
+                    "depends_on": [],
+                    "requires_clarification": false,
+                    "clarification_question": null
+                  }
+                ],
+                "slot_updates": [
+                  {
+                    "key": "intended_use",
+                    "operation": "SET",
+                    "value": "Chở hàng",
+                    "evidence": "[REDACTED]",
+                    "source_message_id": null,
+                    "related_task_id": null
+                  },
+                  {
+                    "key": "service_type",
+                    "operation": "SET",
+                    "value": "SHOWROOM_VISIT",
+                    "evidence": "[REDACTED]",
+                    "source_message_id": null,
+                    "related_task_id": null
+                  }
+                ],
+                "unresolved_ambiguities": []
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

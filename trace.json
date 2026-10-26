@@ -1,0 +1,69 @@
+{
+  "preprocess_result": {
+    "conversation_interpretation": {
+      "message_summary": "Khách hỏi tư vấn chọn xe tải để chở hàng đi dốc lên núi với ngân sách khoảng 3 tỷ.",
+      "tasks": [
+        {
+          "task_id": "t1",
+          "domain": "SALES",
+          "action": "search_catalog",
+          "text": "T muốn mua xe để chở hàng đi dốc lên núi thì sao nhỉ, ngân sách 3 tỷ",
+          "relationship": "NEW_REQUEST",
+          "referenced_interaction_id": null,
+          "depends_on": [],
+          "requires_clarification": false,
+          "clarification_question": null,
+          "entity_id": null,
+          "entity_type": null
+        }
+      ],
+      "slot_updates": [],
+      "unresolved_ambiguities": [
+        "Chở loại hàng gì và khối lượng/tải trọng cụ thể (tấn) để lọc đúng cấu hình phù hợp leo dốc.",
+        "Cần dạng thùng nào (mui bạt/chassis/thùng kín) và chiều dài thùng mong muốn."
+      ],
+      "complexity": "MEDIUM",
+      "answers_pending_question": false,
+      "accepts_offer": null,
+      "referenced_product_name": null,
+      "product_reference_ambiguous": false,
+      "uncertain": true,
+      "catalog_request": false
+    },
+    "known_facts": {
+      "customer_name": "[REDACTED]",
+      "service_type": {
+        "key": "service_type",
+        "value": "SHOWROOM_VISIT",
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "appointment_when": {
+        "key": "appointment_when",
+        "value": "BUỔI SÁNG 9-11H",
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "when_text": {
+        "key": "when_text",
+        "value": "BUỔI SÁNG 9-11H",
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "customer_phone": "[REDACTED]"
+    },
+    "complexity": "MEDIUM",
+    "trace": [
+      "preprocess"
+    ]
+  },
+  "fields": [
+    "conversation_interpretation",
+    "known_facts",
+    "complexity",
+    "trace"
+  ]
+}
