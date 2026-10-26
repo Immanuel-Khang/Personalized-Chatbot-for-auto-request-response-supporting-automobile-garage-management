@@ -1,40 +1,36 @@
 """[TRACK B] Knowledge Agent: RAG + maintenance lookup + lời khuyên an toàn.
 Tích hợp maintenance_node từ codebase hiện tại (tra cứu mốc km bảo dưỡng).
-complexity HIGH -> chuyển người; khách muốn đặt lịch -> chuyển sang appointment."""
+Không có dữ liệu -> chuyển người; chỉ đọc dữ liệu, chạy song song với các agent khác."""
 from app.agent.llm import generate
-from app.agent.nodes.common import step
+from app.agent.nodes.common import STYLE_RULES, answer, step
 from app.agent.state import AgentState
 from app.config import settings
-from app.contracts.schemas import Intent, ServiceType
+from app.contracts.schemas import Intent
 from app.services import get_services
 from app.utils import fmt_vnd
 
 SAFETY_PREFIX = f"⚠️ Nếu xe có dấu hiệu nguy hiểm, hãy dừng xe ở nơi an toàn và gọi hotline {settings.hotline}.\n"
 
-BOOKING = ["đặt lịch", "đặt hẹn", "hẹn lịch", "mang xe qua", "mang xe đến"]
-
 KNOWLEDGE_SYSTEM_PROMPT = """\
-Bạn là chuyên viên kỹ thuật ô tô Toyota. Trả lời chính xác dựa trên tài liệu được cung cấp.
+Bạn là chuyên viên kỹ thuật ô tô của xưởng Foton. Trả lời chính xác dựa trên tài liệu được cung cấp.
 QUY TẮC:
 1. Luôn trả lời bằng tiếng Việt.
 2. KHÔNG ĐƯỢC bịa thông tin. Nếu tài liệu không có → nói thật.
 3. Nếu liên quan đến an toàn → nhấn mạnh cảnh báo và hotline.
 4. Nếu có thông tin bảo dưỡng theo km → nêu rõ mốc km, công việc cần làm, chi phí ước tính.
-"""
+""" + STYLE_RULES
 
 
 def knowledge(state: AgentState) -> dict:
     update: dict = {"trace": step(state, "knowledge")}
-    if state.get("complexity") == "HIGH":
-        return {**update, "needs_human": True, "handover_reason": "COMPLEXITY_HIGH"}
-
     slots = state.get("slots", {})
     intents = state.get("intents", [])
     extra_context = ""
+    result = None
 
     # --- Port maintenance_node: tra cứu mốc km bảo dưỡng ---
     if Intent.MAINTENANCE.value in intents:
-        car_model = slots.get("car_model", "Toyota")
+        car_model = slots.get("car_model") or "xe của bạn"
         mileage = slots.get("current_mileage_km")
         if mileage:
             result = get_services().maintenance.get_milestone_details(car_model, int(mileage))
@@ -47,9 +43,13 @@ def knowledge(state: AgentState) -> dict:
                 )
 
     # --- RAG: tìm kiến thức từ tài liệu ---
-    chunks = get_services().knowledge.retrieve(state["user_text"], k=3)
+    question = state.get("task_text") or state["user_text"]
+    chunks = get_services().knowledge.retrieve(question, k=3)
     if not chunks and not extra_context:
-        body = "Mình chưa có thông tin chính xác về vấn đề này. Bạn để lại số điện thoại để nhân viên kỹ thuật hỗ trợ nhé."
+        # RAG không tìm được tài liệu liên quan → coi là câu hỏi phức tạp, chuyển người
+        update["answers"] = [answer(state, "knowledge", needs_human=True,
+                                    handover_reason="COMPLEXITY_HIGH: no RAG match")]
+        return update
     else:
         context = "\n".join(c.text for c in chunks) if chunks else ""
         full_context = context + extra_context
@@ -57,13 +57,11 @@ def knowledge(state: AgentState) -> dict:
         # Dùng LLM sinh câu trả lời
         body = generate(
             KNOWLEDGE_SYSTEM_PROMPT,
-            f"Câu hỏi: {state['user_text']}\n\nTài liệu:\n{full_context}"
+            f"Câu hỏi: {question}\n\nTài liệu:\n{full_context}"
         ) or (extra_context if extra_context else f"Theo tài liệu của xưởng: {chunks[0].text}")
 
     prefix = SAFETY_PREFIX if state.get("safety") else ""
-    update["draft_reply"] = prefix + body
-    if any(k in state["user_text"].lower() for k in BOOKING):  # muốn đặt lịch → appointment hỏi tiếp slot
-        update["handoff_to"] = "appointment"
-        if Intent.MAINTENANCE.value in intents and not slots.get("service_type"):
-            update["slots"] = {**slots, "service_type": ServiceType.MAINTENANCE.value}
+    update["answers"] = [answer(state, "knowledge", prefix + body)]
+    if result:
+        update["allowed_amounts"] = [fmt_vnd(int(result.estimated_cost))]
     return update

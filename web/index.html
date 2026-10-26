@@ -1,37 +1,33 @@
 <!doctype html>
-<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Trợ lý xưởng xe</title>
-<style>
- body{font-family:system-ui,sans-serif;max-width:560px;margin:24px auto;padding:0 12px}
- #log{border:1px solid #ccc;border-radius:8px;padding:12px;height:420px;overflow:auto;white-space:pre-wrap}
- .u{color:#0b57d0;margin:8px 0}.b{margin:8px 0}.t{color:#888;font-size:12px}
- .s{color:#666;font-style:italic;text-align:center;margin:10px 0}.st{color:#137333;margin:8px 0}
- form{display:flex;gap:8px;margin-top:8px}input{flex:1;padding:8px}button{padding:8px 14px}
-</style></head><body>
-<h3>Trợ lý xưởng xe (bản khung)</h3>
-<div id="log"></div>
-<form id="f"><input id="m" placeholder="Nhập tin nhắn..." autocomplete="off"><button>Gửi</button></form>
-<script>
-const token = localStorage.getItem("vt") || (crypto.randomUUID()); localStorage.setItem("vt", token);
-let convId = null, lastId = 0; const log = document.getElementById("log");
-function add(cls, text){const d=document.createElement("div");d.className=cls;d.textContent=text;log.appendChild(d);log.scrollTop=log.scrollHeight;return d}
-const LABEL = {staff: "Nhân viên: ", system: ""};
-async function poll(){  // tin nhân viên/hệ thống (vd "nhân viên đã tiếp nhận") đến bất kỳ lúc nào
-  if(!convId) return;
-  const r = await fetch(`/chat/${convId}/messages?visitor_token=${encodeURIComponent(token)}&after=${lastId}`);
-  if(!r.ok) return;
-  const j = await r.json();
-  for(const m of j.messages){ add(m.role==="staff"?"st":"s", LABEL[m.role]+m.content); lastId = Math.max(lastId, m.id); }
-}
-setInterval(poll, 3000);
-document.getElementById("f").onsubmit = async (e) => {
-  e.preventDefault(); const i = document.getElementById("m"); const msg = i.value.trim(); if(!msg) return; i.value="";
-  add("u","Bạn: "+msg);
-  const r = await fetch("/chat",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({visitor_token:token,message:msg,conversation_id:convId})});
-  const j = await r.json(); convId = j.conversation_id;
-  if(j.message_id) lastId = Math.max(lastId, j.message_id);  // tin system đi kèm lượt này đã nằm trong reply
-  if(j.reply) add("b","Bot: "+j.reply);
-  add("t","["+j.mode+"] "+j.trace.join(" → "));
-};
-</script></body></html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0866ff"><meta name="description" content="Trợ lý chăm sóc khách hàng và dịch vụ ô tô">
+  <title>Garage One — Trợ lý khách hàng</title><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/client-fix.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body class="customer-page">
+  <div class="app-shell">
+    <aside class="nav-rail" aria-label="Garage One">
+      <a class="brand-mark" href="/" aria-label="Garage One"><svg viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="13" fill="currentColor"/><path d="M8 23.5 11 16a3 3 0 0 1 2.8-1.9h12.4A3 3 0 0 1 29 16l3 7.5v5h-3v-2.2H11V28H8z" fill="white"/><path d="M12 21h16l-1.5-4H13.5z" fill="#0866ff"/><circle cx="13" cy="24" r="2" fill="#0866ff"/><circle cx="27" cy="24" r="2" fill="#0866ff"/></svg></a>
+      <button class="rail-button active" title="Tin nhắn" aria-label="Tin nhắn"><svg viewBox="0 0 24 24"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5 8 8 0 0 1-3.4-.8L4 20l1.3-4.2a7.5 7.5 0 1 1 14.7-4.3Z"/></svg></button>
+      <div class="rail-spacer"></div><div class="avatar avatar-me" title="Bạn">B</div>
+    </aside>
+
+    <main class="chat-workspace">
+      <header class="chat-header"><div class="header-person"><span class="avatar avatar-bot"><svg viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="13" rx="4"/><path d="M12 3v4M8 12h.01M16 12h.01M9 16h6"/></svg></span><div><h2>Trợ lý Garage One</h2><p id="connection-state"><span class="online-dot"></span> Trợ lý AI · Trực tuyến</p></div></div><div class="header-actions"><button class="icon-button" id="info-toggle" aria-label="Thông tin hỗ trợ" title="Thông tin hỗ trợ"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></button></div></header>
+      <div class="conversation-banner"><div class="banner-icon"><svg viewBox="0 0 24 24"><path d="M12 3 3.5 7v5c0 4.5 3.6 7.7 8.5 9 4.9-1.3 8.5-4.5 8.5-9V7Z"/><path d="m9 12 2 2 4-4"/></svg></div><div><strong>Chào mừng bạn đến Garage One</strong><span>Tư vấn xe, bảo dưỡng và đặt lịch dịch vụ ngay tại đây.</span></div><button id="dismiss-banner" class="banner-close" aria-label="Đóng thông báo">×</button></div>
+      <section class="message-area" id="message-area" aria-label="Lịch sử tin nhắn" aria-live="polite">
+        <div class="day-divider"><span>HÔM NAY</span></div>
+        <div class="message-row bot-row"><div class="avatar avatar-bot avatar-small"><svg viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="13" rx="4"/><path d="M12 3v4M8 12h.01M16 12h.01M9 16h6"/></svg></div><div class="message-content"><div class="message-bubble bot-bubble">Xin chào! 👋 Mình là trợ lý ảo của <strong>Garage One</strong>.<br><br>Mình có thể giúp bạn tìm hiểu các dòng xe, tư vấn bảo dưỡng, giải đáp thắc mắc hoặc đặt lịch dịch vụ. Hôm nay mình có thể giúp gì cho bạn?</div><span class="message-meta">Trợ lý AI · Vừa xong</span></div></div>
+        <div class="quick-actions" id="quick-actions"><span class="quick-label">GỢI Ý CHO BẠN</span><div class="quick-grid"><button class="quick-action" data-message="Tư vấn giúp tôi chọn một chiếc xe phù hợp với nhu cầu."><span class="quick-icon blue"><svg viewBox="0 0 24 24"><path d="m3 13 2-5a2 2 0 0 1 2-1.3h10A2 2 0 0 1 19 8l2 5v5h-3v-2H6v2H3z"/><path d="M6 12h12M7 15h.01M17 15h.01"/></svg></span><span><strong>Tư vấn mua xe</strong><small>Tìm xe phù hợp với bạn</small></span><svg class="quick-arrow" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><button class="quick-action" data-message="Tôi muốn hỏi về lịch bảo dưỡng định kỳ cho xe."><span class="quick-icon amber"><svg viewBox="0 0 24 24"><path d="M14.7 6.3 17.7 9.3M4 20l4.5-1L19.3 8.2a2.1 2.1 0 0 0-3-3L5.5 16Z"/><path d="m13 4 2-2 7 7-2 2"/></svg></span><span><strong>Bảo dưỡng xe</strong><small>Chi phí và lịch định kỳ</small></span><svg class="quick-arrow" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><button class="quick-action" data-message="Tôi muốn đặt lịch dịch vụ tại garage."><span class="quick-icon green"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M8 14h3"/></svg></span><span><strong>Đặt lịch dịch vụ</strong><small>Chọn thời gian phù hợp</small></span><svg class="quick-arrow" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><button class="quick-action" data-message="Tôi muốn gặp nhân viên tư vấn trực tiếp."><span class="quick-icon violet"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8A8.5 8.5 0 0 1 8.7 4a8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8Z"/></svg></span><span><strong>Gặp nhân viên</strong><small>Hỗ trợ trực tiếp</small></span><svg class="quick-arrow" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button></div></div>
+      </section>
+      <div class="handover-status hidden" id="handover-status"><span class="status-pulse"></span><span id="handover-text">Bạn đang được kết nối với nhân viên hỗ trợ.</span></div>
+      <footer class="composer-wrap"><form id="message-form" class="composer"><button type="button" class="composer-tool" id="emoji-button" aria-label="Chèn biểu tượng" title="Chèn biểu tượng">☺</button><textarea id="message-input" rows="1" placeholder="Nhập tin nhắn..." aria-label="Nội dung tin nhắn" maxlength="4000" required></textarea><button type="submit" class="send-button" id="send-button" aria-label="Gửi tin nhắn"><svg viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></form><div class="composer-hint"><span><svg viewBox="0 0 24 24"><path d="M12 3 3.5 7v5c0 4.5 3.6 7.7 8.5 9 4.9-1.3 8.5-4.5 8.5-9V7Z"/></svg> Thông tin của bạn được dùng để hỗ trợ yêu cầu</span><span><kbd>Enter</kbd> để gửi · <kbd>Shift + Enter</kbd> xuống dòng</span></div></footer>
+    </main>
+    <aside class="details-panel" id="details-panel"><div class="details-heading"><h3>Thông tin hỗ trợ</h3><button class="icon-button" id="close-details" aria-label="Đóng thông tin"><svg viewBox="0 0 24 24"><path d="m18 6-12 12M6 6l12 12"/></svg></button></div><div class="garage-card"><div class="garage-illustration"><div class="garage-sun"></div><svg viewBox="0 0 240 100" aria-hidden="true"><path d="M20 67 35 45a13 13 0 0 1 11-6h100a13 13 0 0 1 11 7l17 21 19 6v16H20Z" fill="#0866ff"/><path d="m43 48 9-2h38v20H30ZM98 46h47a7 7 0 0 1 6 4l12 16H98Z" fill="#dbeafe"/><circle cx="55" cy="83" r="12" fill="#1e293b"/><circle cx="55" cy="83" r="5" fill="#e2e8f0"/><circle cx="167" cy="83" r="12" fill="#1e293b"/><circle cx="167" cy="83" r="5" fill="#e2e8f0"/><path d="M15 94h210" stroke="#93c5fd" stroke-width="3" stroke-linecap="round"/></svg></div><div class="garage-card-body"><span class="verified-label"><svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg> TRỢ LÝ CHÍNH THỨC</span><h4>Garage One</h4><p>Chăm sóc xe, tận tâm từng hành trình.</p><div class="garage-feature"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Hỗ trợ trực tuyến <strong>24/7 với AI</strong></span></div><div class="garage-feature"><svg viewBox="0 0 24 24"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2"/></svg><span>Tư vấn dịch vụ & bảo dưỡng</span></div></div></div><div class="detail-section"><h4>Bạn có thể hỏi</h4><button class="suggestion-link" data-message="Garage hiện có những dòng xe nào?">Danh mục xe và báo giá <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><button class="suggestion-link" data-message="Chi phí bảo dưỡng định kỳ là bao nhiêu?">Chi phí bảo dưỡng <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><button class="suggestion-link" data-message="Tôi cần chuẩn bị thông tin gì để đặt lịch?">Hướng dẫn đặt lịch <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button></div><div class="support-card"><div class="support-icon"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.4 19.4 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7l.5 3a2 2 0 0 1-.6 1.7L7.7 9.7a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 1.7-.6l3 .5a2 2 0 0 1 1.3 2.6Z"/></svg></div><div><strong>Cần hỗ trợ khẩn cấp?</strong><p>Hãy yêu cầu kết nối với nhân viên để được hỗ trợ trực tiếp.</p><button id="request-human" class="text-action">Gặp nhân viên <span>→</span></button></div></div><p class="privacy-note"><svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 1 1 8 0v3"/></svg> Không chia sẻ mật khẩu hoặc thông tin thanh toán trong cuộc trò chuyện.</p></aside>
+  </div>
+  <div id="toast-region" class="toast-region" aria-live="polite"></div>
+  <script src="/app.js" defer></script>
+</body></html>

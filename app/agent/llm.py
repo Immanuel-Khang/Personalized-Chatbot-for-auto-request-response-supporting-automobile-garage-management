@@ -3,7 +3,7 @@
 Trả None nghĩa là "không có LLM, dùng fallback rule-based".
 """
 import logging
-from typing import TypeVar
+from typing import TypeVar, cast
 
 from pydantic import BaseModel, SecretStr
 
@@ -69,7 +69,7 @@ def generate_structured(system: str, user: str, output_schema: type[T]) -> T | N
             SystemMessage(content=system),
             HumanMessage(content=user),
         ])
-        return result
+        return cast(T, result)
     except Exception as e:
         logger.error(f"LLM structured output error: {e}")
         return None

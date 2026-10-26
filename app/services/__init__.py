@@ -1,12 +1,13 @@
 """
 Điểm duy nhất để agent lấy service. Test có thể gọi set_services() để thay bằng bản giả (mock).
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from app.contracts.interfaces import (
-    BookingService, HandoverService,
+    AfterSalesService, BookingService, HandoverService,
     KnowledgeService, MaintenanceService, ProductService,
 )
+from app.services.after_sales import DbAfterSalesService
 from app.services.booking import DbBookingService
 from app.services.handover import DbHandoverService
 from app.services.knowledge import RagKnowledgeService
@@ -16,12 +17,12 @@ from app.services.product import DbProductService
 
 @dataclass
 class Services:
-    product: ProductService
-    knowledge: KnowledgeService
-    booking: BookingService
-    handover: HandoverService
-    maintenance: MaintenanceService
-
+    product: DbProductService
+    knowledge: RagKnowledgeService
+    booking: DbBookingService
+    handover: DbHandoverService
+    maintenance: DbMaintenanceService
+    after_sales: AfterSalesService = field(default_factory=DbAfterSalesService)
 
 _services: Services | None = None
 

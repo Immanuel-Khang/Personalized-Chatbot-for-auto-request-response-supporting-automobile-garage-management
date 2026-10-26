@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Garage One — Trung tâm hội thoại</title>
+<link rel="stylesheet" href="/theme.css">
+<style>
+.shell{display:grid;grid-template-columns:360px 1fr;height:100dvh}
+.side{background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.sh{padding:16px 16px 10px}
+.sh h1{font-size:18px;font-weight:600;margin-bottom:10px}
+.sh a.ibtn{margin-top:-6px}
+.sh input{width:100%;border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:#f6f8fb}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--line)}
+.tab{padding:10px 4px;font-size:13px;font-weight:500;color:var(--mute);border-bottom:2px solid transparent;display:flex;gap:6px;justify-content:center;align-items:center}
+.tab[aria-selected=true]{color:var(--blue-d);border-color:var(--blue)}
+.tab .n{background:#eef2f7;color:var(--ink);border-radius:99px;padding:0 7px;font-size:12px}
+.tab.hot .n{background:var(--warn-bg);color:var(--warn)}
+.list{list-style:none;padding:0;overflow-y:auto;flex:1}
+.it{display:flex;gap:12px;width:100%;text-align:left;padding:12px 16px;align-items:flex-start}
+.it:hover{background:#f3f7fc}.it.on{background:#e8f1ff}
+.it .av{width:44px;height:44px}
+.it .tx{min-width:0;flex:1}
+.row1{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.row1 b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pv{color:var(--mute);font-size:13px;margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.none{padding:32px 24px;color:var(--mute);text-align:center;font-size:14px}
+.main{display:flex;flex-direction:column;min-width:0;min-height:0}
+.empty{margin:auto;text-align:center;color:var(--mute);max-width:320px;padding:24px}
+.empty .ic{width:44px;height:44px;margin-bottom:10px;color:#9fb0c4}
+.empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
+.thread{display:flex;flex-direction:column;flex:1;min-height:0}
+.th{display:flex;align-items:center;gap:12px;background:#fff;border-bottom:1px solid var(--line);padding:10px 16px}
+.th .hd{flex:1;min-width:0}.th b{font-weight:600;font-size:16px}
+.th .sub{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--mute);flex-wrap:wrap}
+.back{display:none}
+.sum{background:#fff;border-bottom:1px solid var(--line);padding:8px 16px;font-size:13px;color:var(--mute)}
+.sum summary{cursor:pointer;font-weight:500;color:var(--ink)}
+.sum p{margin-top:6px;white-space:pre-wrap;overflow-wrap:anywhere}
+.hint{background:var(--warn-bg);color:var(--warn);font-size:13px;padding:8px 16px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1b2733;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;max-width:90vw;z-index:9}
+@media(max-width:760px){.shell{grid-template-columns:1fr}.main{display:none}.shell.sel .side{display:none}.shell.sel .main{display:flex}.back{display:grid}}
+</style><link rel="stylesheet" href="/admin-polish.css"></head><body class="admin-page">
+<div class="shell" id="shell">
+  <aside class="side">
+    <div class="sh"><div class="row1"><div class="brand-lockup"><span class="brand-icon"><svg class="ic"><use href="#i-truck"/></svg></span><span><strong>Garage One</strong><small>TRUNG TÂM HỘI THOẠI</small></span></div><a class="ibtn" href="/" title="Mở giao diện khách hàng" aria-label="Mở giao diện khách hàng"><svg class="ic"><use href="#i-truck"/></svg></a></div>
+      <label class="search-wrap"><svg class="ic"><use href="#i-search"/></svg><input id="q" placeholder="Tìm khách hoặc nội dung" aria-label="Tìm cuộc trò chuyện" autocomplete="off"></label>
+      <label class="staff-wrap"><span>Nhân viên đang đăng nhập</span><input id="who" placeholder="Nhập tài khoản nhân viên" aria-label="Tài khoản nhân viên" autocomplete="off"></label></div>
+    <div class="list-intro"><div><h2>Hội thoại</h2><p>Theo dõi và hỗ trợ khách hàng</p></div><span class="live-pill"><i></i> Đang đồng bộ</span></div><div class="tabs" role="tablist" id="tabs">
+      <button class="tab" role="tab" data-s="ALL">Tất cả <span class="n">0</span></button>
+      <button class="tab" role="tab" data-s="OPEN">Chờ nhận <span class="n">0</span></button>
+      <button class="tab" role="tab" data-s="CLAIMED">Đang xử lý <span class="n">0</span></button>
+      <button class="tab" role="tab" data-s="RESOLVED">Đã xong <span class="n">0</span></button>
+    </div>
+    <ul class="list" id="list"></ul>
+  </aside>
+  <main class="main">
+    <div class="empty" id="empty"><div class="empty-art"><svg class="ic"><use href="#i-inbox"/></svg></div><b>Không gian hỗ trợ của bạn</b><p>Chọn một cuộc hội thoại bên trái để xem lịch sử tin nhắn, ngữ cảnh từ trợ lý AI và tiếp tục hỗ trợ khách hàng.</p><div class="empty-hints"><span><i class="hint-dot blue"></i> Trợ lý AI</span><span><i class="hint-dot green"></i> Nhân viên hỗ trợ</span></div></div>
+    <section class="thread" id="thread" hidden>
+      <div class="th">
+        <button class="ibtn back" id="back" aria-label="Quay lại danh sách"><svg class="ic"><use href="#i-back"/></svg></button>
+        <div class="av" id="tav"></div>
+        <div class="hd"><b id="tname"></b><div class="sub"><span class="tag" id="treason"></span><span id="tstat"></span></div></div>
+        <button class="btn" id="act"></button>
+      </div>
+      <details class="sum"><summary>Tóm tắt từ trợ lý</summary><p id="tsum"></p></details>
+      <div class="log" id="log" role="log"></div>
+      <div class="hint" id="hint" hidden>Nhận hỗ trợ để nhắn cho khách.</div>
+      <div class="composer">
+        <textarea id="in" rows="1" placeholder="Nhập phản hồi cho khách" aria-label="Phản hồi cho khách" disabled></textarea>
+        <button class="sendb" id="send" aria-label="Gửi phản hồi" disabled><svg class="ic"><use href="#i-send"/></svg></button>
+      </div>
+    </section>
+  </main>
+</div>
+<script src="/common.js"></script>
+<script>
+const S = ["OPEN", "CLAIMED", "RESOLVED"];
+const REASON = { NEGOTIATION: "Xin giảm giá", HUMAN_REQUEST: "Muốn gặp người", COMPLAINT: "Khiếu nại", COMPLEXITY_HIGH: "Câu hỏi phức tạp",
+  OUTPUT_GUARD: "Cần kiểm duyệt", DEAL_CHANGE: "Đổi điều khoản", APPOINTMENT_APPROVAL: "Duyệt lịch hẹn", OTHER: "Khác" };
+const STAT = { OPEN: "Chờ nhân viên tiếp nhận", CLAIMED: "Đang hỗ trợ", RESOLVED: "Đã hoàn tất" };
+const EMPTY = { OPEN: "Chưa có khách nào đang chờ. Khi trợ lý chuyển cuộc trò chuyện, khách sẽ hiện ở đây.",
+  CLAIMED: "Bạn chưa nhận cuộc trò chuyện nào.", RESOLVED: "Chưa có cuộc trò chuyện nào đã xong." };
+let tab = "ALL", data = { OPEN: [], CLAIMED: [], RESOLVED: [] }, sel = null, listSig = "", msgSig = "", online = true;
+const shell = $("#shell"), log = $("#log"), box = $("#in"), send = $("#send"), who = $("#who");
+$("#q").oninput = () => { listSig = ""; drawList(); };
+who.value = localStorage.getItem("staff") || ""; who.onchange = () => localStorage.setItem("staff", who.value.trim());
+
+const name = t => "Khách " + t.session_id.slice(0, 6);
+const hue = s => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return `hsl(${h} 55% 36%)`; };
+const initials = t => t.session_id.slice(0, 2).toUpperCase();
+const preview = t => (t.summary || "").split("\n").pop().replace(/^\[[^\]]*\]\s*/, "") || "Chưa có tóm tắt";
+function sla(t, s) {
+  if (s !== "OPEN" || !t.sla_due_at) return null;
+  const m = Math.round((new Date(t.sla_due_at) - Date.now()) / 60000);
+  return m >= 0 ? { x: `Còn ${m} phút`, c: m <= 2 ? "soon" : "" } : { x: `Quá ${-m} phút`, c: "late" };
+}
+function toast(msg) { $(".toast")?.remove(); const t = el("div", "toast", msg); t.setAttribute("role", "status"); document.body.append(t); setTimeout(() => t.remove(), 4000); }
+const find = id => { for (const s of S) { const t = data[s].find(x => x.id === id); if (t) return { t, s }; } return null; };
+
+function drawList() {
+  document.querySelectorAll(".tab").forEach(b => {
+    b.setAttribute("aria-selected", b.dataset.s === tab);
+    const count = b.dataset.s === "ALL" ? S.reduce((n, s) => n + data[s].length, 0) : data[b.dataset.s].length;
+    $(".n", b).textContent = count;
+  });
+  $('.tab[data-s="OPEN"]').classList.toggle("hot", data.OPEN.length > 0);
+  const q = $("#q").value.trim().toLowerCase();
+  const source = tab === "ALL" ? S.flatMap(s => data[s].map(t => ({...t, _status: s}))) : data[tab].map(t => ({...t, _status: tab}));
+  const rows = source.filter(t => !q || (name(t) + " " + t.session_id + " " + (t.summary || "") + " " + (REASON[t.reason] || "")).toLowerCase().includes(q)).map(t => ({ t, sl: sla(t, t._status) }));
+  const sig = tab + sel + q + JSON.stringify(rows.map(r => [r.t.id, r.t.summary, r.sl && r.sl.x]));
+  if (sig === listSig) return; listSig = sig;  // chỉ vẽ lại khi có thay đổi, tránh mất focus bàn phím
+  const ul = $("#list"); ul.replaceChildren();
+  if (!rows.length) { ul.append(el("li", "none", q ? "Không có cuộc trò chuyện nào khớp từ khóa." : EMPTY[tab])); return; }
+  for (const { t, sl } of rows) {
+    const li = el("li"), b = el("button", "it" + (t.id === sel ? " on" : "")), av = el("div", "av", initials(t)), tx = el("div", "tx");
+    av.style.background = hue(t.session_id);
+    const r1 = el("div", "row1", ""); r1.append(el("b", "", name(t)));
+    if (sl) r1.append(el("span", "tag " + sl.c, sl.x));
+    const r2 = el("div", "row1"); r2.style.marginTop = "3px"; r2.append(el("span", "tag", REASON[t.reason] || t.reason));
+    tx.append(r1, r2, el("div", "pv", preview(t))); b.append(av, tx); b.onclick = () => pick(t.id); li.append(b); ul.append(li);
+  }
+}
+function drawHead() {
+  const f = sel && find(sel); $("#empty").hidden = !!f; $("#thread").hidden = !f; shell.classList.toggle("sel", !!f);
+  if (!f) return;
+  const { t, s } = f, a = $("#tav"); a.textContent = initials(t); a.style.background = hue(t.session_id);
+  $("#tname").textContent = name(t); $("#treason").textContent = REASON[t.reason] || t.reason; $("#tstat").textContent = STAT[s];
+  $("#tsum").textContent = t.summary || "Chưa có tóm tắt.";
+  const b = $("#act"); b.hidden = s === "RESOLVED"; b.className = "btn" + (s === "CLAIMED" ? " ghost" : ""); b.replaceChildren();
+  if (s === "CLAIMED") b.append(icon("check")); b.append(document.createTextNode(s === "OPEN" ? "Nhận hỗ trợ" : "Kết thúc"));
+  box.disabled = s !== "CLAIMED"; $("#hint").hidden = s === "CLAIMED";
+  $("#hint").textContent = s === "OPEN" ? "Nhận hỗ trợ để nhắn cho khách. Trợ lý đang im lặng trong cuộc trò chuyện này." : "Cuộc trò chuyện đã kết thúc, trợ lý đã tiếp quản lại.";
+  box.placeholder = s === "CLAIMED" ? "Nhập phản hồi cho khách" : "Chưa thể nhắn"; fit();
+}
+function drawMsgs(rows, force) {
+  const sig = sel + ":" + rows.length + ":" + (rows.at(-1)?.id || 0); if (sig === msgSig && !force) return; msgSig = sig;
+  const near = log.scrollHeight - log.scrollTop - log.clientHeight < 80; log.replaceChildren(); let prev = null;
+  for (const m of rows) {
+    if (m.role === "tool") continue;
+    if (m.role === "system") { log.append(el("div", "sys", m.content)); prev = null; continue; }
+    const r = m.role, row = el("div", "m " + (r === "staff" ? "me" : r === "ai" ? "bot flat" : "")), col = el("div", "col"), bub = el("div", "bub");
+    if (prev === r) row.classList.add("cont");
+    if (r !== "staff") { const av = el("div", "av", r === "ai" ? "" : "K"); if (r === "ai") av.append(icon("truck")); else av.style.background = "#6b7a8c"; row.append(av); }
+    if (prev !== r && r !== "staff") col.append(el("div", "who", r === "ai" ? "Trợ lý tự động" : "Khách"));
+    bub.append(body(m.content)); col.append(bub); row.append(col); log.append(row); prev = r;
+  }
+  if (near || force) requestAnimationFrame(() => log.scrollTop = log.scrollHeight);
+}
+async function loadLists() {
+  try {
+    const r = await Promise.all(S.map(s => api("/admin/tasks?status=" + s))); S.forEach((s, i) => data[s] = r[i]);
+    data.RESOLVED.reverse(); if (!online) { online = true; toast("Đã kết nối lại"); } drawList(); drawHead();
+  } catch { if (online) { online = false; toast("Mất kết nối tới máy chủ. Đang thử lại."); } }
+}
+async function loadMsgs(force) {
+  if (!sel) return;
+  try { drawMsgs(await api(`/admin/tasks/${sel}/messages`), force); } catch {}
+}
+function pick(id) { sel = id; msgSig = ""; listSig = ""; log.replaceChildren(); drawHead(); drawList(); loadMsgs(true); }
+async function act(path, opt) {
+  try { await api(path, opt); return true; }
+  catch (e) {
+    toast(e.status === 409 ? "Trạng thái cuộc trò chuyện đã thay đổi. Đã tải lại danh sách." : e.status === 404 && /manager/.test(e.message) ? "Không tìm thấy tài khoản nhân viên này. Nhập đúng tên đăng nhập hoặc để trống." : "Không thực hiện được: " + e.message);
+    await loadLists(); return false;
+  }
+}
+$("#tabs").onclick = e => { const b = e.target.closest(".tab"); if (b) { tab = b.dataset.s; drawList(); } };
+$("#back").onclick = () => { sel = null; listSig = ""; drawHead(); drawList(); };
+$("#act").onclick = async () => {
+  const f = find(sel); if (!f) return; const m = who.value.trim();
+  if (f.s === "OPEN") { if (await act(`/admin/tasks/${sel}/claim` + (m ? "?manager=" + encodeURIComponent(m) : ""), { method: "POST" })) { tab = "CLAIMED"; await loadLists(); loadMsgs(true); box.focus(); } }
+  else if (confirm("Kết thúc hỗ trợ? Trợ lý tự động sẽ tiếp tục trả lời khách.")) { if (await act(`/admin/tasks/${sel}/resolve`, { method: "POST" })) { tab = "RESOLVED"; await loadLists(); loadMsgs(true); } }
+};
+async function reply() {
+  const text = box.value.trim(); if (!text || box.disabled) return;
+  if (await act(`/admin/tasks/${sel}/reply`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: text }) })) { box.value = ""; fit(); loadMsgs(true); }
+}
+function fit() { box.style.height = "auto"; box.style.height = Math.min(box.scrollHeight, 120) + "px"; send.disabled = box.disabled || !box.value.trim(); }
+box.oninput = fit; send.onclick = reply;
+box.onkeydown = e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); reply(); } };
+setInterval(loadLists, 4000); setInterval(() => !document.hidden && loadMsgs(false), 3000); loadLists();
+</script></body></html>

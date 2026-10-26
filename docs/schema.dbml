@@ -1,0 +1,763 @@
+Project garage_catalog {
+  database_type: 'PostgreSQL'
+  Note: '''Nguồn chính: CKD_MASTER_PRODUCT_DATABASE.xlsx, sheet MASTER_PRODUCT_DATABASE.
+  65 dòng sản phẩm; tiêu đề dòng 1-4 và ghi chú E77 không phải bản ghi.
+  Các bảng extension phản ánh cột mẫu chưa có dữ liệu, không phải nghiệp vụ đã xác nhận.
+  Dùng UTC cho timestamp. updated_at cần trigger hoặc application cập nhật.
+  PostgreSQL: ưu tiên timestamptz khi sinh migration. MySQL: DATETIME(6) UTC.
+  DBML dùng timestamp để export được cả PostgreSQL/MySQL; không mặc định updated_at tự đổi.
+  Không tự suy diễn CKD/CBU, model year, đơn vị hoặc quy đổi các số đáng ngờ.
+  Các mã smallint được CHECK, không sử dụng native ENUM. NULL nghĩa là chưa biết.
+  Tiền dùng decimal(15,2): 13 chữ số nguyên, không dùng float/double.
+  MySQL >= 8.0.16 + InnoDB + utf8mb4; PostgreSQL UTF8.
+  Chọn collation phân biệt dấu/case cho mã định danh, rồi trim/map alias có chủ đích.
+  VARCHAR(n) không chiếm cố định n byte; giới hạn phục vụ validation, TEXT dùng cho nội dung dài.'''
+}
+
+// ============================================================
+// VẬN HÀNH: quản lý, phiên chat, khách, hội thoại, chuyển người
+// Quy ước: mã trạng thái dạng varchar + CHECK (không dùng native ENUM). Timestamp UTC.
+// ============================================================
+
+// 1. Quản lý nội bộ (bắt buộc đăng nhập)
+Table managers {
+  id integer [pk, increment]
+  username varchar(50) [not null, unique]
+  password_hash varchar(255) [not null]
+  role varchar(20) [not null, default: 'sales_admin', check: `role IN ('sales_admin', 'manager', 'technician')`, note: 'Danh sách vai trò là đề xuất, nhóm chỉnh lại cho đúng thực tế.']
+  is_active boolean [not null, default: true]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+// 2. Phiên chat (trình duyệt của khách)
+Table chat_sessions {
+  id varchar(64) [pk, note: 'UUID do trình duyệt (Next.js LocalStorage) tạo. Chỉ dùng để nhận ra phiên, KHÔNG coi là bằng chứng danh tính khi trả dữ liệu cá nhân.']
+  customer_id integer [ref: > customers.id, note: 'NULL cho đến khi biết SĐT. Một khách có nhiều phiên; xem toàn bộ lịch sử khách qua cột này.']
+  mode varchar(20) [not null, default: 'BOT', check: `mode IN ('BOT', 'HUMAN_PENDING', 'HUMAN_ACTIVE')`, note: 'Ai đang xử lý hội thoại. Khác với negotiation_active (lý do cần người).']
+  negotiation_active boolean [not null, default: false, note: 'Cờ dính: khách đã mặc cả. Bật khi Policy Guard phát hiện; chỉ xóa khi nhân viên trả hội thoại về bot.']
+  current_stage varchar(40) [not null, default: 'IDLE', note: 'Trạng thái luồng nhiều lượt, ví dụ IDLE, COLLECTING_APPOINTMENT_INFO, AWAITING_DEAL_CONFIRMATION. Danh sách giá trị chốt ở tầng ứng dụng.']
+  last_message_at timestamp
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes {
+    customer_id
+    mode
+  }
+}
+
+// 3. Khách hàng (AI trích xuất và tạo, KHÔNG CÓ PASSWORD). Đã bỏ latest_session_id: quan hệ nay nằm ở chat_sessions.customer_id.
+Table customers {
+  id integer [pk, increment]
+  phone_number varchar(20) [unique, note: 'Chuẩn hóa một dạng (ví dụ +84...). SĐT là định danh chính.']
+  phone_verified_at timestamp [note: 'NULL = chưa xác minh OTP. Chỉ trả dữ liệu cá nhân (lịch sử xe, hủy/đổi lịch) khi đã xác minh.']
+  full_name varchar(80)
+  email varchar(120)
+  birthday date [note: 'Phục vụ chúc mừng sinh nhật.']
+  cccd_encrypted text [note: 'Mã hóa ở tầng ứng dụng. Chỉ thu khi làm hợp đồng; không ghi log, không đưa vào ngữ cảnh LLM.']
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table customer_consents {
+  id integer [pk, increment]
+  customer_id integer [not null, ref: > customers.id]
+  purpose varchar(30) [not null, check: `purpose IN ('MAINTENANCE_REMINDER', 'BIRTHDAY_EVENT', 'MARKETING')`]
+  channel varchar(20) [not null, check: `channel IN ('EMAIL', 'SMS', 'ZALO', 'WEB')`]
+  granted boolean [not null]
+  granted_at timestamp
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { (customer_id, purpose, channel) [unique] }
+  Note: 'Kiểm tra bảng này trước khi gửi bất kỳ tin chủ động nào.'
+}
+
+Table messages {
+  id integer [pk, increment]
+  session_id varchar(64) [not null, ref: > chat_sessions.id]
+  role varchar(20) [not null, check: `role IN ('user', 'ai', 'tool', 'staff')`, note: 'staff = nhân viên trả lời khi chuyển người.']
+  manager_id integer [ref: > managers.id, note: 'Chỉ có khi role = staff.']
+  content text [not null, note: 'Che CCCD/số nhạy cảm trước khi lưu và trước khi gửi sang công cụ tracing.']
+  tool_calls jsonb [note: 'Payload JSON nếu AI gọi tool. Dùng jsonb khi chạy PostgreSQL.']
+  trace jsonb [note: 'Danh sách node đã đi qua trong lượt này, phục vụ eval theo trajectory.']
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { (session_id, created_at) }
+}
+
+// 4. Chuyển cho nhân viên
+Table handover_tickets {
+  id integer [pk, increment]
+  session_id varchar(64) [not null, ref: > chat_sessions.id]
+  customer_id integer [ref: > customers.id]
+  reason varchar(30) [not null, check: `reason IN ('NEGOTIATION', 'HUMAN_REQUEST', 'COMPLAINT', 'COMPLEXITY_HIGH', 'OUTPUT_GUARD', 'DEAL_CHANGE', 'APPOINTMENT_APPROVAL', 'OTHER')`]
+  status varchar(20) [not null, default: 'OPEN', check: `status IN ('OPEN', 'CLAIMED', 'RESOLVED')`]
+  assigned_manager_id integer [ref: > managers.id]
+  summary text
+  sla_due_at timestamp
+  resolved_at timestamp
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes {
+    (status, created_at)
+    session_id
+  }
+}
+
+// 5. Showroom, lịch hẹn
+Table showrooms {
+  id smallint [pk, increment]
+  name varchar(120) [not null, unique]
+  address text
+  phone varchar(20)
+  opening_hours text [note: 'Mô tả giờ mở cửa cho bot trả lời; logic kiểm tra giờ làm việc nằm ở ứng dụng.']
+  is_active boolean [not null, default: true]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table appointment_slots {
+  id integer [pk, increment]
+  showroom_id smallint [not null, ref: > showrooms.id]
+  slot_type varchar(20) [not null, check: `slot_type IN ('SERVICE_BAY', 'TEST_DRIVE', 'SHOWROOM_VISIT')`]
+  starts_at timestamp [not null]
+  ends_at timestamp [not null]
+  capacity smallint [not null, check: `capacity > 0`]
+  booked_count smallint [not null, default: 0, check: `booked_count >= 0`, note: 'Tăng trong một transaction khi giữ chỗ để chống đặt trùng.']
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { (showroom_id, slot_type, starts_at) [unique] }
+  checks {
+    `booked_count <= capacity`
+    `ends_at > starts_at`
+  }
+}
+
+Table appointments {
+  id integer [pk, increment]
+  customer_id integer [not null, ref: > customers.id]
+  session_id varchar(64) [ref: > chat_sessions.id]
+  slot_id integer [not null, ref: > appointment_slots.id]
+  service_type varchar(20) [not null, check: `service_type IN ('MAINTENANCE', 'REPAIR', 'TEST_DRIVE', 'SHOWROOM_VISIT')`]
+  vehicle_id integer [ref: > customer_vehicles.id, note: 'Xe của khách (bảo dưỡng, sửa chữa). NULL khi lái thử hoặc xem xe.']
+  variant_id integer [ref: > vehicle_variants.id, note: 'Mẫu xe muốn lái thử hoặc xem. NULL khi là dịch vụ cho xe của khách.']
+  contact_phone varchar(20) [not null]
+  status varchar(20) [not null, default: 'PENDING_APPROVAL', check: `status IN ('PENDING_APPROVAL', 'CONFIRMED', 'REJECTED', 'CANCELLED', 'DONE')`]
+  note text
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes {
+    customer_id
+    slot_id
+    status
+  }
+}
+
+// 6. Xe của khách và sau bán
+Table customer_vehicles {
+  id integer [pk, increment]
+  customer_id integer [not null, ref: > customers.id]
+  variant_id integer [not null, ref: > vehicle_variants.id, note: 'Cấu hình xe (trong danh mục), khác với chiếc xe cụ thể này.']
+  contract_id integer [ref: > contracts.id, note: 'Hợp đồng mua tại xưởng, NULL nếu xe mua nơi khác.']
+  vin varchar(32) [unique, note: 'Số khung. NULL cho đến khi giao xe.']
+  plate_number varchar(20)
+  purchase_date date
+  odometer_km integer [check: `odometer_km >= 0`]
+  odometer_updated_at timestamp
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { customer_id }
+}
+
+Table service_history {
+  id integer [pk, increment]
+  vehicle_id integer [not null, ref: > customer_vehicles.id]
+  appointment_id integer [ref: > appointments.id]
+  performed_at date [not null]
+  odometer_km integer [check: `odometer_km >= 0`]
+  summary text [not null]
+  cost_amount decimal(15,2) [check: `cost_amount >= 0`]
+  currency_code char(3)
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { (vehicle_id, performed_at) }
+}
+
+Table maintenance_reminders {
+  id integer [pk, increment]
+  customer_id integer [not null, ref: > customers.id]
+  vehicle_id integer [not null, ref: > customer_vehicles.id, note: 'Thay cho contract_id cũ: hạn bảo dưỡng tính theo từng chiếc xe.']
+  service_interval_id integer [ref: > variant_service_intervals.id, note: 'Chu kỳ dùng để tính (tháng hoặc km, cái nào tới trước).']
+  target_km integer [check: `target_km > 0`]
+  scheduled_date date
+  status varchar(20) [not null, default: 'PENDING', check: `status IN ('PENDING', 'NOTIFIED', 'COMPLETED', 'CANCELLED')`]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes {
+    (status, scheduled_date)
+    vehicle_id
+  }
+}
+
+// 7. Tin chủ động (outbox): nhắc bảo dưỡng, sinh nhật, sự kiện
+Table outbound_messages {
+  id integer [pk, increment]
+  customer_id integer [not null, ref: > customers.id]
+  reminder_id integer [ref: > maintenance_reminders.id, note: 'Có khi là nhắc bảo dưỡng; NULL với sinh nhật, sự kiện.']
+  msg_type varchar(30) [not null, check: `msg_type IN ('MAINTENANCE_REMINDER', 'BIRTHDAY', 'EVENT')`]
+  channel varchar(20) [not null, check: `channel IN ('EMAIL', 'SMS', 'ZALO', 'WEB')`, note: 'Hiện chỉ có web chat: nhóm cần chốt kênh thực sự gửi được tới khách.']
+  payload jsonb
+  status varchar(25) [not null, default: 'PENDING', check: `status IN ('PENDING', 'SENT', 'FAILED', 'SKIPPED_NO_CONSENT')`]
+  attempts smallint [not null, default: 0, check: `attempts >= 0`]
+  scheduled_at timestamp [not null]
+  sent_at timestamp
+  last_error text
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { (status, scheduled_at) }
+}
+
+// 8. Hợp đồng
+Table contracts {
+  id integer [pk, increment]
+  customer_id integer [not null, ref: > customers.id]
+  variant_id integer [not null, ref: > vehicle_variants.id]
+  session_id varchar(64) [ref: > chat_sessions.id]
+  manager_id integer [ref: > managers.id, note: 'Nhân viên phụ trách.']
+  price_id integer [ref: > variant_prices.id, note: 'Dòng giá niêm yết đã dùng, để truy vết.']
+  quantity smallint [not null, default: 1, check: `quantity > 0`, note: 'Nếu một hợp đồng gồm nhiều mẫu xe khác nhau thì tách contract_items.']
+  unit_price decimal(15,2) [not null, check: `unit_price >= 0`, note: 'Giá chốt tại thời điểm tạo hợp đồng; không lấy lại từ variant_prices vì giá sẽ đổi.']
+  currency_code char(3) [not null, default: 'VND']
+  total_amount decimal(15,2) [check: `total_amount >= 0`]
+  agreed_terms jsonb [note: 'Ảnh chụp bản tóm tắt thoả thuận khách đã đồng ý ở bước Deal.']
+  template_version varchar(40)
+  pdf_url text [note: 'Link tải file hợp đồng hiển thị trên web.']
+  status varchar(20) [not null, default: 'DRAFT', check: `status IN ('DRAFT', 'SENT', 'SIGNED', 'CANCELLED')`]
+  agreed_at timestamp
+  signed_at timestamp
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes {
+    customer_id
+    variant_id
+    status
+  }
+}
+
+
+// DANH MỤC VÀ ĐỊNH DANH
+Table brands {
+  id smallint [pk, increment]
+  name varchar(80) [not null, unique]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table vehicle_types {
+  id smallint [pk, increment]
+  name varchar(80) [not null, unique]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table vehicle_models {
+  id integer [pk, increment]
+  brand_id smallint [not null, ref: > brands.id]
+  name varchar(120) [note: 'Không UNIQUE: tên model chưa đủ xác định cấu hình. NULL chỉ cho định danh tạm chưa có tên (ví dụ DONGBEN dòng 73); không gom các model thiếu tên theo brand.']
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { (brand_id, name) }
+}
+
+Table vehicle_variants {
+  id integer [pk, increment]
+  model_id integer [ref: > vehicle_models.id, note: 'NULL khi chưa đủ định danh/Brand; Brand biết nhưng thiếu tên thì dùng model tạm name=NULL. Không tạo tên giả.']
+  vehicle_type_id smallint [ref: > vehicle_types.id, note: 'Loại xe/body thuộc cấu hình, không mặc định là thuộc tính cố định của model.']
+  product_code varchar(64) [unique, note: 'Product_ID nguồn đang trống; không gán Model vào cột này.']
+  version_label varchar(40)
+  model_year smallint [check: `model_year BETWEEN 1900 AND 2200`]
+  assembly_type smallint [check: `assembly_type IN (1, 2)`, note: '1 CKD; 2 CBU; NULL chưa xác nhận.']
+  launch_date date
+  wheel_formula varchar(12) [note: 'Ví dụ 4x2R, 6x4; không ép thành số.']
+  curb_mass_kg decimal(8,2) [check: `curb_mass_kg > 0`]
+  curb_mass_basis varchar(40) [note: 'Qualifier nguyên nghĩa: chassis, vehicle,...; không suy ra từ Vehicle Type.']
+  payload_kg decimal(8,2) [check: `payload_kg >= 0`, note: 'Chỉ điền khi có một tải trọng xác nhận. Giá trị 990/1210 cần xác định cấu hình, không chọn tùy ý.']
+  gross_mass_kg decimal(8,2) [check: `gross_mass_kg > 0`]
+  seat_count smallint [check: `seat_count > 0`]
+  segment_id smallint [ref: > segments.id]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { model_id }
+  Note: 'Một dòng hợp lệ sau làm sạch là một cấu hình. Không UNIQUE theo model, wheelbase hoặc engine; biến thể có thể khác tải trọng đăng kiểm.'
+}
+
+Table variant_load_alternatives {
+  variant_id integer [not null, ref: > vehicle_variants.id]
+  kind smallint [not null, check: `kind IN (1, 2)`, note: '1 payload; 2 gross vehicle mass. Các tập phương án độc lập, không ngầm ghép cặp.']
+  alternative_no smallint [not null, check: `alternative_no > 0`]
+  mass_kg decimal(8,2) [not null, check: `mass_kg > 0`]
+  qualifier text
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { (variant_id, kind, alternative_no) [pk] }
+  Note: 'Chỉ dùng khi nguồn công bố nhiều lựa chọn chưa tách được thành variant; để cột scalar tương ứng trong vehicle_variants là NULL. Application/trigger ngăn lưu cả scalar và alternative cho cùng đại lượng.'
+}
+
+Table segments {
+  id smallint [pk, increment]
+  name varchar(40) [not null, unique]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+// KÍCH THƯỚC VÀ KHUNG GẦM
+Table variant_dimensions {
+  variant_id integer [not null, ref: > vehicle_variants.id]
+  scope smallint [not null, check: `scope IN (1, 2, 3, 4)`, note: '1 overall; 2 cargo; 3 cabin; 4 chassis. Không ngầm coi overall là chassis.']
+  alternative_no smallint [not null, default: 1, check: `alternative_no > 0`, note: '780/2100 là 2 phương án chiều cao, không phải khoảng. Không tạo tích Descartes khi nhiều thành phần đều có lựa chọn.']
+  qualifier text [note: 'Nhãn chassis/inner/outer/... chỉ khi nguồn nêu. NULL nếu ý nghĩa phương án chưa xác định.']
+  length_mm integer [check: `length_mm > 0`]
+  width_mm integer [check: `width_mm > 0`]
+  height_mm integer [check: `height_mm > 0`]
+  volume_m3 decimal(8,3) [check: `volume_m3 > 0`, note: 'Dung tích công bố; không tự tính từ kích thước ngoài.']
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { (variant_id, scope, alternative_no) [pk] }
+}
+
+Table variant_chassis {
+  variant_id integer [pk, ref: - vehicle_variants.id]
+  front_overhang_mm integer [check: `front_overhang_mm >= 0`]
+  rear_overhang_mm integer [check: `rear_overhang_mm >= 0`]
+  ground_clearance_mm integer [check: `ground_clearance_mm >= 0`]
+  turning_radius_m decimal(5,2) [check: `turning_radius_m > 0`]
+  steering_system text
+  brake_assist text [note: 'Cột Drive/Power assist; cần đối chiếu mô tả nguồn trước khi chuẩn hóa.']
+  fuel_tank_l smallint [check: `fuel_tank_l > 0`, note: 'Chỉ điền sau khi xác nhận đơn vị lít.']
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table variant_axle_spacings {
+  variant_id integer [not null, ref: > vehicle_variants.id]
+  position smallint [not null, check: `position > 0`, note: 'Khoảng trục 1-2, 2-3,...; giữ thứ tự 1800+3300+1400.']
+  distance_mm integer [not null, check: `distance_mm > 0`]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { (variant_id, position) [pk] }
+}
+
+Table variant_axles {
+  variant_id integer [not null, ref: > vehicle_variants.id]
+  position smallint [not null, check: `position > 0`, note: 'Đánh số trục từ trước ra sau; không tách trục sau kép nếu nguồn chỉ ghi chung.']
+  designation varchar(80)
+  rated_load_kg decimal(8,2) [check: `rated_load_kg > 0`]
+  tread_mm integer [check: `tread_mm > 0`]
+  outside_tread_mm integer [check: `outside_tread_mm > 0`]
+  final_drive_ratio decimal(7,4) [check: `final_drive_ratio > 0`, note: '4333/4875/... nghi mất dấu thập phân: để NULL đến khi xác nhận.']
+  suspension_system text
+  leaf_count smallint [check: `leaf_count > 0`]
+  helper_leaf_count smallint [check: `helper_leaf_count >= 0`]
+  brake_system text
+  tire_size varchar(32) [note: 'Ví dụ 175/75R14, 11.00R20; là mã, không phải số.']
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { (variant_id, position) [pk] }
+}
+
+// ĐỘNG CƠ: cùng Engine_Model có thể có công suất/mô-men khác nhau.
+Table engines {
+  id integer [pk, increment]
+  code varchar(64) [not null, unique, note: 'Danh mục nhãn Engine_Model, không khẳng định code xác định mọi thông số.']
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table variant_engines {
+  variant_id integer [pk, ref: - vehicle_variants.id]
+  engine_id integer [ref: > engines.id]
+  displacement_cc integer [check: `displacement_cc > 0`]
+  max_power_kw decimal(7,2) [check: `max_power_kw > 0`]
+  power_rpm smallint [check: `power_rpm > 0`]
+  max_torque_nm decimal(8,2) [check: `max_torque_nm > 0`]
+  torque_rpm_min smallint [check: `torque_rpm_min > 0`]
+  torque_rpm_max smallint [check: `torque_rpm_max > 0`]
+  emission_standard varchar(24) [note: 'Nguồn V; giữ nhãn trước khi xác nhận EURO V.']
+  exhaust_treatment varchar(120)
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { engine_id }
+  checks { `torque_rpm_min IS NULL OR torque_rpm_max IS NULL OR torque_rpm_min <= torque_rpm_max` }
+}
+
+Table transmissions {
+  id integer [pk, increment]
+  designation varchar(80) [not null, unique]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table variant_transmissions {
+  variant_id integer [pk, ref: - vehicle_variants.id]
+  transmission_id integer [ref: > transmissions.id]
+  transmission_type smallint [check: `transmission_type IN (1, 2, 3, 4)`, note: '1 manual; 2 automatic; 3 automated manual; 4 CVT. Nguồn hiện chỉ có manual; NULL chưa xác nhận.']
+  forward_gear_count smallint [check: `forward_gear_count > 0`]
+  reverse_gear_count smallint [check: `reverse_gear_count > 0`]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { transmission_id }
+}
+
+Table variant_gear_ratios {
+  variant_id integer [not null, ref: > variant_transmissions.variant_id]
+  gear_no smallint [not null, check: `gear_no <> 0`, note: '1..n tiến; -1..-n lùi.']
+  ratio decimal(8,4) [not null, check: `ratio > 0`]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { (variant_id, gear_no) [pk] }
+}
+
+Table equipment {
+  id smallint [pk, increment]
+  name varchar(80) [not null, unique]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table variant_equipment {
+  variant_id integer [not null, ref: > vehicle_variants.id]
+  equipment_id smallint [not null, ref: > equipment.id]
+  availability smallint [not null, check: `availability IN (1, 2, 3, 4)`, note: '1 present, chưa biết standard/optional; 2 absent; 3 optional; 4 standard. Dấu - không phải absent.']
+  details text
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes {
+    (variant_id, equipment_id) [pk]
+    equipment_id
+  }
+}
+
+// GIÁ: lịch sử quan sát, không mặc định là giá bán hiện hành.
+Table variant_prices {
+  id integer [pk, increment]
+  variant_id integer [not null, ref: > vehicle_variants.id]
+  price_type smallint [not null, check: `price_type IN (1, 2, 3, 4)`, note: '1 MSRP; 2 dealer cost; 3 selling; 4 minimum selling.']
+  configuration_note varchar(120) [note: 'Ví dụ Chassis, sát-xi có cabin; không bỏ qualifier trong giá nguồn.']
+  currency_code char(3) [not null, note: 'Mã ISO 4217; VND khi đơn vị nguồn đã xác nhận.']
+  amount decimal(15,2) [not null, check: `amount >= 0`, note: 'Theo đơn vị tiền cơ sở: 965,628 triệu VND -> 965628000 VND sau kiểm tra dấu thập phân.']
+  effective_date date [note: 'NULL nếu nguồn không nêu; không dùng ngày sửa workbook làm ngày hiệu lực.']
+  source_cell_id integer [ref: > import_cells.id, note: '427 (417,6) không rõ ý nghĩa: để unresolved trong raw, không nhập thành 2 MSRP bình thường.']
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { (variant_id, price_type, effective_date) }
+}
+
+// EXTENSION: nhóm cột mẫu, chưa có dữ liệu được xác nhận.
+Table cost_metrics {
+  id smallint [pk, increment]
+  code varchar(40) [not null, unique, note: 'fuel_consumption, adblue_consumption, tire_cost, maintenance_cost_year, estimated_tco_5y, fuel_saving_score.']
+  description text
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table variant_costs {
+  id integer [pk, increment]
+  variant_id integer [not null, ref: > vehicle_variants.id]
+  metric_id smallint [not null, ref: > cost_metrics.id]
+  value decimal(16,4) [not null, check: `value >= 0`]
+  unit varchar(32) [not null, note: 'L/100km, VND/year, VND/5years, point,... Chỉ dùng đơn vị đã xác nhận.']
+  measured_on date
+  notes text
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { (variant_id, metric_id, measured_on) }
+}
+
+Table variant_commercial_terms {
+  id integer [pk, increment]
+  variant_id integer [not null, ref: > vehicle_variants.id]
+  currency_code char(3) [note: 'Bắt buộc ở application nếu có amount.']
+  promotion text
+  dealer_support text [note: 'Không ép thành tiền/% vì nguồn chưa nêu loại.']
+  gross_margin_amount decimal(15,2)
+  net_margin_amount decimal(15,2)
+  gross_margin_pct decimal(7,3)
+  net_margin_pct decimal(7,3)
+  effective_date date
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { (variant_id, effective_date) }
+  Note: 'Chỉ điền margin_amount hoặc margin_pct theo đơn vị đã xác nhận, không gán một giá trị chưa rõ vào cả hai.'
+}
+
+Table warehouses {
+  id smallint [pk, increment]
+  name varchar(120) [not null, unique]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table inventory_statuses {
+  id smallint [pk, increment]
+  name varchar(40) [not null, unique]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table variant_inventory {
+  variant_id integer [not null, ref: > vehicle_variants.id]
+  warehouse_id smallint [not null, ref: > warehouses.id]
+  status_id smallint [ref: > inventory_statuses.id]
+  quantity integer [check: `quantity >= 0`, note: 'NULL chưa biết; không mặc định tồn kho 0.']
+  eta date
+  production_lead_time_days smallint [check: `production_lead_time_days >= 0`, note: 'Chỉ điền sau khi xác nhận đơn vị ngày.']
+  observed_at timestamp [note: 'Thời điểm chốt tồn, khác updated_at.']
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes {
+    (variant_id, warehouse_id) [pk]
+    warehouse_id
+  }
+}
+
+Table variant_finance_plans {
+  id integer [pk, increment]
+  variant_id integer [not null, ref: > vehicle_variants.id]
+  currency_code char(3) [not null]
+  max_loan_amount decimal(15,2) [check: `max_loan_amount >= 0`]
+  deposit_amount decimal(15,2) [check: `deposit_amount >= 0`, note: 'Down_Payment có mô tả Tiền cọc; không mặc định là tỷ lệ trả trước.']
+  loan_amount decimal(15,2) [check: `loan_amount >= 0`]
+  tenure_months smallint [check: `tenure_months > 0`]
+  monthly_payment decimal(15,2) [check: `monthly_payment >= 0`]
+  notes text
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { variant_id }
+  Note: 'Loan_Tenure/Monthly_Payment_36,60,84 mâu thuẫn mô tả. Không import tự động; raw giữ ở import_cells. Mỗi kỳ hạn là một hàng sau khi xác nhận.'
+}
+
+Table use_cases {
+  id smallint [pk, increment]
+  name varchar(120) [not null, unique]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table variant_use_cases {
+  variant_id integer [not null, ref: > vehicle_variants.id]
+  use_case_id smallint [not null, ref: > use_cases.id]
+  role smallint [not null, check: `role IN (1, 2, 3, 4, 5, 6)`, note: '1 primary; 2 secondary; 3 suitable; 4 not recommended; 5 best for; 6 avoid for.']
+  reason text
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes {
+    (variant_id, use_case_id, role) [pk]
+    use_case_id
+  }
+}
+
+Table market_categories {
+  id smallint [pk, increment]
+  kind smallint [not null, check: `kind IN (1, 2, 3)`, note: '1 customer type; 2 application category; 3 target audience.']
+  name varchar(120) [not null]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { (kind, name) [unique] }
+}
+
+Table variant_market_categories {
+  variant_id integer [not null, ref: > vehicle_variants.id]
+  category_id smallint [not null, ref: > market_categories.id]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes {
+    (variant_id, category_id) [pk]
+    category_id
+  }
+}
+
+Table variant_sales_arguments {
+  id integer [pk, increment]
+  variant_id integer [not null, ref: > vehicle_variants.id]
+  kind smallint [not null, check: `kind IN (1, 2, 3, 4)`, note: '1 key selling point; 2 customer benefit; 3 competitive advantage; 4 marketing angle. CH có mô tả Thuận lợi của đối thủ: giữ raw, xác nhận trước khi ánh xạ kind=3.']
+  position smallint [not null, check: `position > 0`]
+  content text [not null]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { (variant_id, kind, position) [unique] }
+}
+
+Table variant_competitors {
+  variant_id integer [not null, ref: > vehicle_variants.id]
+  competitor_variant_id integer [not null, ref: > vehicle_variants.id]
+  advantage text
+  disadvantage text
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes {
+    (variant_id, competitor_variant_id) [pk]
+    competitor_variant_id
+  }
+  checks { `variant_id <> competitor_variant_id` }
+  Note: 'Đối thủ dùng chung danh mục sản phẩm. Không gán một nhận xét chung cho cả 3 đối thủ nếu nguồn chưa chỉ rõ.'
+}
+
+Table variant_warranties {
+  id integer [pk, increment]
+  variant_id integer [not null, ref: > vehicle_variants.id]
+  scope smallint [not null, check: `scope IN (1, 2, 3)`, note: '1 vehicle; 2 engine; 3 gearbox.']
+  months smallint [check: `months > 0`]
+  distance_km integer [check: `distance_km > 0`]
+  terms text [note: 'Giữ điều kiện whichever first; Engine/Gearbox_Warranty chưa xác nhận đơn vị.']
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { (variant_id, scope) [unique] }
+}
+
+Table variant_service_intervals {
+  id integer [pk, increment]
+  variant_id integer [not null, ref: > vehicle_variants.id]
+  months smallint [check: `months > 0`]
+  distance_km integer [check: `distance_km > 0`]
+  details text
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { variant_id }
+}
+
+Table variant_marketing {
+  variant_id integer [pk, ref: - vehicle_variants.id]
+  seo_title varchar(255) [note: 'Không giới hạn 60/70 ký tự tùy ý; kiểm tra SEO ở application.']
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table tags {
+  id integer [pk, increment]
+  name varchar(100) [not null, unique]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table variant_tags {
+  variant_id integer [not null, ref: > vehicle_variants.id]
+  tag_id integer [not null, ref: > tags.id]
+  role smallint [not null, check: `role IN (1, 2)`, note: '1 SEO keyword; 2 AI recommendation tag.']
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes {
+    (variant_id, tag_id, role) [pk]
+    tag_id
+  }
+}
+
+Table variant_recommendations {
+  variant_id integer [pk, ref: - vehicle_variants.id]
+  score decimal(10,4) [note: 'Nguồn không quy định thang điểm; không tự CHECK 0..100.']
+  score_definition text
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table knowledge_entries {
+  id integer [pk, increment]
+  kind smallint [not null, check: `kind IN (1, 2)`, note: '1 FAQ; 2 common problem.']
+  question_or_problem text [not null]
+  answer_or_solution text
+  source varchar(255) [note: 'Nguồn tài liệu để truy vết.']
+  approval_status varchar(20) [not null, default: 'DRAFT', check: `approval_status IN ('DRAFT', 'APPROVED', 'RETIRED')`, note: 'Chỉ APPROVED mới được bot dùng để trả lời.']
+  version smallint [not null, default: 1, check: `version > 0`]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table variant_knowledge {
+  variant_id integer [not null, ref: > vehicle_variants.id]
+  knowledge_id integer [not null, ref: > knowledge_entries.id]
+  position smallint [check: `position > 0`]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes {
+    (variant_id, knowledge_id) [pk]
+    knowledge_id
+  }
+}
+
+Table knowledge_chunks {
+  id integer [pk, increment]
+  knowledge_id integer [not null, ref: > knowledge_entries.id]
+  chunk_no smallint [not null, check: `chunk_no > 0`]
+  content text [not null]
+  embedding vector(1536) [note: 'Cần extension pgvector (CREATE EXTENSION vector). Số chiều đổi theo model embedding sẽ chọn. Tạo index vector (HNSW hoặc IVFFlat) bằng migration SQL.']
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { (knowledge_id, chunk_no) [unique] }
+  Note: 'Kết quả tìm kiếm phải lọc theo knowledge_entries.approval_status = APPROVED.'
+}
+
+Table variant_documents {
+  id integer [pk, increment]
+  variant_id integer [not null, ref: > vehicle_variants.id]
+  kind smallint [not null, check: `kind IN (1, 2, 3, 4, 5, 6)`, note: '1 image; 2 video; 3 brochure; 4 spec; 5 price; 6 manual. Brochure_Link có mô tả sách hướng dẫn: xác nhận trước khi chọn 3/6.']
+  url text [not null, note: 'URL có thể dài; không UNIQUE/index trực tiếp TEXT để tương thích MySQL.']
+  caption text
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { (variant_id, kind) }
+}
+
+// IMPORT / TRUY VẾT: giữ cả cột trống có nhãn, số đáng ngờ, dấu -, comment và formula.
+Table import_files {
+  id integer [pk, increment]
+  file_name varchar(255) [not null]
+  sha256 char(64) [not null, unique, note: 'Hash nội dung; phân biệt các phiên bản cùng tên file.']
+  source_modified_at timestamp [note: 'Metadata workbook; không phải ngày hiệu lực sản phẩm.']
+  imported_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table import_records {
+  id integer [pk, increment]
+  file_id integer [not null, ref: > import_files.id]
+  sheet_name varchar(31) [not null]
+  block_key varchar(40) [not null, default: '', note: 'Ma trận nhiều block: định danh block trước khi xoay dữ liệu.']
+  record_key varchar(40) [not null, note: 'Master: row:5; ma trận: column:M, gắn block_key. Không coi số STT field là Product_ID.']
+  variant_id integer [ref: > vehicle_variants.id, note: 'Nhiều dòng trùng có thể trỏ cùng variant; NULL khi chưa giải quyết.']
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes {
+    (file_id, sheet_name, block_key, record_key) [unique]
+    variant_id
+  }
+}
+
+Table import_cells {
+  id integer [pk, increment]
+  record_id integer [not null, ref: > import_records.id]
+  cell_address varchar(12) [not null]
+  group_label varchar(120)
+  field_name varchar(120) [not null]
+  field_description text [note: 'Mô tả dòng 3/đơn vị được khai báo; giữ nguyên mâu thuẫn với field_name.']
+  raw_value text
+  cell_type varchar(16) [note: 'Excel type: numeric, string, boolean, error,...']
+  number_format varchar(80)
+  formula text
+  comment text
+  parse_status smallint [not null, default: 0, check: `parse_status IN (0, 1, 2, 3)`, note: '0 pending; 1 accepted; 2 unresolved; 3 missing/placeholder. Không chép số chưa xác nhận sang bảng typed.']
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { (record_id, cell_address) [unique] }
+}
+
+Table import_issues {
+  id integer [pk, increment]
+  cell_id integer [not null, ref: > import_cells.id]
+  code varchar(40) [not null, note: 'unit_ambiguous, decimal_separator, duplicate_record, identity_missing, header_conflict,...']
+  description text [not null]
+  resolution text
+  resolved_at timestamp
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes { cell_id }
+}
