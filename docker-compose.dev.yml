@@ -7,11 +7,11 @@ services:
       POSTGRES_PASSWORD: garage
       POSTGRES_DB: garage
     ports:
-      - "127.0.0.1:5432:5432" # Mở port để bạn có thể dùng DBeaver/psql kết nối vào soi DB
+      - "0.0.0.0:5432:5432" # Mở port để bạn có thể dùng DBeaver/psql kết nối vào soi DB
     volumes:
       - garage-pg-dev-data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U garage -d garage" ]
+      test: ["CMD-SHELL", "pg_isready -U garage -d garage"]
       interval: 5s
       timeout: 5s
       retries: 5

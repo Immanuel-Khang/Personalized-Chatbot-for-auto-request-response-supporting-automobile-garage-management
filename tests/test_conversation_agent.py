@@ -51,7 +51,7 @@ def test_greeting(session_with_profile):
         "customer_id": None,
         "user_text": "Xin chào",
         "mode": "BOT"
-    })
+    }, {"configurable": {"thread_id": session_with_profile}})
 
     assert "conversation" in result["planned_agents"]
     assert result["final_reply"]
@@ -66,7 +66,7 @@ def test_out_of_scope(session_with_profile):
         "customer_id": None,
         "user_text": "Bạn thích ăn gì?",
         "mode": "BOT"
-    })
+    }, {"configurable": {"thread_id": session_with_profile}})
 
     assert "conversation" in result["planned_agents"]
     assert result["final_reply"]
@@ -80,7 +80,7 @@ def test_memory_recall(session_with_profile):
         "customer_id": None,
         "user_text": "Tôi tên là gì?",
         "mode": "BOT"
-    })
+    }, {"configurable": {"thread_id": session_with_profile}})
 
     # The conversation agent should have access to profile and history
     # and should mention the name "Khang"
@@ -100,10 +100,10 @@ def test_cancel_during_active_flow(session_with_profile):
         "customer_id": None,
         "user_text": "Đặt lịch bảo dưỡng",
         "mode": "BOT"
-    })
+    }, {"configurable": {"thread_id": session_with_profile}})
 
     assert "appointment" in result1["planned_agents"]
-    assert result1.get("active_flow") == "appointment"
+    assert result1.get("active_workflow").workflow_type == "appointment"
 
     # Now cancel
     config = {"configurable": {"thread_id": session_with_profile}}
@@ -115,5 +115,5 @@ def test_cancel_during_active_flow(session_with_profile):
     }, config)
 
     assert "conversation" in result2["planned_agents"]
-    assert result2.get("active_flow") is None  # Flow cleared
-    assert not result2.get("pending_intent")  # Pending cleared
+    assert result2.get("active_workflow") is None  # Flow cleared
+    assert all(item.status.value != "OPEN" for item in result2.get("pending_interactions", []))  # Pending cleared

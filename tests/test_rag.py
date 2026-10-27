@@ -128,3 +128,9 @@ def test_reload_picks_up_new_file(tmp_path):
     (tmp_path / "faq.md").write_text("## Có rửa xe miễn phí không?\nCó, rửa xe miễn phí sau bảo dưỡng.\n", encoding="utf-8")
     r.reload()
     assert r.retrieve("rửa xe miễn phí", k=1)
+
+
+def test_suite_rag_does_not_call_embedding_api():
+    """Hồi quy: conftest phải tắt embedder thật, nếu không mỗi câu hỏi gọi OpenAI và suite bị treo khi mạng chậm."""
+    from app.rag.factory import build_embedder
+    assert build_embedder() is None

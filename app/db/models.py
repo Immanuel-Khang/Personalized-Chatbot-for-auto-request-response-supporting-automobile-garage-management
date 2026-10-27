@@ -179,7 +179,7 @@ class Appointment(Base):
 class CatalogItem(Base):
     __tablename__ = "catalog"
     id: Mapped[int] = mapped_column(primary_key=True)
-    kind: Mapped[str] = mapped_column(String(10))  # CAR | PART
+    kind: Mapped[str] = mapped_column(String(10))  # CAR | TRUCK | PART
     name: Mapped[str] = mapped_column(String(200))
     list_price_vnd: Mapped[int] = mapped_column(Integer)
     price_as_of: Mapped[str] = mapped_column(String(20))

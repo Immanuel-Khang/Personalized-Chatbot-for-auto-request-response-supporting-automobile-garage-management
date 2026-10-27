@@ -1,0 +1,16 @@
+html,body.customer-page{height:100%;overflow:hidden}
+body.customer-page .app-shell{position:relative;display:grid;grid-template-columns:72px minmax(0,1fr);grid-template-rows:minmax(0,1fr);height:100vh;height:100dvh;min-height:0;overflow:hidden}
+body.customer-page .nav-rail{display:flex!important}
+body.customer-page .chat-workspace{grid-column:2;grid-row:1;height:auto;min-height:0;overflow:hidden}
+body.customer-page .message-area{flex:1 1 0;height:auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scroll-behavior:auto;scrollbar-gutter:stable}
+body.customer-page .message-area,body.customer-page .composer-wrap,body.customer-page .handover-status{padding-inline:max(24px,calc((100% - 860px)/2))}
+body.customer-page .conversation-banner{margin-inline:max(24px,calc((100% - 860px)/2))}
+body.customer-page .details-panel{display:none;position:absolute;top:0;right:0;bottom:0;width:min(320px,90vw);z-index:6;box-shadow:-12px 0 36px #13274a22}
+body.customer-page .details-panel.show{display:block}
+@media(max-width:560px){
+  body.customer-page .app-shell{grid-template-columns:minmax(0,1fr)}
+  body.customer-page .nav-rail{display:none!important}
+  body.customer-page .chat-workspace{grid-column:1}
+  body.customer-page .message-area,body.customer-page .composer-wrap,body.customer-page .handover-status{padding-inline:12px}
+  body.customer-page .conversation-banner{margin-inline:12px}
+}
