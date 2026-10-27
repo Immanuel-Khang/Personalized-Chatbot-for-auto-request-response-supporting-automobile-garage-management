@@ -3,6 +3,7 @@
 
   python -m eval.run_rag_eval                          # so keyword / bm25 / hybrid (cần key nếu có vector)
   python -m eval.run_rag_eval --configs keyword,bm25   # chọn cấu hình
+  python -m eval.run_rag_eval --configs hybrid,hybrid_pg,hybrid_pgfts,bm25_pgfts   # so RAM với Postgres
   python -m eval.run_rag_eval -v                       # in từng câu hỏi trượt
   python -m eval.run_rag_eval --min-recall 0.8         # thoát mã 1 nếu Recall@3 (hybrid) thấp hơn -> dùng cho CI
 
@@ -40,6 +41,19 @@ def build(name: str):
     if name == "bm25":
         return HybridRetriever(KNOWLEDGE_DIR, None, None, mode="bm25",
                                min_keyword_hits=settings.rag_min_keyword_hits), ""
+    if name in ("hybrid_pg", "hybrid_pgfts", "bm25_pgfts"):  # Postgres: pgvector (+ full-text thay BM25 RAM)
+        from app.db.session import engine
+        from app.rag.pgstore import PgVectorStore
+        lex = "pg" if name.endswith("fts") else "python"
+        emb = None if name == "bm25_pgfts" else build_embedder()
+        if emb is None and name != "bm25_pgfts":
+            return None, "thiếu OPENAI_API_KEY (hoặc EMBEDDING_PROVIDER=none)"
+        r = HybridRetriever(
+            KNOWLEDGE_DIR, emb, PgVectorStore(engine), mode="bm25" if emb is None else "hybrid",
+            candidates=settings.rag_candidates, rrf_k=settings.rag_rrf_k,
+            weight_bm25=settings.rag_weight_bm25, weight_vector=settings.rag_weight_vector,
+            min_keyword_hits=settings.rag_min_keyword_hits, min_vector_sim=settings.rag_min_vector_sim, lexical=lex)
+        return r, ""
     if name in ("hybrid", "vector"):
         emb = build_embedder()
         if emb is None:

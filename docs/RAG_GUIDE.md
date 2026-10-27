@@ -47,7 +47,9 @@ app/rag/
 ├── chunking.py       # Đọc .md / FAQ → Chunk (+ metadata section, kind)
 ├── bm25.py           # Chỉ mục BM25 thuần Python
 ├── embeddings.py     # OpenAI / Hash + cache file
-├── vectorstore.py    # LocalVectorStore (numpy, RAM)
+├── vectorstore.py    # LocalVectorStore (numpy, RAM) — dùng khi RAG_VECTOR_STORE=pgvector  # pgvector (mặc định) | local
+RAG_LEXICAL=python         # python (BM25 RAM) | pg (full-text Postgres) / DB không sẵn sàng
+├── pgstore.py        # PgVectorStore (pgvector + HNSW, đồng bộ tăng dần) + PgFtsIndex (full-text Postgres)
 ├── fusion.py         # Reciprocal Rank Fusion (RRF)
 ├── hybrid.py         # HybridRetriever (retrieve, debug, reload)
 ├── factory.py        # build_retriever() theo .env
@@ -296,6 +298,7 @@ hoặc ngược lại nếu câu diễn đạt tự do nhiều hơn.
 - [x] Chuẩn hóa tiếng Việt (không dấu, stopwords, bigram)  
 - [x] Chunk theo heading \+ FAQ  
 - [x] Cache embedding  
+- [x] pgvector (HNSW) + đồng bộ tăng dần + full-text Postgres tùy chọn (mục 9)  
 - [x] CLI debug \+ reload  
 - [x] Config qua `.env`
 
@@ -318,7 +321,6 @@ Thêm field optional vào `KnowledgeChunk` (ví dụ `section`, `topic`) thườ
 
 | Việc | Khi nào cần |
 | :---- | :---- |
-| pgvector \+ full-text Postgres | Đã chuyển DB sang Postgres, muốn một DB cho app \+ vector \+ BM25 |
 | Cross-encoder rerank | Đo hybrid vẫn precision thấp trên top-k |
 | GraphRAG | Nhiều câu hỏi quan hệ hệ thống / multi-hop thật sự |
 | Agentic retrieval (nhiều vòng) | Câu hỏi phức tạp, cần tự quyết định retrieve thêm |
@@ -359,7 +361,7 @@ Chỉ thay bên trong `HybridRetriever` / `factory` / thêm backend mới đăng
 3. Cài dependency (ví dụ `sentence-transformers`).  
 4. Reindex.
 
-### 8.4 Chuyển vector store sang pgvector
+### 8.4 Chuyển vector store sang pgvector — ĐÃ LÀM, xem mục 9
 
 1. Viết `PgVectorStore` cùng interface: `replace_all(ids, vectors)`, `search(vector, n)`.  
 2. Đăng ký khi `RAG_VECTOR_STORE=pgvector`.  
@@ -453,3 +455,39 @@ Ngoài phần đã có trong code, nên có thêm:
 ---
 
 *Tài liệu tương ứng code Hybrid RAG (BM25 \+ OpenAI/hash embedding \+ RRF). Cập nhật khi đổi contract hoặc thêm backend mới.*
+
+---
+
+## 9\. Chạy trên Postgres (pgvector)
+
+Mặc định `RAG_VECTOR_STORE=pgvector`: chunk, vector và tsvector nằm trong bảng `rag_chunks` (migration `a1c3e5f7b9d2`,
+tự chạy khi app khởi động hoặc `alembic upgrade head`). Cần image có pgvector (`pgvector/pgvector:pg17`, đã dùng trong compose).
+
+| | `local` (cũ) | `pgvector` (mới) |
+| :---- | :---- | :---- |
+| Nơi lưu vector | RAM + file `data/.rag_cache/*.json` | Cột `embedding vector(1536)` + chỉ mục HNSW |
+| Khởi động / thêm worker | Nạp lại cache file, mỗi worker tự dựng | `sync()` chỉ so hash, **không embed lại** nếu không đổi |
+| Tìm vector | numpy quét toàn bộ trong RAM mỗi worker | SQL `ORDER BY embedding <=> q` (HNSW) |
+| Đổi model embedding | Cache khóa theo model | Cột `embedding_model`; đổi model → tự embed lại, search chỉ xét vector cùng model |
+| DB lỗi / chưa migrate | — | Tự hạ về `local`, có cảnh báo trong log |
+
+**Nguyên tắc:** `data/knowledge/` vẫn là nguồn sự thật; `rag_chunks` chỉ là chỉ mục, xóa đi dựng lại được.
+`id` chunk = hash nội dung nên `sync()` upsert chunk mới/đổi, xóa chunk không còn trong file, chỉ gọi API embed cho chunk thiếu vector.
+Ghi `sync()` có advisory lock nên nhiều worker khởi động cùng lúc không đạp nhau (có thể cùng embed một lần, chỉ tốn tiền, không sai dữ liệu).
+
+**Nhánh từ khóa:** `RAG_LEXICAL=python` (mặc định) giữ BM25 trong RAM có bigram. `RAG_LEXICAL=pg` dùng full-text
+Postgres (`tsvector` trên token đã bỏ dấu, xếp hạng `ts_rank_cd`, chưa có IDF/bigram); ngưỡng `RAG_MIN_KEYWORD_HITS` vẫn tính
+bằng cùng hàm `content_words`. Trên bộ eval hiện tại `pg` thấp hơn một chút (Recall@1 0.91 so với 0.95) nên chưa là mặc định;
+đổi sau khi đo trên câu hỏi thật.
+
+**So sánh bằng eval:**
+
+```sh
+python -m eval.run_rag_eval --configs bm25,hybrid,hybrid_pg,hybrid_pgfts,bm25_pgfts
+```
+
+**Giới hạn cần biết**
+- Cột vector cố định 1536 chiều (`text-embedding-3-small`). Model khác chiều (BGE-M3 1024...) cần migration đổi cột + chỉ mục; sync sẽ báo lỗi chiều và retriever tự chạy BM25-only.
+- `python -m app.rag.cli reindex` cập nhật DB ngay, nhưng server đang chạy vẫn giữ danh sách chunk + BM25 trong RAM từ lúc khởi động: nhánh vector thấy dữ liệu mới, nhánh BM25 thì cần `reload()` hoặc restart. Endpoint `POST /admin/knowledge/reload` vẫn chưa có (track C).
+- HNSW là tìm kiếm gần đúng; với vài trăm chunk không khác gì quét đủ, nhưng không nên coi là chính xác tuyệt đối khi corpus lớn.
+- Test dùng DB `*_test` đã có sẵn extension; `CREATE EXTENSION vector` cần quyền superuser (hoặc extension đã được cài sẵn) trên môi trường thật.
