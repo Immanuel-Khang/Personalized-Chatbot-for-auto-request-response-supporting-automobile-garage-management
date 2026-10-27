@@ -15,10 +15,10 @@ from sqlalchemy.orm import Session
 
 from app.agent.runner import run_turn
 from app.config import settings
-from app.contracts.schemas import ChatRequest, ChatResponse, ConversationMode, KnownFact
-from app.db.models import ChatSession, Customer, Message
+from app.contracts.schemas import ChatRequest, ChatResponse, ConversationMode, FactSource, KnownFact
+from app.db.models import Appointment, ChatSession, Message
 from app.db.session import SessionLocal
-from app.identity import attach_phone, get_or_create_session, verified_customer_id
+from app.identity import get_or_create_session, normalize_phone, sync_contact, verified_customer_id
 from app.services.handover import open_ticket
 
 _locks: dict[str, threading.Lock] = defaultdict(threading.Lock)  # mỗi phiên 1 khóa
@@ -50,10 +50,23 @@ def _timeout_notice(db: Session, session: ChatSession) -> str | None:
 
 def _save_phone(db: Session, session: ChatSession, phone: str) -> None:
     """Gắn SĐT vào phiên/khách và ghi vào ticket đang mở để nhân viên liên hệ."""
-    attach_phone(db, session, phone)
+    sync_contact(db, session, phone)
+    if contact := normalize_phone(phone):
+        # A correction after booking must reach the request staff will call back; decided rows stay untouched.
+        db.query(Appointment).filter(Appointment.session_id == session.id,
+                                     Appointment.status == "PENDING_APPROVAL",
+                                     Appointment.contact_phone != contact).update(
+            {Appointment.contact_phone: contact}, synchronize_session=False)
     ticket = open_ticket(db, session.id)
     if ticket and phone not in (ticket.summary or ""):
         ticket.summary = f"{ticket.summary or ''}\nSĐT khách: {phone}".strip()
+
+
+def _fact(value) -> KnownFact | None:
+    """Checkpoint state may hold a KnownFact or its dict form."""
+    if value is None or isinstance(value, KnownFact):
+        return value
+    return KnownFact.model_validate(value) if isinstance(value, dict) else None
 
 
 def _history(db: Session, session_id: str, current_id: int) -> list[dict]:
@@ -110,24 +123,17 @@ def handle_message(req: ChatRequest) -> ChatResponse:
             if result.get("set_mode") and session.mode == ConversationMode.BOT.value:  # không ghi đè khi nhân viên vừa nhận
                 session.mode = result["set_mode"]
 
-            # Update the customer phone from the canonical fact store.
+            # Sync customers with the canonical fact store; latest phone/name (incl. corrections) wins.
             facts = result.get("known_facts", {}) or {}
-            phone_fact = facts.get("customer_phone") or facts.get("phone")
-            if isinstance(phone_fact, KnownFact):
-                phone = phone_fact.value
-            elif isinstance(phone_fact, dict):
-                phone = phone_fact.get("value")
-            else:
-                phone = None
+            phone_fact = _fact(facts.get("customer_phone") or facts.get("phone"))
+            name_fact = _fact(facts.get("customer_name"))
+            phone = str(phone_fact.value) if phone_fact and phone_fact.value else None
+            name = str(name_fact.value) if name_fact and name_fact.value else None
             if phone:
-                _save_phone(db, session, str(phone))
-            name_fact = facts.get("customer_name")
-            name = name_fact.value if isinstance(name_fact, KnownFact) else (
-                name_fact.get("value") if isinstance(name_fact, dict) else None)
-            if name and session.customer_id:
-                customer = db.get(Customer, session.customer_id)
-                if customer and not customer.full_name:
-                    customer.full_name = str(name)
+                _save_phone(db, session, phone)
+            if name:
+                sync_contact(db, session, name=name,
+                             name_corrected=name_fact.source == FactSource.USER_CORRECTED)
 
             # record the bot reply to the database
             reply, trace = result["final_reply"], result["trace"]

@@ -30,7 +30,8 @@ QUY TẮC:
 
 INTENT_CONTEXT = {
     "greeting": "Khách đang chào hỏi.",
-    "cancel": "Khách muốn hủy yêu cầu đang xử lý. Xác nhận đã dừng và hỏi có cần gì khác.",
+    "cancel": ("Khách muốn hủy yêu cầu đang xử lý. Xác nhận ngắn gọn đã dừng đúng việc đó. Nếu cùng tin nhắn khách còn "
+               "hỏi việc khác thì phần đó do bộ phận khác trả lời ngay sau: KHÔNG trả lời thay, KHÔNG gợi ý hay hỏi thêm."),
     "clarify": "Bạn chưa hiểu rõ khách muốn gì. Hỏi lại ngắn gọn để làm rõ, KHÔNG tự đoán và KHÔNG tự thực hiện yêu cầu.",
     "service_inquiry": ("Khách hỏi xưởng có hỗ trợ một hạng mục sửa chữa/kiểm tra không. Trả lời câu hỏi trước: chỉ khẳng định "
                         "xưởng làm được hạng mục đó khi tài liệu bên dưới nói rõ; nếu không, nói kỹ thuật viên cần kiểm tra/xác nhận "

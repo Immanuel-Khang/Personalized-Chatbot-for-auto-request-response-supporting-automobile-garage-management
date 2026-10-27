@@ -1,14 +1,14 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách đính chính tên người khách, từ Dương Định Khang sang Phan Huy Anh.",
+      "message_summary": "Khách yêu cầu các lựa chọn xe khác rẻ hơn mẫu FI170L.",
       "tasks": [
         {
           "task_id": "t1",
-          "domain": "APPOINTMENT",
-          "action": "book_appointment",
-          "text": "À nhầm tôi tên phan huy anh",
-          "relationship": "CORRECT_PREVIOUS_INFO",
+          "domain": "SALES",
+          "action": "search_catalog",
+          "text": "Cho tôi những lựa chọn khác giá rẻ hơn lựa chọn này",
+          "relationship": "NEW_REQUEST",
           "referenced_interaction_id": null,
           "depends_on": [],
           "requires_clarification": false,
@@ -18,16 +18,7 @@
           "inquiry_only": false
         }
       ],
-      "slot_updates": [
-        {
-          "key": "customer_name",
-          "operation": "CORRECT",
-          "value": "[REDACTED]",
-          "evidence": "[REDACTED]",
-          "source_message_id": null,
-          "related_task_id": null
-        }
-      ],
+      "slot_updates": [],
       "unresolved_ambiguities": [],
       "references": [],
       "signals": {
@@ -35,6 +26,7 @@
         "complaint": false,
         "safety_risk": false,
         "discount_request": false,
+        "deal_change": false,
         "note": null
       },
       "complexity": "LOW",
@@ -45,25 +37,9 @@
       "uncertain": false,
       "catalog_request": false
     },
-    "known_facts": {
-      "intended_use": {
-        "key": "intended_use",
-        "value": "chở hàng",
-        "source": "USER_EXPLICIT",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "customer_name": "[REDACTED]",
-      "customer_phone": "[REDACTED]",
-      "service_type": {
-        "key": "service_type",
-        "value": "SHOWROOM_VISIT",
-        "source": "USER_EXPLICIT",
-        "updated_at_message_id": null,
-        "confidence": null
-      }
-    },
+    "known_facts": {},
     "complexity": "LOW",
+    "rejected_slots": [],
     "trace": [
       "preprocess"
     ]
@@ -72,6 +48,7 @@
     "conversation_interpretation",
     "known_facts",
     "complexity",
+    "rejected_slots",
     "trace"
   ]
 }

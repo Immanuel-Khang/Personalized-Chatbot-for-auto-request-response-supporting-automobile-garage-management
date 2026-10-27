@@ -12,7 +12,8 @@ from app.identity import attach_phone, get_or_create_session, normalize_phone
 
 class DbBookingService:
     def create_appointment(
-        self, session_id: str, service_type: ServiceType, when_text: str, phone: str
+        self, session_id: str, service_type: ServiceType, when_text: str, phone: str,
+        detail: str | None = None,
     ) -> BookingResult:
         contact = normalize_phone(phone)
         if contact is None:
@@ -22,7 +23,7 @@ class DbBookingService:
             customer = attach_phone(db, session, contact)
             row = Appointment(customer_id=customer.id, session_id=session_id, service_type=service_type.value,
                               contact_phone=contact, status="PENDING_APPROVAL",
-                              note=f"Thời gian khách đề xuất: {when_text}")
+                              note="\n".join(filter(None, [f"Thời gian khách đề xuất: {when_text}", detail])))
             db.add(row)
             db.commit()
             return BookingResult(ok=True, appointment_id=row.id, status="PENDING_APPROVAL",

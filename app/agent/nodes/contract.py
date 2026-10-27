@@ -27,8 +27,6 @@ REQUIRED_FIELDS = {
     "decided_price": "Mức giá chốt hợp đồng (VNĐ)",
 }
 
-ESCALATE = ["sửa hợp đồng", "thay đổi", "đổi điều khoản", "điều khoản", "giá", "bao nhiêu", "chi phí", "phí"]
-
 CONTRACT_SYSTEM_PROMPT = """\
 Bạn là chuyên viên pháp lý và thủ tục hợp đồng mua xe Foton.
 QUY TẮC:
@@ -101,7 +99,9 @@ def contract(state: AgentState) -> dict:
             workflow_type="contract", status=WorkflowStatus.ACTIVE,
             collected_facts=present_fields,
         )
-    if any(k in text.lower() for k in ESCALATE):
+    # Contract/price changes need a human. Preprocessing's LLM judges this in context (a keyword list
+    # wrongly escalated "Giá chốt là 480 triệu" and names such as "Phí Văn Long").
+    if interpretation and interpretation.signals.deal_change:
         return {"answers": [answer(state, "contract", needs_human=True,
                                    handover_reason="CONTRACT_OR_PRICE_CHANGE")],
                 "known_facts": facts,

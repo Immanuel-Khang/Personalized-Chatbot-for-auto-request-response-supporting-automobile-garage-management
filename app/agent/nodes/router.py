@@ -58,16 +58,18 @@ def _route_task(state: AgentState, task) -> tuple[str, str | None]:
     return AGENTS[task.domain], None
 
 
-def _cancel(state: AgentState) -> dict:
+def _cancel(state: AgentState, cancel_tasks: list) -> dict:
+    """Close open interactions and the active workflow; the caller still routes the message's other tasks."""
     pending = [item.model_copy(update={"status": InteractionStatus.REJECTED})
                if item.status == InteractionStatus.OPEN else item for item in state.get("pending_interactions") or []]
     workflow = state.get("active_workflow")
     facts = dict(state.get("known_facts") or {})
-    if workflow and workflow.workflow_type == "appointment":
+    if (workflow and workflow.workflow_type == "appointment") or any(
+            task.domain == Intent.APPOINTMENT for task in cancel_tasks):
         facts = {key: fact for key, fact in facts.items() if key not in BOOKING_FACTS}
-    return {"plan": [{"agent": "conversation", "text": state.get("user_text", ""), "order": 0}],
-            "planned_agents": ["conversation"], "route_reason": "cancel",
-            "pending_interactions": pending, "known_facts": facts, "active_workflow": None}
+    text = ", ".join(task.text for task in cancel_tasks if task.text) or state.get("user_text", "")
+    return {"plan": [{"agent": "conversation", "text": text, "order": 0, "task_ids": [t.task_id for t in cancel_tasks]}],
+            "route_reason": "cancel", "pending_interactions": pending, "known_facts": facts, "active_workflow": None}
 
 
 def router(state: AgentState) -> dict:
@@ -79,12 +81,17 @@ def router(state: AgentState) -> dict:
     if state.get("safety"):  # policy guard flagged a safety risk the bot may still answer
         plan = [{"agent": "knowledge", "text": text, "order": 0}]
         return {**update, "plan": plan, "planned_agents": ["knowledge"], "route_reason": "safety"}
-    if any(task.relationship == TaskRelationship.CANCEL_TASK for task in tasks):
-        return {**update, **_cancel(state)}
-
     plan: list[dict] = []
     reason = "clarify" if not tasks or (interpretation and interpretation.uncertain) else None
-    for order, task in enumerate(tasks):
+    cancels = [task for task in tasks if task.relationship == TaskRelationship.CANCEL_TASK]
+    if cancels:
+        # "Hủy lịch, cho mình hỏi X": cancel first, then still answer X in the same turn.
+        cancelled = _cancel(state, cancels)
+        plan, reason = cancelled.pop("plan"), cancelled.pop("route_reason")
+        update.update(cancelled)
+        state = {**state, **cancelled}  # later tasks see the cleared workflow, not the cancelled one
+        tasks = [task for task in tasks if task.relationship != TaskRelationship.CANCEL_TASK]
+    for order, task in enumerate(tasks, start=len(plan)):
         agent, task_reason = _route_task(state, task)
         reason = reason or task_reason
         existing = next((item for item in plan if item["agent"] == agent), None)

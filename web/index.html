@@ -16,6 +16,12 @@
 const sessionId = localStorage.getItem("sid") || crypto.randomUUID(); localStorage.setItem("sid", sessionId);
 let lastId = 0; const log = document.getElementById("log");
 function add(cls, text){const d=document.createElement("div");d.className=cls;d.textContent=text;log.appendChild(d);log.scrollTop=log.scrollHeight;return d}
+// Bot replies use light markdown (**đậm**, *nghiêng*). Escape HTML first, then format, so no reply can inject markup.
+function md(text){
+  const esc = text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  return esc.replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/(^|[^*])\*([^*\n]+)\*/g,"$1<em>$2</em>");
+}
+function addBot(text){const d=add("b","");d.innerHTML="Bot: "+md(text);return d}
 const LABEL = {staff: "Nhân viên: ", system: ""};
 async function poll(){  // tin nhân viên/hệ thống (vd "nhân viên đã tiếp nhận") đến bất kỳ lúc nào
   const r = await fetch(`/chat/${encodeURIComponent(sessionId)}/messages?after=${lastId}`);
@@ -31,7 +37,7 @@ document.getElementById("f").onsubmit = async (e) => {
     body:JSON.stringify({session_id:sessionId,message:msg})});
   const j = await r.json();
   if(j.message_id) lastId = Math.max(lastId, j.message_id);  // tin system đi kèm lượt này đã nằm trong reply
-  if(j.reply) add("b","Bot: "+j.reply);
+  if(j.reply) addBot(j.reply);
   add("t","["+j.mode+"] "+j.trace.join(" → "));
 };
 </script></body></html>

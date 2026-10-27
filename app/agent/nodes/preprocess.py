@@ -19,6 +19,7 @@ from app.agent.llm import generate_structured
 from app.agent.nodes.common import step
 from app.agent.nodes.input import build_context
 from app.agent.state import AgentState
+from app.identity import normalize_phone
 from app.contracts.schemas import (
     ConversationInterpretation,
     FactSource,
@@ -78,7 +79,9 @@ ConversationInterpretation. Các node sau chỉ đọc kết quả của bạn, 
    mới (hoặc tin nhắn là câu trả lời ngắn cho câu bot vừa hỏi về đúng slot đó). evidence là đoạn
    nguyên văn trong tin nhắn mới. Không suy đoán giá trị. Khi khách đặt lịch, ghi service_type theo
    loại lịch khách nói: "xem xe" -> SHOWROOM_VISIT, "lái thử" -> TEST_DRIVE, "bảo dưỡng" -> MAINTENANCE,
-   "sửa" -> REPAIR (evidence là cụm từ đó).
+   "sửa" -> REPAIR (evidence là cụm từ đó). Khách nêu thời gian hẹn dù chưa có giờ cụ thể ("chiều thứ 2
+   tuần sau", "sáng mai") -> vẫn ghi appointment_when đúng như khách nói; nhân viên sẽ chốt giờ, đó KHÔNG
+   phải điểm mơ hồ. Khách sửa tên/SĐT/địa chỉ -> slot_update CORRECT cho đúng key đó.
 4. Tham chiếu: "xe số 1", "mẫu thứ ba", "nó", "xe đó" -> thêm vào references với position theo
    shown_products (1-based, -1 = cuối) và entity_id lấy từ shown_products; gán entity_id cho task
    liên quan. Không có shown_products phù hợp hoặc nhiều khả năng -> ambiguous=true, không đoán.
@@ -86,7 +89,9 @@ ConversationInterpretation. Các node sau chỉ đọc kết quả của bạn, 
    Thiếu thông tin mà workflow sẽ tự hỏi (SĐT, ngày giờ) không phải là mơ hồ. Không hiểu tin nhắn:
    uncertain=true và một task general_conversation requires_clarification=true.
 6. signals: wants_human (khách muốn gặp nhân viên/người thật), complaint (phàn nàn, bức xúc),
-   safety_risk (xe có dấu hiệu nguy hiểm: mất phanh, cháy, khói, mất lái...), discount_request.
+   safety_risk (xe có dấu hiệu nguy hiểm: mất phanh, cháy, khói, mất lái...), discount_request,
+   deal_change (khách muốn sửa điều khoản hợp đồng, thương lượng lại giá, hoặc hỏi phí/chi phí phát sinh
+   của hợp đồng; KHÔNG bật khi khách chỉ trả lời giá chốt bot hỏi hay khi chữ "giá/phí" nằm trong tên riêng).
    complexity=HIGH chỉ khi câu hỏi kỹ thuật vượt quá tư vấn thông thường (chẩn đoán phức tạp).
 """
 
@@ -165,10 +170,15 @@ def _canonical_value(key: str, value):
             return None
     if key == "customer_name":
         return _valid_name(value)
+    if key == "customer_phone":
+        # Store the customer's own format; normalize_phone is only the validity check.
+        return " ".join(str(value).split()) if normalize_phone(str(value)) else None
     return value
 
 
-def _validated_updates(state: AgentState, interpretation: ConversationInterpretation) -> list[SlotUpdate]:
+def _validated_updates(state: AgentState, interpretation: ConversationInterpretation,
+                       rejected: list[str] | None = None) -> list[SlotUpdate]:
+    """Valid updates only; keys whose value failed validation are appended to ``rejected``."""
     text = state.get("user_text", "")
     facts = state.get("known_facts") or {}
     corrects = any(task.relationship == TaskRelationship.CORRECT_PREVIOUS_INFO for task in interpretation.tasks)
@@ -188,12 +198,15 @@ def _validated_updates(state: AgentState, interpretation: ConversationInterpreta
             value = _canonical_value(key, update.value)
             if value is None:
                 logger.warning("Discarding slot update with invalid value for %s", key)
+                if rejected is not None:
+                    rejected.append(key)
                 continue
             update = update.model_copy(update={"value": value})
         old = facts.get(key)
         old_value = getattr(old, "value", old)
         # Identity is only overwritten by an explicit correction, never by a stray mention.
-        if key == "customer_name" and old_value and old_value != update.value and not corrects:
+        if (key == "customer_name" and old_value and old_value != update.value and not corrects
+                and update.operation != SlotOperation.CORRECT):
             logger.warning("Discarding customer_name update that would overwrite a known name")
             continue
         operation = update.operation
@@ -237,13 +250,15 @@ def _resolve_references(state: AgentState, interpretation: ConversationInterpret
     })
 
 
-def validate_interpretation(state: AgentState, interpretation: ConversationInterpretation) -> ConversationInterpretation:
+def validate_interpretation(state: AgentState, interpretation: ConversationInterpretation,
+                            rejected: list[str] | None = None) -> ConversationInterpretation:
     interpretation = _resolve_references(state, interpretation)
-    return interpretation.model_copy(update={"slot_updates": _validated_updates(state, interpretation)})
+    return interpretation.model_copy(update={"slot_updates": _validated_updates(state, interpretation, rejected)})
 
 
 def _apply_interpretation(state: AgentState, interpretation: ConversationInterpretation) -> dict:
-    applied = validate_interpretation(state, interpretation)
+    rejected: list[str] = []
+    applied = validate_interpretation(state, interpretation, rejected)
     facts = dict(state.get("known_facts") or {})
     for update in applied.slot_updates:
         if update.operation == SlotOperation.CLEAR:
@@ -252,7 +267,8 @@ def _apply_interpretation(state: AgentState, interpretation: ConversationInterpr
         source = FactSource.USER_CORRECTED if update.operation == SlotOperation.CORRECT else FactSource.USER_EXPLICIT
         facts[update.key] = KnownFact(key=update.key, value=update.value, source=source,
                                       updated_at_message_id=update.source_message_id)
-    return {"conversation_interpretation": applied, "known_facts": facts, "complexity": applied.complexity}
+    return {"conversation_interpretation": applied, "known_facts": facts, "complexity": applied.complexity,
+            "rejected_slots": rejected}
 
 
 def _trace_safe(value, key: str | None = None):

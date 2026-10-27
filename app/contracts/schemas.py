@@ -159,6 +159,9 @@ class PolicySignals(BaseModel):
     complaint: bool = Field(default=False, description="Customer complains or is clearly dissatisfied")
     safety_risk: bool = Field(default=False, description="Vehicle shows a dangerous symptom (brakes, fire, smoke, steering)")
     discount_request: bool = Field(default=False, description="Customer asks for or bargains a discount/gift")
+    deal_change: bool = Field(default=False, description=(
+        "Customer asks to change contract terms, renegotiate the price, or asks about contract fees; "
+        "not set when merely answering the decided price"))
     note: Optional[str] = Field(default=None, description="Short reason for any true signal")
 
 

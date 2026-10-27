@@ -44,6 +44,28 @@ def attach_phone(db: Session, session: ChatSession, raw_phone: str) -> Customer 
     return customer
 
 
+def sync_contact(db: Session, session: ChatSession, raw_phone: str | None = None, name: str | None = None,
+                 name_corrected: bool = False) -> Customer | None:
+    """Đưa SĐT/tên mới nhất khách nêu trong chat vào customers của phiên.
+    Khách chưa xác minh OTP là dữ liệu AI trích xuất -> khách đính chính thì ghi đè. SĐT đã xác minh là bằng chứng
+    danh tính, chat không được đổi. SĐT mới đã thuộc khách khác -> gắn phiên sang khách đó (như lần gắn đầu tiên)."""
+    customer = db.get(Customer, session.customer_id) if session.customer_id else None
+    phone = normalize_phone(raw_phone) if raw_phone else None
+    switched = False  # phiên vừa chuyển sang hồ sơ có sẵn của người khác -> không đổi tên hồ sơ đó
+    if phone and customer is None:
+        customer = attach_phone(db, session, phone)
+    elif phone and customer is not None and customer.phone_number != phone and customer.phone_verified_at is None:
+        owner = db.scalars(select(Customer).where(Customer.phone_number == phone)).first()
+        if owner is None:
+            customer.phone_number = phone
+        else:
+            session.customer_id, customer, switched = owner.id, owner, True
+    if name and customer is not None and customer.full_name != name and (
+            not customer.full_name or (name_corrected and not switched and customer.phone_verified_at is None)):
+        customer.full_name = name
+    return customer
+
+
 def verified_customer_id(db: Session, session: ChatSession) -> int | None:
     """customer_id chỉ khi SĐT đã xác minh; agent dùng id này để đọc dữ liệu cá nhân."""
     if session.customer_id is None:
