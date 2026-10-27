@@ -2,7 +2,6 @@
 và truy vấn thông tin từ hội thoại. Chỉ đọc, không ghi dữ liệu."""
 from app.agent.llm import generate
 from app.agent.nodes.common import STYLE_RULES, answer, step
-from app.agent.nodes.service_type import detect_component
 from app.agent.state import AgentState
 from app.config import settings
 from app.contracts.schemas import InteractionStatus, Intent, PendingInteraction
@@ -114,7 +113,7 @@ def conversation(state: AgentState) -> dict:
             open_pending.append(pending)
     offer_question = open_pending[-1].text if open_pending else ""
     context = f"""
-{INTENT_CONTEXT[reason].format(question=offer_question)}
+{INTENT_CONTEXT.get(reason, INTENT_CONTEXT["other"]).format(question=offer_question)}
 {documents}
 {profile_text}
 
@@ -123,6 +122,8 @@ Tin nhắn mới của khách: {question}
 
     reply = generate(CONVERSATION_SYSTEM_PROMPT.format(hotline=settings.hotline, style=STYLE_RULES), context,
                      history=state.get("history"))
-    fallback = FALLBACK[reason].format(component=detect_component(question) or "tình trạng xe", question=offer_question)
+    facts = state.get("known_facts") or {}
+    detail = getattr(facts.get("service_detail"), "value", None)
+    fallback = FALLBACK.get(reason, FALLBACK["other"]).format(component=detail or "tình trạng xe", question=offer_question)
     update["answers"] = [answer(state, "conversation", reply or fallback)]
     return update

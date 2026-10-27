@@ -1,61 +1,69 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách hỏi tư vấn chọn xe tải để chở hàng đi dốc lên núi với ngân sách khoảng 3 tỷ.",
+      "message_summary": "Khách đính chính tên người khách, từ Dương Định Khang sang Phan Huy Anh.",
       "tasks": [
         {
           "task_id": "t1",
-          "domain": "SALES",
-          "action": "search_catalog",
-          "text": "T muốn mua xe để chở hàng đi dốc lên núi thì sao nhỉ, ngân sách 3 tỷ",
-          "relationship": "NEW_REQUEST",
+          "domain": "APPOINTMENT",
+          "action": "book_appointment",
+          "text": "À nhầm tôi tên phan huy anh",
+          "relationship": "CORRECT_PREVIOUS_INFO",
           "referenced_interaction_id": null,
           "depends_on": [],
           "requires_clarification": false,
           "clarification_question": null,
           "entity_id": null,
-          "entity_type": null
+          "entity_type": null,
+          "inquiry_only": false
         }
       ],
-      "slot_updates": [],
-      "unresolved_ambiguities": [
-        "Chở loại hàng gì và khối lượng/tải trọng cụ thể (tấn) để lọc đúng cấu hình phù hợp leo dốc.",
-        "Cần dạng thùng nào (mui bạt/chassis/thùng kín) và chiều dài thùng mong muốn."
+      "slot_updates": [
+        {
+          "key": "customer_name",
+          "operation": "CORRECT",
+          "value": "[REDACTED]",
+          "evidence": "[REDACTED]",
+          "source_message_id": null,
+          "related_task_id": null
+        }
       ],
-      "complexity": "MEDIUM",
+      "unresolved_ambiguities": [],
+      "references": [],
+      "signals": {
+        "wants_human": false,
+        "complaint": false,
+        "safety_risk": false,
+        "discount_request": false,
+        "note": null
+      },
+      "complexity": "LOW",
       "answers_pending_question": false,
       "accepts_offer": null,
       "referenced_product_name": null,
       "product_reference_ambiguous": false,
-      "uncertain": true,
+      "uncertain": false,
       "catalog_request": false
     },
     "known_facts": {
+      "intended_use": {
+        "key": "intended_use",
+        "value": "chở hàng",
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
       "customer_name": "[REDACTED]",
+      "customer_phone": "[REDACTED]",
       "service_type": {
         "key": "service_type",
         "value": "SHOWROOM_VISIT",
         "source": "USER_EXPLICIT",
         "updated_at_message_id": null,
         "confidence": null
-      },
-      "appointment_when": {
-        "key": "appointment_when",
-        "value": "BUỔI SÁNG 9-11H",
-        "source": "USER_EXPLICIT",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "when_text": {
-        "key": "when_text",
-        "value": "BUỔI SÁNG 9-11H",
-        "source": "USER_EXPLICIT",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "customer_phone": "[REDACTED]"
+      }
     },
-    "complexity": "MEDIUM",
+    "complexity": "LOW",
     "trace": [
       "preprocess"
     ]

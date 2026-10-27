@@ -164,7 +164,7 @@ def contract(state: AgentState) -> dict:
 
     pending_interactions = [item.model_copy(update={"status": InteractionStatus.RESOLVED})
                            for item in _open_contract_pending(state)]
-    return {"answers": [answer(state, "contract", reply)], "known_facts": facts,
+    return {"answers": [answer(state, "contract", reply, executed=True)], "known_facts": facts,
             "pending_interactions": pending_interactions,
             "active_workflow": workflow.model_copy(update={"status": WorkflowStatus.NONE}),
             "trace": step(state, "contract")}

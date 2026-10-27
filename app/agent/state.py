@@ -25,6 +25,12 @@ class AgentState(TypedDict, total=False):
     planned_agents: list[str]
     task_text: str
     task_order: int
+    task_ids: list[str]
+    # Second writer requested in the same turn; validation turns it into an open offer.
+    deferred_workflow: dict | None
+    # Result Validation -> Preprocessing loop (at most once per turn).
+    validation_feedback: str | None
+    validation_attempts: int
     answers: Annotated[list[dict], operator.add]
     allowed_amounts: Annotated[list[str], operator.add]
     draft_reply: str

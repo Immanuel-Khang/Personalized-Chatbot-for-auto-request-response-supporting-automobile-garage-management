@@ -242,12 +242,19 @@ def sales(state: AgentState) -> dict:
     """Sales agent that uses LLM tool calling to search products."""
     user_message = state.get("task_text") or state.get("user_text", "")
     known_facts_text = _format_known_facts(state)
+    # Product ids resolved by preprocessing against the products the bot actually showed.
+    interpretation = state.get("conversation_interpretation")
+    task_ids = set(state.get("task_ids") or [])
+    entity_ids = sorted({task.entity_id for task in (interpretation.tasks if interpretation else [])
+                         if task.task_id in task_ids and task.entity_id is not None})
+    referenced = (f"\nKhách đang nói về sản phẩm ID {', '.join(map(str, entity_ids))}: gọi get_product_details "
+                  "với ID này và chỉ trả lời về đúng xe đó, không liệt kê lại danh sách.\n") if entity_ids else ""
 
     context = f"""Tin nhắn của khách: {user_message}
 
 Thông tin đã biết về khách:
 {known_facts_text}
-
+{referenced}
 Hãy phân tích nhu cầu và gọi tool phù hợp nếu cần tìm sản phẩm, sau đó tư vấn khách dựa trên kết quả.
 LƯU Ý: Nếu khách đang tiếp tục trao đổi về các mẫu xe đã giới thiệu ở các lượt trước, KHÔNG giới thiệu lại toàn bộ thông số hay so sánh từ đầu mà đi thẳng vào ý mới."""
 
@@ -281,10 +288,14 @@ LƯU Ý: Nếu khách đang tiếp tục trao đổi về các mẫu xe đã gi�
 
     # Track which products were shown
     if products_found:
-        selected_entities = list(state.get("selected_entities", []) or [])
-        existing_ids = {item.get("entity_id") for item in selected_entities if isinstance(item, dict)}
+        # Positional references ("xe số 1") refer to the latest list shown, so this turn's
+        # products replace earlier ones, in display order; non-product entities are kept.
+        selected_entities = [item for item in state.get("selected_entities", []) or []
+                             if isinstance(item, dict) and item.get("entity_type") != "PRODUCT"]
+        seen: set[int] = set()
         for p_dict in products_found:
-            if p_dict["id"] not in existing_ids:
+            if p_dict["id"] not in seen:
+                seen.add(p_dict["id"])
                 selected_entities.append({
                     "entity_type": "PRODUCT",
                     "entity_id": p_dict["id"],

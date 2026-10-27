@@ -4,7 +4,6 @@ import uuid
 
 from app.agent.llm import generate
 from app.agent.nodes.common import STYLE_RULES, answer, step
-from app.agent.nodes.service_type import LABELS, clarify_question, resolve_service_type
 from app.agent.state import AgentState
 from app.config import settings
 from app.contracts.schemas import (
@@ -36,6 +35,12 @@ FIELD_LABELS = {
     "appointment_when": "Ngày giờ hẹn",
     "customer_phone": "Số điện thoại",
 }
+LABELS: dict[ServiceType, str] = {
+    ServiceType.MAINTENANCE: "bảo dưỡng",
+    ServiceType.REPAIR: "sửa chữa",
+    ServiceType.TEST_DRIVE: "lái thử",
+    ServiceType.SHOWROOM_VISIT: "xem xe trực tiếp tại showroom",
+}
 CONFIRM = "Em ghi nhận lịch {label} ({when}) cho anh/chị. Anh/chị xác nhận đặt lịch này giúp em nhé?"
 PHONE_INVALID = "Số điện thoại anh/chị vừa gửi chưa đúng định dạng (10 số, bắt đầu bằng 0), anh/chị kiểm tra lại giúp em nhé."
 BOOKING_FAILED = ("Hiện em chưa xác nhận được lịch {when} trên hệ thống ạ. Em vẫn giữ thông tin anh/chị đã cung cấp, "
@@ -64,17 +69,8 @@ def _missing(facts: dict) -> list[str]:
     return [key for key in ("service_type", "appointment_when", "customer_phone") if not _value(facts, key)]
 
 
-def _ask_text(missing: list[str], detection) -> str:
-    if "service_type" in missing and detection.ambiguous:
-        return clarify_question(detection.candidates)
-    return ASK[missing[0]]
-
-
-def _ask_contextual(state: AgentState, missing: list[str], detection, collected: dict) -> str:
+def _ask_contextual(state: AgentState, missing: list[str], collected: dict) -> str:
     """Generate contextual question using LLM, with fallback to static."""
-    if "service_type" in missing and detection.ambiguous:
-        return clarify_question(detection.candidates)
-
     user_message = state.get("task_text") or state.get("user_text", "")
     missing_labels = [FIELD_LABELS[key] for key in missing if key in FIELD_LABELS]
     collected_display = {FIELD_LABELS.get(k, k): v for k, v in collected.items() if v is not None}
@@ -105,22 +101,7 @@ def appointment(state: AgentState) -> dict:
     facts = dict(state.get("known_facts", {}) or {})
     interpretation = state.get("conversation_interpretation")
     text = state.get("task_text") or state.get("user_text", "")
-    for update in interpretation.slot_updates if interpretation else []:
-        if update.key in {"service_type", "appointment_when", "when_text", "customer_phone", "phone", "service_detail", "customer_name"}:
-            if update.operation.value == "CLEAR":
-                facts.pop(update.key, None)
-            else:
-                key = "when_text" if update.key == "appointment_when" else "customer_phone" if update.key == "phone" else update.key
-                _persist(facts, key, update.value)
-    if "customer_phone" not in facts and (value := _value(facts, "phone")):
-        _persist(facts, "customer_phone", value)
-    if "appointment_when" not in facts and (value := _value(facts, "when_text")):
-        _persist(facts, "appointment_when", value)
-
-    current_service = _value(facts, "service_type")
-    detection = resolve_service_type(text, current_service)
-    if detection.service:
-        _persist(facts, "service_type", detection.service.value)
+    # Slots were already validated and applied to known_facts by preprocessing.
     missing = _missing(facts)
     workflow = state.get("active_workflow")
     # Checkpoint may deserialize as dict; reconstruct if needed
@@ -135,7 +116,7 @@ def appointment(state: AgentState) -> dict:
 
     if missing:
         collected = {key: _value(facts, key) for key in ("service_type", "appointment_when", "customer_phone") if _value(facts, key)}
-        question = _ask_contextual(state, missing, detection, collected)
+        question = _ask_contextual(state, missing, collected)
         return {
             "answers": [answer(state, "appointment", question)],
             "known_facts": facts,
@@ -195,9 +176,9 @@ def appointment(state: AgentState) -> dict:
     else:
         reply = f"Mình đã xác nhận lịch hẹn {label} ({_value(facts, 'appointment_when')}). {result.message}"
         status = WorkflowStatus.NONE
-        for key in ("service_type", "appointment_when", "customer_phone", "when_text", "phone", "service_detail"):
+        for key in ("service_type", "appointment_when", "service_detail"):
             facts.pop(key, None)
     pending_updates = [item.model_copy(update={"status": InteractionStatus.RESOLVED}) for item in pending]
-    return {"answers": [answer(state, "appointment", reply)], "known_facts": facts,
+    return {"answers": [answer(state, "appointment", reply, executed=True)], "known_facts": facts,
             "pending_interactions": pending_updates, "active_workflow": workflow.model_copy(update={"status": status}),
             "trace": step(state, "appointment")}

@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from app.agent.runner import run_turn
 from app.config import settings
 from app.contracts.schemas import ChatRequest, ChatResponse, ConversationMode, KnownFact
-from app.db.models import ChatSession, Message
+from app.db.models import ChatSession, Customer, Message
 from app.db.session import SessionLocal
 from app.identity import attach_phone, get_or_create_session, verified_customer_id
 from app.services.handover import open_ticket
@@ -121,6 +121,13 @@ def handle_message(req: ChatRequest) -> ChatResponse:
                 phone = None
             if phone:
                 _save_phone(db, session, str(phone))
+            name_fact = facts.get("customer_name")
+            name = name_fact.value if isinstance(name_fact, KnownFact) else (
+                name_fact.get("value") if isinstance(name_fact, dict) else None)
+            if name and session.customer_id:
+                customer = db.get(Customer, session.customer_id)
+                if customer and not customer.full_name:
+                    customer.full_name = str(name)
 
             # record the bot reply to the database
             reply, trace = result["final_reply"], result["trace"]

@@ -2,9 +2,9 @@ import json
 from types import SimpleNamespace
 
 from app.agent.nodes.preprocess import _apply_interpretation, _trace_safe, validate_interpretation
-from app.agent.nodes.product_reference import resolve_product
 from app.contracts.schemas import (
     ConversationInterpretation,
+    EntityReference,
     FactSource,
     Intent,
     KnownFact,
@@ -37,20 +37,36 @@ def test_canonical_interpretation_keeps_explicit_catalog_action():
     assert interpretation.catalog_request
 
 
-def test_product_ordinal_resolves_against_last_displayed_list():
-    products = [_product(1, "Xe A"), _product(2, "Xe B")]
-    product, clarify = resolve_product("Xe thứ 2 giá bao nhiêu", ["1. Xe A\n2. Xe B"], products, None)
+SHOWN = [{"entity_type": "PRODUCT", "entity_id": 11, "name": "Xe A"},
+         {"entity_type": "PRODUCT", "entity_id": 22, "name": "Xe B"}]
 
-    assert product.id == 2
-    assert not clarify
+
+def _ref_interpretation(position, entity_id=None):
+    return ConversationInterpretation(
+        message_summary="Khách hỏi xe trong danh sách.",
+        tasks=[_task(action="product_detail", text="xe thứ 2")],
+        references=[EntityReference(mention="xe thứ 2", position=position, entity_id=entity_id)],
+    )
+
+
+def test_product_ordinal_resolves_against_last_displayed_list():
+    state = {"user_text": "Xe thứ 2 giá bao nhiêu", "selected_entities": SHOWN}
+    applied = validate_interpretation(state, _ref_interpretation(2))
+    assert applied.references[0].entity_id == 22 and not applied.references[0].ambiguous
+    assert applied.tasks[0].entity_id == 22 and applied.tasks[0].entity_type == "PRODUCT"
 
 
 def test_product_reference_without_displayed_history_requires_clarification():
-    products = [_product(1, "Xe A"), _product(2, "Xe B")]
-    product, clarify = resolve_product("Tôi muốn xem xe số 1", [], products, None)
+    state = {"user_text": "Tôi muốn xem xe số 1", "selected_entities": []}
+    applied = validate_interpretation(state, _ref_interpretation(1, entity_id=99))
+    assert applied.references[0].entity_id is None and applied.product_reference_ambiguous
+    assert applied.tasks[0].entity_id is None
 
-    assert product is None
-    assert clarify
+
+def test_conflicting_position_and_id_is_ambiguous():
+    state = {"user_text": "xe thứ 2", "selected_entities": SHOWN}
+    applied = validate_interpretation(state, _ref_interpretation(2, entity_id=11))
+    assert applied.references[0].ambiguous and applied.tasks[0].entity_id is None
 
 
 def test_slot_updates_require_current_message_evidence_and_apply_corrections():

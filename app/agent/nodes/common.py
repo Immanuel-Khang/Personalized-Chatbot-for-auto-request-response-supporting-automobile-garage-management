@@ -24,10 +24,11 @@ def step(state: AgentState, name: str) -> list[str]:
 
 
 def answer(state: AgentState, agent: str, text: str = "", needs_human: bool = False,
-           handover_reason: str | None = None) -> dict:
-    """Phần trả lời của một specialist; compose ghép theo task_order rồi mới qua Output Guard."""
+           handover_reason: str | None = None, executed: bool = False) -> dict:
+    """Phần trả lời của một specialist; validation kiểm tra rồi compose ghép theo task_order.
+    executed=True chỉ khi service xác nhận hành động (đặt lịch/hợp đồng) thành công trong lượt này."""
     return {"agent": agent, "order": state.get("task_order", 0), "text": text,
-            "needs_human": needs_human, "handover_reason": handover_reason}
+            "needs_human": needs_human, "handover_reason": handover_reason, "executed": executed}
 
 
 def strip_greeting(text: str) -> str:
