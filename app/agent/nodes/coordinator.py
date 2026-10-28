@@ -6,7 +6,6 @@
 - Writers run after read-only tasks in the composed reply, so "tìm xe số 1 và đặt lịch
   xem xe" answers about the vehicle first, then continues the booking.
 """
-from app.agent.nodes.common import step
 from app.agent.nodes.router import READ_ONLY, WRITERS, send_all
 from app.agent.state import AgentState
 from app.contracts.schemas import WorkflowStatus
@@ -26,7 +25,7 @@ def coordinator(state: AgentState) -> dict:
     # Prefer continuing the writer that already owns the active workflow.
     writers.sort(key=lambda item: (not (workflow and workflow.workflow_type == item["agent"]), item["order"]))
 
-    update: dict = {"trace": step(state, "coordinator")}
+    update: dict = {"trace": ["coordinator"]}
     final = [{**item, "order": index} for index, item in enumerate(reads)]
     if writers:
         final.append({**writers[0], "order": WRITER_ORDER})

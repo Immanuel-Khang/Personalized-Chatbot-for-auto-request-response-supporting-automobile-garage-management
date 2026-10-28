@@ -11,7 +11,6 @@ import uuid
 
 from langgraph.types import Overwrite
 
-from app.agent.nodes.common import step
 from app.agent.state import AgentState
 from app.contracts.schemas import InteractionKind, InteractionStatus, PendingInteraction
 
@@ -33,7 +32,7 @@ def _ungrounded_claim(answer: dict) -> bool:
 
 
 def validation(state: AgentState) -> dict:
-    update: dict = {"trace": step(state, "validation")}
+    update: dict = {"trace": ["validation"]}
     attempts = state.get("validation_attempts", 0)
     if (feedback := _missing_info(state)) and attempts < MAX_ATTEMPTS:
         return {**update, "validation_feedback": feedback, "validation_attempts": attempts + 1,

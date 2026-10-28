@@ -4,6 +4,7 @@ from typing import Annotated, TypedDict
 from app.contracts.schemas import (
     ActiveWorkflow,
     ConversationInterpretation,
+    InteractionStatus,
     KnownFact,
     PendingInteraction,
 )
@@ -16,7 +17,6 @@ class AgentState(TypedDict, total=False):
     mode: str
     # Previous user/assistant messages only; the current message is in user_text.
     history: list[dict]
-    complexity: str
     negotiation_active: bool
     safety: bool
     route: str
@@ -48,3 +48,22 @@ class AgentState(TypedDict, total=False):
     rejected_slots: list[str]
     active_workflow: ActiveWorkflow | None
     selected_entities: list[dict]
+
+
+def answer(state: AgentState, agent: str, text: str = "", needs_human: bool = False,
+           handover_reason: str | None = None, executed: bool = False) -> dict:
+    """Phần trả lời của một specialist; validation kiểm tra rồi compose ghép theo task_order.
+    executed=True chỉ khi service xác nhận hành động (đặt lịch/hợp đồng) thành công trong lượt này."""
+    return {"agent": agent, "order": state.get("task_order", 0), "text": text,
+            "needs_human": needs_human, "handover_reason": handover_reason, "executed": executed}
+
+
+# Load Context (nodes/input.py) turns checkpointed facts/pending/workflow into models, so nodes read attributes.
+def fact_value(facts: dict | None, key: str):
+    return getattr((facts or {}).get(key), "value", None)
+
+
+def open_pending(state: AgentState, workflow: str | None = None) -> list[PendingInteraction]:
+    """Open pending interactions, optionally only those owned by ``workflow``."""
+    return [item for item in state.get("pending_interactions") or [] if item.status == InteractionStatus.OPEN
+            and (workflow is None or item.metadata.get("workflow") == workflow)]

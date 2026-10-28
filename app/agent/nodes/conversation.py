@@ -1,10 +1,10 @@
 """[TRACK B] Conversation Agent: xử lý greeting, out-of-scope, cancel, hỏi lại khi chưa rõ ý,
 và truy vấn thông tin từ hội thoại. Chỉ đọc, không ghi dữ liệu."""
 from app.agent.llm import generate
-from app.agent.nodes.common import STYLE_RULES, answer, step
-from app.agent.state import AgentState
+from app.agent.nodes.compose import STYLE_RULES
+from app.agent.state import AgentState, answer, fact_value, open_pending
 from app.config import settings
-from app.contracts.schemas import InteractionStatus, Intent, PendingInteraction
+from app.contracts.schemas import Intent
 from app.db.models import ChatSession, Customer
 from app.db.session import SessionLocal
 from app.services import get_services
@@ -88,7 +88,7 @@ def _reason(state: AgentState) -> str:
 
 def conversation(state: AgentState) -> dict:
     """Xử lý greeting, other, cancel, clarify và các câu hỏi về ngữ cảnh hội thoại."""
-    update: dict = {"trace": step(state, "conversation")}
+    update: dict = {"trace": ["conversation"]}
     question = state.get("task_text") or state.get("user_text", "")
     reason = _reason(state)
 
@@ -107,12 +107,8 @@ def conversation(state: AgentState) -> dict:
         documents = "\n".join(c.text for c in chunks) or "(không có tài liệu liên quan)"
         documents = f"\nTài liệu của xưởng (nguồn duy nhất được dùng):\n{documents}\n"
 
-    open_pending = []
-    for item in state.get("pending_interactions", []) or []:
-        pending = item if isinstance(item, PendingInteraction) else PendingInteraction.model_validate(item)
-        if pending.status == InteractionStatus.OPEN:
-            open_pending.append(pending)
-    offer_question = open_pending[-1].text if open_pending else ""
+    pending = open_pending(state)
+    offer_question = pending[-1].text if pending else ""
     context = f"""
 {INTENT_CONTEXT.get(reason, INTENT_CONTEXT["other"]).format(question=offer_question)}
 {documents}
@@ -123,8 +119,7 @@ Tin nhắn mới của khách: {question}
 
     reply = generate(CONVERSATION_SYSTEM_PROMPT.format(hotline=settings.hotline, style=STYLE_RULES), context,
                      history=state.get("history"))
-    facts = state.get("known_facts") or {}
-    detail = getattr(facts.get("service_detail"), "value", None)
+    detail = fact_value(state.get("known_facts"), "service_detail")
     fallback = FALLBACK.get(reason, FALLBACK["other"]).format(component=detail or "tình trạng xe", question=offer_question)
     update["answers"] = [answer(state, "conversation", reply or fallback)]
     return update

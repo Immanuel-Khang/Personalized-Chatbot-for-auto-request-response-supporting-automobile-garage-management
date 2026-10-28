@@ -7,7 +7,6 @@ TODO[AGENT]: vi phạm -> cho LLM sinh lại 1 lần trước khi chuyển ngư�
 """
 import re
 
-from app.agent.nodes.common import step
 from app.agent.state import AgentState
 
 FORBIDDEN = re.compile(r"(giảm\s*\d+\s*%|tặng|miễn phí|cam kết|đảm bảo giá)", re.IGNORECASE)
@@ -29,7 +28,7 @@ def _violation(draft: str, allowed: set[str]) -> str | None:
 
 
 def output_guard(state: AgentState) -> dict:
-    update: dict = {"trace": step(state, "output_guard")}
+    update: dict = {"trace": ["output_guard"]}
     reason = _violation(state.get("draft_reply", ""), set(state.get("allowed_amounts", [])))
     if reason:
         previous = state.get("handover_reason") if state.get("needs_human") else None

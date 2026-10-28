@@ -6,8 +6,8 @@ make intelligent decisions based on conversation context rather than brittle key
 from typing import Any
 
 from app.agent.llm import generate_with_tools
-from app.agent.nodes.common import STYLE_RULES, answer, step
-from app.agent.state import AgentState
+from app.agent.nodes.compose import STYLE_RULES
+from app.agent.state import AgentState, answer, fact_value
 from app.contracts.schemas import Product
 from app.services import get_services
 from app.utils import fmt_vnd
@@ -229,11 +229,7 @@ def _format_known_facts(state: AgentState) -> str:
     if not facts:
         return "Chưa có thông tin về nhu cầu khách."
 
-    lines = []
-    for key, fact in facts.items():
-        value = fact.value if hasattr(fact, 'value') else fact.get('value') if isinstance(fact, dict) else None
-        if value is not None:
-            lines.append(f"- {key}: {value}")
+    lines = [f"- {key}: {fact_value(facts, key)}" for key in facts if fact_value(facts, key) is not None]
 
     return "\n".join(lines) if lines else "Chưa có thông tin về nhu cầu khách."
 
@@ -282,7 +278,7 @@ LƯU Ý: Nếu khách đang tiếp tục trao đổi về các mẫu xe đã gi�
                 products_found.append(p_dict)
 
     update = {
-        "trace": step(state, "sales"),
+        "trace": ["sales"],
         "answers": [answer(state, "sales", reply)]
     }
 

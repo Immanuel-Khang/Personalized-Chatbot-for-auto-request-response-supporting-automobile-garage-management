@@ -16,7 +16,6 @@ import uuid
 from pathlib import Path
 
 from app.agent.llm import generate_structured
-from app.agent.nodes.common import step
 from app.agent.nodes.input import build_context
 from app.agent.state import AgentState
 from app.identity import normalize_phone
@@ -46,14 +45,15 @@ CANONICAL_SLOTS = {
     "service_detail": "Hạng mục/bộ phận cần xử lý (kính, phanh, điều hòa...)",
     "appointment_when": "Ngày giờ hẹn đúng như khách nói (VD 'sáng thứ 7 tuần sau')",
     "customer_phone": "Số điện thoại khách",
-    "customer_name": "Tên người khách tự xưng, không kèm xưng hô",
+    "customer_name": ("Tên khách tự xưng, viết chuẩn có dấu và hoa chữ cái đầu (dương định khang -> Dương Định Khang); "
+                      "chỉ phần tên khách nói, có thể chỉ tên gọi; không kèm xưng hô anh/chị/em"),
     "customer_address": "Địa chỉ khách",
     "decided_price": "Giá chốt hợp đồng (VND)",
     "current_mileage_km": "Số km hiện tại của xe (số)",
 }
 _ALIASES = {"phone": "customer_phone", "when_text": "appointment_when", "budget": "budget_vnd", "name": "customer_name"}
 # Values that are usually paraphrased/normalised by the model (e.g. "500 triệu" -> 500000000).
-_NORMALISED_VALUE_KEYS = {"appointment_when", "service_type", "service_detail", "budget_vnd",
+_NORMALISED_VALUE_KEYS = {"appointment_when", "service_type", "service_detail", "budget_vnd", "customer_name",
                           "decided_price", "payload_tons", "current_mileage_km", "intended_use"}
 
 INTERPRETATION_PROMPT = """\
@@ -63,8 +63,7 @@ ConversationInterpretation. Các node sau chỉ đọc kết quả của bạn, 
 
 1. Ý định theo ngữ cảnh (relationship của từng task):
    - Tin nhắn trả lời câu bot vừa hỏi (VD bot hỏi "cần xe để làm gì?", khách đáp "Chở hàng")
-     là ANSWER_TO_QUESTION của việc đang làm, KHÔNG phải câu hỏi mới. Đặt answers_pending_question=true
-     và referenced_interaction_id nếu khớp một pending_interactions. Task trả lời mang domain/action
+     là ANSWER_TO_QUESTION của việc đang làm, KHÔNG phải câu hỏi mới. Đặt referenced_interaction_id nếu khớp một pending_interactions. Task trả lời mang domain/action
      của việc đang làm (VD đang tư vấn xe -> SALES search_catalog), KHÔNG dùng OTHER.
    - Đồng ý/từ chối gợi ý của bot: ACCEPT_OFFER / REJECT_OFFER (accepts_offer=true/false).
    - Sửa thông tin đã nói ("Không, 700 triệu"): CORRECT_PREVIOUS_INFO và slot_update CORRECT.
@@ -82,12 +81,14 @@ ConversationInterpretation. Các node sau chỉ đọc kết quả của bạn, 
    "sửa" -> REPAIR (evidence là cụm từ đó). Khách nêu thời gian hẹn dù chưa có giờ cụ thể ("chiều thứ 2
    tuần sau", "sáng mai") -> vẫn ghi appointment_when đúng như khách nói; nhân viên sẽ chốt giờ, đó KHÔNG
    phải điểm mơ hồ. Khách sửa tên/SĐT/địa chỉ -> slot_update CORRECT cho đúng key đó.
+   Tên khách (customer_name): chỉ khi khách tự giới thiệu hoặc trả lời câu hỏi tên. Ghi dạng chuẩn có dấu, viết hoa
+   chữ cái đầu; khách chỉ nói tên gọi ("Khang", "anh Khang") thì ghi đúng phần đó, KHÔNG tự thêm họ. Xưng hô,
+   lời chào, tên xe, địa danh không phải tên. evidence là cụm khách gõ nguyên văn.
 4. Tham chiếu: "xe số 1", "mẫu thứ ba", "nó", "xe đó" -> thêm vào references với position theo
    shown_products (1-based, -1 = cuối) và entity_id lấy từ shown_products; gán entity_id cho task
    liên quan. Không có shown_products phù hợp hoặc nhiều khả năng -> ambiguous=true, không đoán.
-5. Mơ hồ/mâu thuẫn: ghi vào unresolved_ambiguities chỉ những điểm thực sự chặn task hiện tại.
-   Thiếu thông tin mà workflow sẽ tự hỏi (SĐT, ngày giờ) không phải là mơ hồ. Không hiểu tin nhắn:
-   uncertain=true và một task general_conversation requires_clarification=true.
+5. Mơ hồ: thiếu thông tin mà workflow sẽ tự hỏi (SĐT, ngày giờ) không phải là mơ hồ. Không hiểu tin nhắn
+   hoặc có điểm mơ hồ chặn task hiện tại: uncertain=true và một task general_conversation requires_clarification=true.
 6. signals: wants_human (khách muốn gặp nhân viên/người thật), complaint (phàn nàn, bức xúc),
    safety_risk (xe có dấu hiệu nguy hiểm: mất phanh, cháy, khói, mất lái...), discount_request,
    deal_change (khách muốn sửa điều khoản hợp đồng, thương lượng lại giá, hoặc hỏi phí/chi phí phát sinh
@@ -107,11 +108,9 @@ def _neutral_interpretation(text: str, reason: str) -> ConversationInterpretatio
     """Safe result when the LLM is unavailable: no business action, no facts."""
     task = TaskInterpretation(
         task_id=f"task_{uuid.uuid4().hex[:8]}", domain=Intent.OTHER, action="general_conversation",
-        text=text, relationship=TaskRelationship.UNCLEAR, requires_clarification=True,
-        clarification_question="Mình chưa hiểu rõ yêu cầu. Bạn nói rõ hơn giúp mình nhé?",
-    )
+        text=text, relationship=TaskRelationship.UNCLEAR, requires_clarification=True)
     return ConversationInterpretation(message_summary=f"Structured interpretation unavailable: {reason}",
-                                      tasks=[task], unresolved_ambiguities=[reason], uncertain=True)
+                                      tasks=[task], uncertain=True)
 
 
 def _normalise(value: str) -> str:
@@ -129,33 +128,6 @@ def _evidence_is_current(update: SlotUpdate, text: str) -> bool:
         update.key in _NORMALISED_VALUE_KEYS or _normalise(str(update.value)) in current)
 
 
-# Words that never appear in a person's name: greetings, vehicles, scheduling, roles, places.
-_NON_NAME_WORDS = {
-    "xin", "chào", "alo", "hello", "hi", "vâng", "dạ", "ok", "okay", "được", "không", "có", "ạ", "nhé",
-    "cảm", "ơn", "xe", "tải", "tấn", "ben", "khách", "người", "muốn", "cần", "mua", "bán", "đặt", "lịch",
-    "hẹn", "bảo", "dưỡng", "sửa", "chữa", "lái", "thử", "showroom", "xưởng", "giá", "tiền", "triệu", "tỷ",
-    "ngày", "tuần", "tháng", "giờ", "mai", "hôm", "nay", "sáng", "chiều", "tối", "ở", "tại", "là", "của",
-    "và", "với", "đang", "sẽ", "đã", "rất", "đây", "này", "foton", "gara", "garage", "sdt", "sđt",
-}
-_PLACE_NAMES = {"hà nội", "sài gòn", "hồ chí minh", "đà nẵng", "hải phòng", "cần thơ"}
-_NAME_WORD_RE = re.compile(r"[^\W\d_]+(?:['’-][^\W\d_]+)*")
-
-
-def _valid_name(value) -> str | None:
-    """A plausible person name; rejects numbers, phones, greetings, vehicle/scheduling words, places."""
-    if not isinstance(value, str):
-        return None
-    name = " ".join(value.split()).strip(" .,;:!?-")
-    words = name.split()
-    if not name or len(name) > 60 or len(words) > 5 or any(ch.isdigit() for ch in name):
-        return None
-    if not all(_NAME_WORD_RE.fullmatch(word) for word in words):
-        return None
-    if name.casefold() in _PLACE_NAMES or any(word.casefold() in _NON_NAME_WORDS for word in words):
-        return None
-    return name
-
-
 def _canonical_value(key: str, value):
     """Type-check a value for its canonical slot; None means reject."""
     if key == "service_type":
@@ -168,8 +140,6 @@ def _canonical_value(key: str, value):
             return int(float(str(value).replace(",", "").replace(" ", "")))
         except ValueError:
             return None
-    if key == "customer_name":
-        return _valid_name(value)
     if key == "customer_phone":
         # Store the customer's own format; normalize_phone is only the validity check.
         return " ".join(str(value).split()) if normalize_phone(str(value)) else None
@@ -177,7 +147,7 @@ def _canonical_value(key: str, value):
 
 
 def _validated_updates(state: AgentState, interpretation: ConversationInterpretation,
-                       rejected: list[str] | None = None) -> list[SlotUpdate]:
+                       rejected: list[str]) -> list[SlotUpdate]:
     """Valid updates only; keys whose value failed validation are appended to ``rejected``."""
     text = state.get("user_text", "")
     facts = state.get("known_facts") or {}
@@ -198,8 +168,7 @@ def _validated_updates(state: AgentState, interpretation: ConversationInterpreta
             value = _canonical_value(key, update.value)
             if value is None:
                 logger.warning("Discarding slot update with invalid value for %s", key)
-                if rejected is not None:
-                    rejected.append(key)
+                rejected.append(key)
                 continue
             update = update.model_copy(update={"value": value})
         old = facts.get(key)
@@ -243,22 +212,14 @@ def _resolve_references(state: AgentState, interpretation: ConversationInterpret
             entity_id = resolved[0]
         tasks.append(task.model_copy(update={"entity_id": entity_id,
                                              "entity_type": "PRODUCT" if entity_id is not None else None}))
-    ambiguous = any(ref.ambiguous for ref in references)
-    return interpretation.model_copy(update={
-        "references": references, "tasks": tasks,
-        "product_reference_ambiguous": interpretation.product_reference_ambiguous or ambiguous,
-    })
-
-
-def validate_interpretation(state: AgentState, interpretation: ConversationInterpretation,
-                            rejected: list[str] | None = None) -> ConversationInterpretation:
-    interpretation = _resolve_references(state, interpretation)
-    return interpretation.model_copy(update={"slot_updates": _validated_updates(state, interpretation, rejected)})
+    return interpretation.model_copy(update={"references": references, "tasks": tasks})
 
 
 def _apply_interpretation(state: AgentState, interpretation: ConversationInterpretation) -> dict:
+    """Validate the model output, then write accepted slot updates into known_facts."""
     rejected: list[str] = []
-    applied = validate_interpretation(state, interpretation, rejected)
+    applied = _resolve_references(state, interpretation)
+    applied = applied.model_copy(update={"slot_updates": _validated_updates(state, applied, rejected)})
     facts = dict(state.get("known_facts") or {})
     for update in applied.slot_updates:
         if update.operation == SlotOperation.CLEAR:
@@ -267,8 +228,7 @@ def _apply_interpretation(state: AgentState, interpretation: ConversationInterpr
         source = FactSource.USER_CORRECTED if update.operation == SlotOperation.CORRECT else FactSource.USER_EXPLICIT
         facts[update.key] = KnownFact(key=update.key, value=update.value, source=source,
                                       updated_at_message_id=update.source_message_id)
-    return {"conversation_interpretation": applied, "known_facts": facts, "complexity": applied.complexity,
-            "rejected_slots": rejected}
+    return {"conversation_interpretation": applied, "known_facts": facts, "rejected_slots": rejected}
 
 
 def _trace_safe(value, key: str | None = None):
@@ -304,6 +264,6 @@ def preprocess(state: AgentState) -> dict:
     if interpretation is None:
         interpretation = _neutral_interpretation(text, "LLM unavailable")
     result = _apply_interpretation(state, interpretation)
-    result["trace"] = step(state, "preprocess")
+    result["trace"] = ["preprocess"]
     _write_preprocess_trace(result)
     return result

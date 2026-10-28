@@ -1,9 +1,9 @@
 """Answer technical, maintenance, and service questions from trusted sources."""
 from app.agent.llm import generate
-from app.agent.nodes.common import STYLE_RULES, answer, step
-from app.agent.state import AgentState
+from app.agent.nodes.compose import STYLE_RULES
+from app.agent.state import AgentState, answer, fact_value
 from app.config import settings
-from app.contracts.schemas import Intent, KnownFact
+from app.contracts.schemas import Intent
 from app.services import get_services
 from app.utils import fmt_vnd
 
@@ -19,13 +19,8 @@ QUY TẮC:
 """ + STYLE_RULES
 
 
-def _fact_value(facts: dict, key: str):
-    fact = facts.get(key)
-    return fact.value if isinstance(fact, KnownFact) else fact.get("value") if isinstance(fact, dict) else None
-
-
 def knowledge(state: AgentState) -> dict:
-    update: dict = {"trace": step(state, "knowledge")}
+    update: dict = {"trace": ["knowledge"]}
     facts = state.get("known_facts", {}) or {}
     interpretation = state.get("conversation_interpretation")
     tasks = interpretation.tasks if interpretation else []
@@ -34,8 +29,8 @@ def knowledge(state: AgentState) -> dict:
     result = None
 
     if maintenance:
-        car_model = _fact_value(facts, "car_model") or "xe của bạn"
-        mileage = _fact_value(facts, "current_mileage_km")
+        car_model = fact_value(facts, "car_model") or "xe của bạn"
+        mileage = fact_value(facts, "current_mileage_km")
         if mileage:
             result = get_services().maintenance.get_milestone_details(car_model, int(mileage))
             if result:

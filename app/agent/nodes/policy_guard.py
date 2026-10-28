@@ -10,7 +10,6 @@ latency. Without an LLM the preprocessing signals are applied directly.
 import json
 
 from app.agent.llm import generate_with_tools
-from app.agent.nodes.common import step
 from app.agent.state import AgentState
 from app.contracts.schemas import Intent
 from app.services import get_services
@@ -103,5 +102,5 @@ def policy_guard(state: AgentState) -> dict:
         "safety": safety,
         "route": "human" if reasons else "router",
         "handover_reason": "; ".join(reasons) or None,
-        "trace": step(state, "policy_guard"),
+        "trace": ["policy_guard"],
     }

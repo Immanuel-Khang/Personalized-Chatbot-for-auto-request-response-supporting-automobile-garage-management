@@ -5,6 +5,7 @@ sqlalchemy>=2.0
 psycopg[binary]==3.2.12
 alembic==1.16.5
 langgraph>=0.2
+langgraph-checkpoint-postgres==3.2.0
 langchain-core>=0.3
 langchain-openai>=0.3
 numpy>=1.26

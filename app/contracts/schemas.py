@@ -183,12 +183,8 @@ class TaskInterpretation(BaseModel):
     relationship: TaskRelationship = Field(description="How this task relates to conversation context")
     referenced_interaction_id: Optional[str] = Field(
         default=None, description="ID of the pending interaction this task responds to")
-    depends_on: list[str] = Field(
-        default_factory=list, description="Other task_ids in this turn that must complete first")
     requires_clarification: bool = Field(
         default=False, description="True when task cannot proceed without clarification")
-    clarification_question: Optional[str] = Field(
-        default=None, description="Question to ask if clarification needed")
     entity_id: Optional[int] = Field(
         default=None, description="Resolved catalog/entity identifier for this task")
     entity_type: Optional[str] = Field(
@@ -204,19 +200,13 @@ class ConversationInterpretation(BaseModel):
         default_factory=list, description="Deduplicated, ordered task interpretations")
     slot_updates: list[SlotUpdate] = Field(
         default_factory=list, description="Proposed fact/slot changes with explicit operations")
-    unresolved_ambiguities: list[str] = Field(
-        default_factory=list, description="Issues requiring clarification")
     references: list[EntityReference] = Field(
         default_factory=list, description="References to previously shown products")
     signals: PolicySignals = Field(default_factory=PolicySignals)
     # Interpretation signals consumed by application policy; these are not duplicated task state.
     complexity: str = Field(default="LOW", description="LOW or HIGH complexity of this turn")
-    answers_pending_question: bool = Field(default=False)
     accepts_offer: Optional[bool] = Field(default=None)
-    referenced_product_name: Optional[str] = Field(default=None)
-    product_reference_ambiguous: bool = Field(default=False)
     uncertain: bool = Field(default=False)
-    catalog_request: bool = Field(default=False)
 
 
 class KnownFact(BaseModel):

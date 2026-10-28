@@ -1,25 +1,22 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách yêu cầu các lựa chọn xe khác rẻ hơn mẫu FI170L.",
+      "message_summary": "Khách muốn được tư vấn xe.",
       "tasks": [
         {
           "task_id": "t1",
           "domain": "SALES",
           "action": "search_catalog",
-          "text": "Cho tôi những lựa chọn khác giá rẻ hơn lựa chọn này",
+          "text": "Tôi muốn được nhận tư vấn xe",
           "relationship": "NEW_REQUEST",
           "referenced_interaction_id": null,
-          "depends_on": [],
           "requires_clarification": false,
-          "clarification_question": null,
           "entity_id": null,
           "entity_type": null,
           "inquiry_only": false
         }
       ],
       "slot_updates": [],
-      "unresolved_ambiguities": [],
       "references": [],
       "signals": {
         "wants_human": false,
@@ -30,15 +27,10 @@
         "note": null
       },
       "complexity": "LOW",
-      "answers_pending_question": false,
       "accepts_offer": null,
-      "referenced_product_name": null,
-      "product_reference_ambiguous": false,
-      "uncertain": false,
-      "catalog_request": false
+      "uncertain": false
     },
     "known_facts": {},
-    "complexity": "LOW",
     "rejected_slots": [],
     "trace": [
       "preprocess"
@@ -47,7 +39,6 @@
   "fields": [
     "conversation_interpretation",
     "known_facts",
-    "complexity",
     "rejected_slots",
     "trace"
   ]

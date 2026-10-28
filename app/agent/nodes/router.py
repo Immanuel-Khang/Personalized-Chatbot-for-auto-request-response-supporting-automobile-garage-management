@@ -6,7 +6,6 @@ Task Coordinator, which orders them and enforces the single-writer rule.
 """
 from langgraph.types import Send
 
-from app.agent.nodes.common import step
 from app.agent.state import AgentState
 from app.contracts.schemas import InteractionStatus, Intent, TaskRelationship, WorkflowStatus
 
@@ -73,7 +72,7 @@ def _cancel(state: AgentState, cancel_tasks: list) -> dict:
 
 
 def router(state: AgentState) -> dict:
-    update: dict = {"trace": step(state, "router")}
+    update: dict = {"trace": ["router"]}
     text = state.get("user_text", "")
     interpretation = state.get("conversation_interpretation")
     tasks = list(interpretation.tasks) if interpretation else []

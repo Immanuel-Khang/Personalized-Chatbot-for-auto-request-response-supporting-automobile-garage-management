@@ -56,3 +56,20 @@ Replay T4 sent all booking fields in one message; existing code books immediatel
 
 ## Safety notes
 - Never reset `garage`. Test bookings would write `appointments` rows (PENDING_APPROVAL) if a user confirms — avoid confirming with a valid phone in live tests, or mock `BookingService`.
+
+## Session 3 (2026-10-28) — node cleanup + durable checkpoint, uncommitted
+- Design check: graph matches the flowchart node-for-node; each node has its own file. Gap fixed: "Save Workflow State" now durable.
+- `nodes/common.py` removed: `answer` + new shared `fact_value`/`open_pending` -> `agent/state.py`; `STYLE_RULES`/`strip_greeting` -> `nodes/compose.py` (Response Composer); `step()` replaced by literal `["<node>"]` trace entries.
+- `appointment.py` rewritten 229 -> 161 lines, same logic (merged ASK/FIELD_LABELS into REQUIRED, `reply()`/`waiting()` helpers, phone check folded into missing-slot path).
+- `contract.py` 170 -> 79 lines: dropped re-application of slot_updates (preprocess already writes known_facts) and duplicate pending helpers.
+- Duplicate fact/pending helpers removed from knowledge, sales, conversation, human_handover.
+- `graph.py`: PostgresSaver in the app DB (MemorySaver for non-Postgres URLs). Added `langgraph-checkpoint-postgres==3.2.0` (pulled langgraph-checkpoint 4.3.1, psycopg-pool 3.3.3).
+- Live LLM via /chat, DB garage: `livetest-arch-1793151923` (8 turns: greet, search, spec, test-drive booking, invalid phone, valid phone, confirm, phone correction) all correct; replies in /tmp/live4. Created `appointments.id=2` (PENDING_APPROVAL, phone corrected to new number, note has vehicle). `livetest-restart-1793152085`: booking state survived a server kill/restart.
+- Not run: pytest suite (per user instruction).
+
+## Session 4 (2026-10-28) — preprocess cleanup + LLM compose agent, uncommitted
+- preprocess: removed rule-based name parser (`_valid_name`, `_NON_NAME_WORDS`, `_PLACE_NAMES`); the LLM now writes `customer_name` in proper Vietnamese form (slot description + prompt rule), value checked by evidence only (`customer_name` in `_NORMALISED_VALUE_KEYS`). Removed `validate_interpretation` wrapper, optional `rejected`, unused `complexity` state key.
+- schemas: dropped unused fields `depends_on`, `clarification_question`, `unresolved_ambiguities`, `answers_pending_question`, `referenced_product_name`, `product_reference_ambiguous`, `catalog_request` (no readers). Tests in tests/ still reference some (not run, per user).
+- compose: LLM agent with `submit_reply` tool; code rejects markdown, new numbers, FORBIDDEN wording, unexecuted booking/contract claims; fallback = joined answers with markdown stripped. Single plain answer skips the LLM. Output Guard unchanged after it.
+- graph: checkpoint serializer allowlists schema types (LangGraph warned it will block unregistered types).
+- Live: livetest-name1-1793153383 ("dương định khang" -> Dương Định Khang, saved to customers; multi-part reply plain text; booking appointments.id=3), livetest-name2-1793153383 (given name "Khang" then correction -> Trần Văn Nam USER_CORRECTED; no customer row since no phone).
