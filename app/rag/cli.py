@@ -1,6 +1,6 @@
 """
 Công cụ dòng lệnh cho RAG:
-  python -m app.rag.cli reindex            # đọc lại data/knowledge, embed đoạn mới/đổi, in số chunk
+  python -m app.rag.cli reindex            # đọc lại data/knowledge, đồng bộ vào Postgres (chỉ embed đoạn mới/đổi), in số chunk
   python -m app.rag.cli "phanh kêu rít"    # xem điểm từng nhánh (BM25 / vector) và kết quả cuối — dùng để chỉnh ngưỡng
 """
 import sys
@@ -15,7 +15,8 @@ def main() -> None:
     r = build_retriever()
     if sys.argv[1] == "reindex":
         if hasattr(r, "reload"):
-            print(f"Đã lập chỉ mục {r.reload()} chunk (mode={getattr(r, 'effective_mode', 'keyword')})")
+            print(f"Đã lập chỉ mục {r.reload()} chunk (mode={getattr(r, 'effective_mode', 'keyword')}, "
+                  f"store={type(getattr(r, 'store', None)).__name__}, lexical={getattr(r, 'lexical', '-')})")
         return
     q = " ".join(sys.argv[1:])
     if hasattr(r, "debug"):

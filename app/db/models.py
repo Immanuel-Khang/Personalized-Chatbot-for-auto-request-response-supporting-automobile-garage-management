@@ -8,11 +8,12 @@ Mã trạng thái dạng varchar + CHECK, không dùng native ENUM. Timestamp UT
 import json
 from datetime import date, datetime, timezone
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, SmallInteger, String, Text,
-    UniqueConstraint, func,
+    UniqueConstraint, func, text, event, DDL, Computed,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
@@ -191,3 +192,34 @@ class CatalogItem(Base):
 
 
 
+
+
+# ---- RAG: chỉ mục tri thức (track A). File trong data/knowledge/ vẫn là nguồn gốc; bảng này là chỉ mục dùng chung
+# giữa các worker: chunk + vector (pgvector) + tsvector (full-text). id = hash nội dung -> đồng bộ tăng dần.
+RAG_EMBEDDING_DIM = 1536  # text-embedding-3-small. Đổi model khác chiều -> phải có migration mới (đổi cột + index)
+
+event.listen(Base.metadata, "before_create", DDL("CREATE EXTENSION IF NOT EXISTS vector"))
+
+
+class RagChunk(Base):
+    __tablename__ = "rag_chunks"
+    namespace: Mapped[str] = mapped_column(String(40), primary_key=True, default="knowledge", server_default="knowledge")
+    id: Mapped[str] = mapped_column(String(40), primary_key=True)  # Chunk.id (hash nội dung)
+    source: Mapped[str] = mapped_column(String(200))
+    section: Mapped[str] = mapped_column(Text, default="", server_default="")
+    kind: Mapped[str] = mapped_column(String(10), default="doc", server_default="doc")  # doc | faq
+    tags: Mapped[list[str]] = mapped_column(ARRAY(String), default=list, server_default="{}")
+    text: Mapped[str] = mapped_column(Text)
+    index_text: Mapped[str] = mapped_column(Text)
+    lex_text: Mapped[str] = mapped_column(Text)  # token đã bỏ dấu/stopword, nối bằng khoảng trắng (cho full-text)
+    tsv = mapped_column(TSVECTOR, Computed("to_tsvector('simple', lex_text)", persisted=True))
+    embedding = mapped_column(Vector(RAG_EMBEDDING_DIM), nullable=True)
+    embedding_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[datetime] = _created()
+    updated_at: Mapped[datetime] = _updated()
+
+    __table_args__ = (
+        Index("ix_rag_chunks_tsv", "tsv", postgresql_using="gin"),
+        Index("ix_rag_chunks_embedding", "embedding", postgresql_using="hnsw",
+              postgresql_ops={"embedding": "vector_cosine_ops"}),
+    )
