@@ -2,7 +2,6 @@
 import uuid
 
 from app.agent.nodes.appointment import PHONE_INVALID
-from app.agent.nodes.preprocess import _save_profile_to_db
 from app.db.models import ChatSession, Customer
 from app.db.session import SessionLocal
 from app.identity import get_or_create_session, normalize_phone
@@ -45,15 +44,15 @@ def _session_customer(session_id: str) -> Customer | None:
 
 
 def test_profile_save_normalizes_and_rejects_invalid_phone():
+    """Profile persistence lives in app/conversation.py (_save_phone -> attach_phone)."""
+    from app.conversation import _save_phone
     bad, good = f"profile-bad-{uuid.uuid4().hex[:8]}", f"profile-ok-{uuid.uuid4().hex[:8]}"
-    for sid in (bad, good):
-        with SessionLocal() as db:
-            get_or_create_session(db, sid)
-            db.commit()
-    _save_profile_to_db(bad, None, ELEVEN_DIGITS)
-    assert _session_customer(bad) is None
-
     phone = unique_phone()
-    _save_profile_to_db(good, None, phone)
+    for sid, raw in ((bad, ELEVEN_DIGITS), (good, phone)):
+        with SessionLocal() as db:
+            session = get_or_create_session(db, sid)
+            _save_phone(db, session, raw)
+            db.commit()
+    assert _session_customer(bad) is None
     customer = _session_customer(good)
     assert customer and customer.phone_number == normalize_phone(phone)

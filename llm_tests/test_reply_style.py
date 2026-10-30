@@ -1,7 +1,7 @@
 """Văn phong trả lời: không chào lại giữa hội thoại, chưa rõ ý thì hỏi lại thay vì đoán."""
 import pytest
 
-from app.agent.nodes.common import strip_greeting
+from app.agent.nodes.compose import strip_greeting
 from app.agent.nodes.compose import compose
 from app.agent.nodes.router import router
 from app.contracts.schemas import (
@@ -72,7 +72,6 @@ def test_unclear_message_in_active_flow_asks_back():
 def test_affirmation_continues_active_flow():
     text = "Ok"
     interpretation = _interpretation(Intent.APPOINTMENT, "book_appointment", text)
-    interpretation.answers_pending_question = True
     update = router({
         "conversation_interpretation": interpretation,
         "user_text": text,

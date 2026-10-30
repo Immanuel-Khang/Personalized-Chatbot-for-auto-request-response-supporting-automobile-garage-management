@@ -153,6 +153,27 @@ class SlotUpdate(BaseModel):
     related_task_id: Optional[str] = Field(default=None, description="Task ID this update relates to")
 
 
+class PolicySignals(BaseModel):
+    """Policy-relevant facts about the current message, read by policy_guard instead of keywords."""
+    wants_human: bool = Field(default=False, description="Customer explicitly asks for a human/staff member")
+    complaint: bool = Field(default=False, description="Customer complains or is clearly dissatisfied")
+    safety_risk: bool = Field(default=False, description="Vehicle shows a dangerous symptom (brakes, fire, smoke, steering)")
+    discount_request: bool = Field(default=False, description="Customer asks for or bargains a discount/gift")
+    deal_change: bool = Field(default=False, description=(
+        "Customer asks to change contract terms, renegotiate the price, or asks about contract fees; "
+        "not set when merely answering the decided price"))
+    note: Optional[str] = Field(default=None, description="Short reason for any true signal")
+
+
+class EntityReference(BaseModel):
+    """A reference such as 'xe số 1', 'mẫu thứ ba', 'nó' in the current message."""
+    mention: str = Field(description="Verbatim reference text from the current message")
+    position: Optional[int] = Field(
+        default=None, description="1-based position in shown_products; -1 means the last one")
+    entity_id: Optional[int] = Field(default=None, description="product id from shown_products, never invented")
+    ambiguous: bool = Field(default=False, description="True when the reference cannot be resolved uniquely")
+
+
 class TaskInterpretation(BaseModel):
     """Interpretation of a single task within the user's message."""
     task_id: str = Field(description="Application-generated unique ID for this task in this turn")
@@ -162,16 +183,14 @@ class TaskInterpretation(BaseModel):
     relationship: TaskRelationship = Field(description="How this task relates to conversation context")
     referenced_interaction_id: Optional[str] = Field(
         default=None, description="ID of the pending interaction this task responds to")
-    depends_on: list[str] = Field(
-        default_factory=list, description="Other task_ids in this turn that must complete first")
     requires_clarification: bool = Field(
         default=False, description="True when task cannot proceed without clarification")
-    clarification_question: Optional[str] = Field(
-        default=None, description="Question to ask if clarification needed")
     entity_id: Optional[int] = Field(
         default=None, description="Resolved catalog/entity identifier for this task")
     entity_type: Optional[str] = Field(
         default=None, description="Resolved entity type, e.g. PRODUCT")
+    inquiry_only: bool = Field(
+        default=False, description="Asks about a service/procedure without asking to start that workflow")
 
 
 class ConversationInterpretation(BaseModel):
@@ -181,16 +200,18 @@ class ConversationInterpretation(BaseModel):
         default_factory=list, description="Deduplicated, ordered task interpretations")
     slot_updates: list[SlotUpdate] = Field(
         default_factory=list, description="Proposed fact/slot changes with explicit operations")
-    unresolved_ambiguities: list[str] = Field(
-        default_factory=list, description="Issues requiring clarification")
+    references: list[EntityReference] = Field(
+        default_factory=list, description="References to previously shown products")
+    signals: PolicySignals = Field(default_factory=PolicySignals)
     # Interpretation signals consumed by application policy; these are not duplicated task state.
     complexity: str = Field(default="LOW", description="LOW or HIGH complexity of this turn")
-    answers_pending_question: bool = Field(default=False)
     accepts_offer: Optional[bool] = Field(default=None)
-    referenced_product_name: Optional[str] = Field(default=None)
-    product_reference_ambiguous: bool = Field(default=False)
     uncertain: bool = Field(default=False)
-    catalog_request: bool = Field(default=False)
+    # Pronoun adaptation based on customer's self-reference
+    customer_pronoun: Optional[str] = Field(
+        default=None,
+        description="Customer's self-reference pronoun detected in this message: 'anh', 'chị', 'em', 'bạn', or 'tôi'. Only set if explicitly used by customer."
+    )
 
 
 class KnownFact(BaseModel):
@@ -238,5 +259,9 @@ class ConversationContext(BaseModel):
         default=None, description="Currently active workflow if any")
     selected_entities: list[dict] = Field(
         default_factory=list, description="Resolved entities (products, bookings) from prior turns")
+    shown_products: list[dict] = Field(
+        default_factory=list, description="Most recent product list shown by the bot, with 1-based positions")
+    canonical_slots: dict[str, str] = Field(
+        default_factory=dict, description="The only slot keys allowed in slot_updates")
     available_actions: list[dict] = Field(
         default_factory=list, description="Canonical actions the application permits")

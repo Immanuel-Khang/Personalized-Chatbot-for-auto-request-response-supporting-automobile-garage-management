@@ -1,174 +1,115 @@
-"""Plan specialist execution exclusively from canonical interpretation and state."""
+"""Routing Node: map validated tasks to specialists.
+
+Reads only the structured interpretation and workflow state; it never re-parses the
+customer's text. One planned specialist is dispatched directly; several go through the
+Task Coordinator, which orders them and enforces the single-writer rule.
+"""
 from langgraph.types import Send
 
-from app.agent.nodes.common import step
-from app.agent.nodes.service_type import is_service_inquiry
 from app.agent.state import AgentState
-from app.contracts.schemas import Intent, TaskRelationship, WorkflowStatus
+from app.contracts.schemas import InteractionStatus, Intent, TaskRelationship, WorkflowStatus
 
 AGENTS = {
     Intent.CONTRACT: "contract", Intent.APPOINTMENT: "appointment",
     Intent.AFTER_SALES: "after_sales", Intent.MAINTENANCE: "knowledge",
-    Intent.SALES: "sales", Intent.KNOWLEDGE: "knowledge",
+    Intent.SALES: "sales", Intent.DISCOUNT: "sales", Intent.KNOWLEDGE: "knowledge",
     Intent.GREETING: "conversation", Intent.OTHER: "conversation",
 }
 READ_ONLY = ("sales", "knowledge", "after_sales", "conversation")
 WRITERS = ("contract", "appointment")
-MAX_READ_AGENTS = 3
-WRITER_ORDER = 100
-NOTE_ORDER = 200
-WRITER_LABEL = {"contract": "hoàn tất hợp đồng", "appointment": "đặt lịch hẹn"}
-DEFERRED_NOTE = "Sau bước này mình sẽ hỗ trợ tiếp phần {label} cho bạn nhé."
-CONTRACT_QUESTION = ("giấy tờ", "thủ tục", "hồ sơ", "cần chuẩn bị", "cần những gì", "điều kiện")
-BOOKING_FACTS = {"service_type", "appointment_when", "when_text", "service_detail"}
-BOOKING_SLOTS = BOOKING_FACTS
-CANCEL_WORDS = ("hủy", "huỷ", "không đặt", "không muốn đặt", "không cần đặt", "không book")
-AFFIRM = ("được", "ok", "oke", "okay", "ừ", "ừm", "vâng", "dạ", "có", "đồng ý", "tiếp tục", "đúng rồi", "uh")
+BOOKING_FACTS = {"service_type", "appointment_when", "service_detail"}
+CONTINUING = {TaskRelationship.ANSWER_TO_QUESTION, TaskRelationship.ACCEPT_OFFER,
+              TaskRelationship.CONTINUE_TASK, TaskRelationship.CORRECT_PREVIOUS_INFO}
 
 
-def _affirm(text: str) -> bool:
-    return text.casefold().strip().rstrip(".!?, ") in AFFIRM
-
-
-def _facts(state: AgentState) -> dict:
-    return {key: fact.value for key, fact in (state.get("known_facts") or {}).items()}
-
-
-def _is_cancel(state: AgentState, tasks) -> bool:
-    if state.get("safety"):
-        return False
-    text = state.get("user_text", "").casefold().strip().rstrip(".!?")
+def _active_writer(state: AgentState) -> str | None:
     workflow = state.get("active_workflow")
-    return any(word in text for word in CANCEL_WORDS) or any(
-        task.relationship == TaskRelationship.CANCEL_TASK for task in tasks
-    ) or bool(workflow and text in ("thôi", "không cần", "không muốn", "không, cảm ơn"))
+    if workflow and workflow.workflow_type in WRITERS and workflow.status in (
+            WorkflowStatus.ACTIVE, WorkflowStatus.WAITING_FOR_USER):
+        return workflow.workflow_type
+    return None
 
 
-def _relationship_pending(task) -> bool:
-    return task.relationship in {
-        TaskRelationship.ANSWER_TO_QUESTION, TaskRelationship.ACCEPT_OFFER,
-        TaskRelationship.REJECT_OFFER, TaskRelationship.CONTINUE_TASK,
-    }
+def _offer_workflow(state: AgentState, task) -> str | None:
+    """Workflow of the pending interaction this task answers, if any."""
+    open_items = [item for item in state.get("pending_interactions") or [] if item.status == InteractionStatus.OPEN]
+    match = next((item for item in open_items if item.interaction_id == task.referenced_interaction_id), None)
+    match = match or (open_items[-1] if open_items else None)
+    workflow = match.metadata.get("workflow") if match else None
+    return workflow if workflow in WRITERS else None
 
 
-def _contract_inquiry(task) -> bool:
-    return task.domain in (Intent.CONTRACT, Intent.SALES) and any(
-        phrase in task.text.casefold() for phrase in CONTRACT_QUESTION
-    )
+def _route_task(state: AgentState, task) -> tuple[str, str | None]:
+    """(agent, conversation reason) for one task."""
+    if task.inquiry_only:
+        if task.domain == Intent.CONTRACT:
+            return "conversation", "contract_inquiry"
+        if task.domain in (Intent.APPOINTMENT, Intent.MAINTENANCE, Intent.KNOWLEDGE, Intent.AFTER_SALES):
+            return "conversation", "service_inquiry"
+    if task.relationship == TaskRelationship.REJECT_OFFER:
+        return "conversation", "decline"
+    if task.domain == Intent.GREETING:
+        return "conversation", "greeting"
+    if task.domain == Intent.OTHER:
+        if task.relationship in CONTINUING and (writer := _offer_workflow(state, task) or _active_writer(state)):
+            return writer, None
+        return "conversation", "clarify" if task.requires_clarification else None
+    return AGENTS[task.domain], None
 
 
-def _open_tasks(state: AgentState):
-    interpretation = state.get("conversation_interpretation")
-    return list(interpretation.tasks) if interpretation else []
+def _cancel(state: AgentState, cancel_tasks: list) -> dict:
+    """Close open interactions and the active workflow; the caller still routes the message's other tasks."""
+    pending = [item.model_copy(update={"status": InteractionStatus.REJECTED})
+               if item.status == InteractionStatus.OPEN else item for item in state.get("pending_interactions") or []]
+    workflow = state.get("active_workflow")
+    facts = dict(state.get("known_facts") or {})
+    if (workflow and workflow.workflow_type == "appointment") or any(
+            task.domain == Intent.APPOINTMENT for task in cancel_tasks):
+        facts = {key: fact for key, fact in facts.items() if key not in BOOKING_FACTS}
+    text = ", ".join(task.text for task in cancel_tasks if task.text) or state.get("user_text", "")
+    return {"plan": [{"agent": "conversation", "text": text, "order": 0, "task_ids": [t.task_id for t in cancel_tasks]}],
+            "route_reason": "cancel", "pending_interactions": pending, "known_facts": facts, "active_workflow": None}
 
 
 def router(state: AgentState) -> dict:
-    update: dict = {"trace": step(state, "router")}
+    update: dict = {"trace": ["router"]}
     text = state.get("user_text", "")
     interpretation = state.get("conversation_interpretation")
-    tasks = _open_tasks(state)
-    workflow = state.get("active_workflow")
-    facts = _facts(state)
+    tasks = list(interpretation.tasks) if interpretation else []
 
-    if state.get("safety"):
-        update.update(plan=[{"agent": "knowledge", "text": text, "order": 0}], planned_agents=["knowledge"])
-        return update
-
-    if _is_cancel(state, tasks):
-        pending = [item.model_copy(update={"status": "REJECTED"}) for item in state.get("pending_interactions", [])
-                   if getattr(item.status, "value", item.status) == "OPEN"]
-        cleared = {key: fact for key, fact in (state.get("known_facts") or {}).items() if key not in BOOKING_FACTS}
-        update.update(
-            plan=[{"agent": "conversation", "text": text, "order": 0}],
-            planned_agents=["conversation"],
-            route_reason="cancel",
-            pending_interactions=pending,
-            known_facts=cleared,
-            active_workflow=None,
-        )
-        return update
-
-    if not tasks:
-        clarification = "clarify" if interpretation and interpretation.uncertain else None
-        if not workflow and is_service_inquiry(text):
-            update.update(plan=[{"agent": "conversation", "text": text, "order": 0}],
-                          planned_agents=["conversation"], route_reason="service_inquiry")
+    if state.get("safety"):  # policy guard flagged a safety risk the bot may still answer
+        plan = [{"agent": "knowledge", "text": text, "order": 0}]
+        return {**update, "plan": plan, "planned_agents": ["knowledge"], "route_reason": "safety"}
+    plan: list[dict] = []
+    reason = "clarify" if not tasks or (interpretation and interpretation.uncertain) else None
+    cancels = [task for task in tasks if task.relationship == TaskRelationship.CANCEL_TASK]
+    if cancels:
+        # "Hủy lịch, cho mình hỏi X": cancel first, then still answer X in the same turn.
+        cancelled = _cancel(state, cancels)
+        plan, reason = cancelled.pop("plan"), cancelled.pop("route_reason")
+        update.update(cancelled)
+        state = {**state, **cancelled}  # later tasks see the cleared workflow, not the cancelled one
+        tasks = [task for task in tasks if task.relationship != TaskRelationship.CANCEL_TASK]
+    for order, task in enumerate(tasks, start=len(plan)):
+        agent, task_reason = _route_task(state, task)
+        reason = reason or task_reason
+        existing = next((item for item in plan if item["agent"] == agent), None)
+        if existing:  # one specialist call per agent; it receives all of its task texts
+            existing["text"] = f"{existing['text']}, {task.text}" if task.text not in existing["text"] else existing["text"]
+            existing["task_ids"].append(task.task_id)
         else:
-            update.update(plan=[{"agent": "conversation", "text": text, "order": 0}],
-                          planned_agents=["conversation"], route_reason=clarification)
-        return update
+            plan.append({"agent": agent, "text": task.text or text, "order": order, "task_ids": [task.task_id]})
+    if not plan:
+        plan = [{"agent": "conversation", "text": text, "order": 0, "task_ids": []}]
+    return {**update, "plan": plan, "planned_agents": [item["agent"] for item in plan], "route_reason": reason}
 
-    grouped: dict[str, dict] = {}
-    booking_active = bool(workflow and workflow.workflow_type == "appointment")
-    for task in tasks:
-        agent = AGENTS.get(task.domain, "conversation")
-        if _contract_inquiry(task) and not (workflow and workflow.workflow_type == "contract"):
-            agent = "conversation"
-        if task.domain == Intent.MAINTENANCE and booking_active and not any(
-            word in task.text.casefold() for word in ("bao lâu", "bao nhiêu", "khi nào", "chi phí", "tại sao")
-        ):
-            continue
-        group = grouped.setdefault(agent, {"agent": agent, "texts": [], "tasks": []})
-        if task.text and task.text not in group["texts"]:
-            group["texts"].append(task.text)
-        group["tasks"].append(task)
 
-    groups = [{**item, "text": ", ".join(item.pop("texts"))} for item in grouped.values()]
-    reads = [group for group in groups if group["agent"] in READ_ONLY][:MAX_READ_AGENTS]
-    writers = sorted((group for group in groups if group["agent"] in WRITERS),
-                     key=lambda group: WRITERS.index(group["agent"]))
-
-    active_agent = None
-    if workflow and workflow.status in (WorkflowStatus.ACTIVE, WorkflowStatus.WAITING_FOR_USER):
-        active_agent = workflow.workflow_type if workflow.workflow_type in WRITERS else None
-    writer = writers[0] if writers else None
-    deferred = writers[1] if len(writers) > 1 else None
-
-    if writer is None and active_agent and (
-        bool(interpretation and (interpretation.slot_updates or interpretation.answers_pending_question))
-        or any(_relationship_pending(task) for task in tasks)
-    ):
-        writer = {"agent": active_agent, "text": text}
-    elif writer is None and not reads and active_agent and interpretation and interpretation.accepts_offer:
-        writer = {"agent": active_agent, "text": text}
-
-    if not writer and not reads:
-        if not active_agent and not workflow and is_service_inquiry(text):
-            update.update(plan=[{"agent": "conversation", "text": text, "order": 0}],
-                          planned_agents=["conversation"], route_reason="service_inquiry")
-        else:
-            update.update(plan=[{"agent": "conversation", "text": text, "order": 0}],
-                          planned_agents=["conversation"], route_reason="clarify" if active_agent else None)
-        return update
-
-    plan = [{"agent": group["agent"], "text": group["text"], "order": order}
-            for order, group in enumerate(reads)]
-    if writer:
-        plan.append({"agent": writer["agent"], "text": writer["text"], "order": WRITER_ORDER})
-    if deferred:
-        deferred_agent = deferred["agent"]
-        update["answers"] = [{"agent": "router", "order": NOTE_ORDER, "needs_human": False,
-                              "text": DEFERRED_NOTE.format(label=WRITER_LABEL[deferred_agent])}]
-        update["active_workflow"] = {
-            "workflow_id": f"{state.get('session_id', 'session')}_{deferred_agent}",
-            "workflow_type": deferred_agent, "status": WorkflowStatus.WAITING_FOR_USER,
-            "collected_facts": facts,
-        }
-    elif writer and (not workflow or workflow.workflow_type != writer["agent"]):
-        update["active_workflow"] = {
-            "workflow_id": f"{state.get('session_id', 'session')}_{writer['agent']}",
-            "workflow_type": writer["agent"], "status": WorkflowStatus.ACTIVE,
-            "collected_facts": facts,
-        }
-    if interpretation and any(_contract_inquiry(task) for task in tasks):
-        update["route_reason"] = "contract_inquiry"
-    update.update(plan=plan, planned_agents=[item["agent"] for item in plan])
-    return update
+def send_all(state: AgentState, plan: list[dict]) -> list[Send]:
+    return [Send(item["agent"], {**state, "task_text": item["text"], "task_order": item["order"],
+                                 "task_ids": item.get("task_ids", [])}) for item in plan]
 
 
 def dispatch(state: AgentState):
-    plan = state.get("plan", [])
-    if not plan:
-        return "compose"
-    return [Send(item["agent"], {**state, "task_text": item["text"], "task_order": item["order"]})
-            for item in plan]
+    """Single specialist -> run it directly; several tasks -> Task Coordinator."""
+    plan = state.get("plan") or []
+    return "coordinator" if len(plan) > 1 else send_all(state, plan)

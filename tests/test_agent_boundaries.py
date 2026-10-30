@@ -9,7 +9,6 @@ from app.agent.nodes.compose import compose
 from app.agent.nodes.output_guard import output_guard
 from app.agent.nodes.preprocess import _apply_interpretation, _trace_safe, validate_interpretation
 from app.agent.nodes.router import WRITERS, router
-from app.agent.nodes.segments import split_clauses
 
 
 def classify_clause(text: str) -> set[str]:
@@ -342,9 +341,3 @@ def test_llm_budget_search_regression(client, monkeypatch):
     response = chat(client, "Tư vấn xe trong ngân sách 800 triệu", "budget")
     search.assert_called_once_with(800000000, limit=3)
     assert "sales" in response["trace"] and response["mode"] == "BOT" and "đồng" in response["reply"]
-
-
-def test_split_clauses_keeps_original_text():
-    assert split_clauses("So sánh Foton và Isuzu", classify_clause) == [("So sánh Foton và Isuzu", {"SALES"})]
-    assert [c for c, _ in split_clauses("Xe giá 1.5 tỷ phải không. Phanh kêu tại sao", classify_clause)] == \
-        ["Xe giá 1.5 tỷ phải không", "Phanh kêu tại sao"]

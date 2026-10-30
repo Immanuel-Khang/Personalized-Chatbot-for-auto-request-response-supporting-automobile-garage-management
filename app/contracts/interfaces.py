@@ -26,7 +26,8 @@ class KnowledgeService(Protocol):
 
 class BookingService(Protocol):
     def create_appointment(
-        self, session_id: str, service_type: ServiceType, when_text: str, phone: str
+        self, session_id: str, service_type: ServiceType, when_text: str, phone: str,
+        detail: str | None = None,
     ) -> BookingResult: ...
 
 
