@@ -12,10 +12,21 @@ from app.agent.nodes.validation import CLAIMS
 from app.agent.state import AgentState
 from app.contracts.schemas import Intent
 
+
+def _get_pronouns(state: AgentState) -> tuple[str, str]:
+    """Return (customer_address, bot_address) based on state."""
+    customer_pronoun = state.get("customer_pronoun")
+    bot_pronoun = state.get("bot_pronoun")
+
+    if customer_pronoun in ("anh", "chị"):
+        return customer_pronoun, bot_pronoun or "em"
+    return "bạn", bot_pronoun or "mình"
+
+
 # Quy tắc văn phong chung cho mọi prompt sinh câu trả lời
 STYLE_RULES = """\
 - KHÔNG mở đầu bằng lời chào hay gọi tên khách (VD "Chào Khang,") trừ khi khách vừa chào; đi thẳng vào nội dung.
-- Xưng hô: LUÔN dùng "mình" hoặc "shop" (bot) với "bạn" (khách). KHÔNG dùng "em - anh/chị".
+- Xưng hô: {pronoun_instruction}
 - Nếu không chắc khách muốn gì, hỏi lại ngắn gọn để làm rõ; KHÔNG tự suy đoán.
 - Trả lời thẳng câu khách vừa hỏi trước, sau đó mới gợi ý MỘT bước tiếp theo hữu ích (nếu có); không bắt câu nào cũng kết bằng câu hỏi.
 - Chỉ hỏi thông tin thật sự cần cho việc đang làm; KHÔNG hỏi lại thông tin khách đã cung cấp.
@@ -25,7 +36,7 @@ STYLE_RULES = """\
 - Nếu các mẫu xe, bảng so sánh hoặc thông số kỹ thuật đã được trình bày ở các lượt trả lời trước đó trong lịch sử trò chuyện, TUYỆT ĐỐI KHÔNG liệt kê hay trình bày lại từ đầu. Đi thẳng vào giải đáp, phân tích điểm khác biệt cho chi tiết mới mà khách vừa nhắn.
 """
 
-COMPOSE_PROMPT = """\
+COMPOSE_PROMPT_TEMPLATE = """\
 Bạn là Response Composer của xưởng Foton. Bạn nhận các phần trả lời đã được kiểm duyệt (theo thứ tự) và viết
 thành MỘT tin nhắn tự nhiên, mạch lạc gửi khách.
 QUY TẮC:
@@ -34,10 +45,10 @@ QUY TẮC:
 - Không để lộ tên trường kỹ thuật hay mã nội bộ (price_as_of, ID sản phẩm); viết "giá áp dụng từ ngày ...".
 - Nếu nhiều phần cùng kết bằng câu hỏi, chỉ giữ MỘT câu hỏi tiếp theo quan trọng nhất, đặt ở cuối.
 - Văn bản thuần: KHÔNG dùng markdown (không *, **, #, `). Danh sách dùng "- " ở đầu dòng.
-- Xưng hô: LUÔN dùng "mình" hoặc "shop" (bot) với "bạn" (khách). KHÔNG dùng "em - anh/chị".
+- Xưng hô: {pronoun_instruction}
 CÁCH LÀM: gọi submit_reply với tin nhắn hoàn chỉnh. Nếu bị từ chối, sửa đúng các lỗi được trả về rồi gọi lại.
 Khi được chấp nhận thì dừng, không viết thêm.
-""" + STYLE_RULES
+"""
 
 TOOLS = [{"name": "submit_reply", "description": "Gửi tin nhắn cuối cùng cho khách; hệ thống kiểm tra trước khi chấp nhận.",
           "input_schema": {"type": "object", "properties": {"reply": {"type": "string"}}, "required": ["reply"]}}]
@@ -110,8 +121,19 @@ def _rewrite(state: AgentState, texts: list[str], executed: bool) -> str:
             accepted.setdefault("reply", draft)
         return {"accepted": not problems, "problems": problems}
 
+    # Get pronouns and format compose prompt
+    customer, bot = _get_pronouns(state)
+    if customer in ("anh", "chị"):
+        pronoun_instruction = f"LUÔN dùng '{customer}' (khách) với '{bot}' (bot/shop). KHÔNG dùng bạn/mình."
+    else:
+        pronoun_instruction = f"LUÔN dùng '{bot}' hoặc 'shop' (bot) với '{customer}' (khách). KHÔNG dùng anh/chị-em."
+
+    compose_prompt = COMPOSE_PROMPT_TEMPLATE.format(pronoun_instruction=pronoun_instruction)
+    style_rules = STYLE_RULES.format(pronoun_instruction=pronoun_instruction)
+    full_prompt = compose_prompt + style_rules
+
     parts = "\n\n".join(f"[Phần {i}]\n{text}" for i, text in enumerate(texts, 1))
-    generate_with_tools(COMPOSE_PROMPT, f"Tin nhắn của khách: {state.get('user_text', '')}\n\nCác phần trả lời:\n{parts}",
+    generate_with_tools(full_prompt, f"Tin nhắn của khách: {state.get('user_text', '')}\n\nCác phần trả lời:\n{parts}",
                         TOOLS, submit, history=state.get("history"), max_turns=3)
     return accepted.get("reply") or _plain(sources)
 

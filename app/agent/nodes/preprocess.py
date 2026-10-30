@@ -94,6 +94,13 @@ ConversationInterpretation. Các node sau chỉ đọc kết quả của bạn, 
    deal_change (khách muốn sửa điều khoản hợp đồng, thương lượng lại giá, hoặc hỏi phí/chi phí phát sinh
    của hợp đồng; KHÔNG bật khi khách chỉ trả lời giá chốt bot hỏi hay khi chữ "giá/phí" nằm trong tên riêng).
    complexity=HIGH chỉ khi câu hỏi kỹ thuật vượt quá tư vấn thông thường (chẩn đoán phức tạp).
+7. Xưng hô (customer_pronoun): Phát hiện cách khách tự xưng trong tin nhắn MỚI NHẤT. Chỉ ghi khi khách
+   THỰC SỰ dùng đại từ nhân xưng để chỉ bản thân trong câu có hành động/yêu cầu:
+   - "anh muốn mua xe" / "cho anh đặt lịch" -> customer_pronoun="anh"
+   - "chị cần tư vấn" / "chị hỏi giá" -> customer_pronoun="chị"
+   - "em muốn xem" / "tôi muốn" / "bạn cho mình hỏi" -> customer_pronoun=null (giữ neutral)
+   KHÔNG ghi khi: khách chỉ chào hỏi chung ("Chào anh"), lời xã giao, hoặc không có đại từ rõ ràng.
+   Chỉ nhận "anh" hoặc "chị"; các xưng hô khác (em/bạn/tôi/mình) -> null (dùng xưng hô neutral).
 """
 
 
@@ -228,7 +235,22 @@ def _apply_interpretation(state: AgentState, interpretation: ConversationInterpr
         source = FactSource.USER_CORRECTED if update.operation == SlotOperation.CORRECT else FactSource.USER_EXPLICIT
         facts[update.key] = KnownFact(key=update.key, value=update.value, source=source,
                                       updated_at_message_id=update.source_message_id)
-    return {"conversation_interpretation": applied, "known_facts": facts, "rejected_slots": rejected}
+
+    # Adapt pronouns based on customer's self-reference
+    result = {"conversation_interpretation": applied, "known_facts": facts, "rejected_slots": rejected}
+    detected = applied.customer_pronoun
+    if detected in ("anh", "chị"):
+        # Customer uses formal pronoun -> Bot adapts to respectful form
+        result["customer_pronoun"] = detected
+        result["bot_pronoun"] = "em"
+    elif detected or state.get("customer_pronoun"):
+        # Customer uses neutral/informal (em/bạn/tôi) or no pronoun detected but we have existing preference
+        # Keep existing preference or default to neutral
+        if not detected:
+            result["customer_pronoun"] = state.get("customer_pronoun")
+            result["bot_pronoun"] = state.get("bot_pronoun") or "mình"
+
+    return result
 
 
 def _trace_safe(value, key: str | None = None):

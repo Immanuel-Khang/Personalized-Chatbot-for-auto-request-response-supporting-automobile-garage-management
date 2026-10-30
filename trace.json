@@ -1,13 +1,13 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách chào và cho biết muốn mua xe.",
+      "message_summary": "Khách hỏi ngày mai có thể đến xem xe không.",
       "tasks": [
         {
           "task_id": "t1",
-          "domain": "OTHER",
-          "action": "general_conversation",
-          "text": "Chào shop, anh muốn mua xe",
+          "domain": "APPOINTMENT",
+          "action": "book_appointment",
+          "text": "ngày mai chị đến xem xe được không?",
           "relationship": "NEW_REQUEST",
           "referenced_interaction_id": null,
           "requires_clarification": false,
@@ -28,10 +28,35 @@
       },
       "complexity": "LOW",
       "accepts_offer": null,
-      "uncertain": false
+      "uncertain": false,
+      "customer_pronoun": "chị"
     },
-    "known_facts": {},
+    "known_facts": {
+      "intended_use": {
+        "key": "intended_use",
+        "value": "chở hàng",
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "payload_tons": {
+        "key": "payload_tons",
+        "value": "5",
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "car_model": {
+        "key": "car_model",
+        "value": "FI170",
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      }
+    },
     "rejected_slots": [],
+    "customer_pronoun": "chị",
+    "bot_pronoun": "em",
     "trace": [
       "preprocess"
     ]
@@ -40,6 +65,8 @@
     "conversation_interpretation",
     "known_facts",
     "rejected_slots",
+    "customer_pronoun",
+    "bot_pronoun",
     "trace"
   ]
 }

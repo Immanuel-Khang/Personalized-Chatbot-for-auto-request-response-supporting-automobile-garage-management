@@ -8,6 +8,17 @@ from app.agent.nodes.compose import STYLE_RULES
 from app.agent.state import AgentState, answer, fact_value, open_pending
 from app.contracts.schemas import ActiveWorkflow, InteractionKind, InteractionStatus, PendingInteraction, WorkflowStatus
 
+
+def _get_pronouns(state: AgentState) -> tuple[str, str]:
+    """Return (customer_address, bot_address) based on state."""
+    customer_pronoun = state.get("customer_pronoun")
+    bot_pronoun = state.get("bot_pronoun")
+
+    if customer_pronoun in ("anh", "chị"):
+        return customer_pronoun, bot_pronoun or "em"
+    return "bạn", bot_pronoun or "mình"
+
+
 REQUIRED_FIELDS = {
     "customer_name": "Họ và tên",
     "customer_phone": "Số điện thoại",
@@ -16,7 +27,7 @@ REQUIRED_FIELDS = {
     "decided_price": "Mức giá chốt hợp đồng (VNĐ)",
 }
 
-CONTRACT_SYSTEM_PROMPT = """\
+CONTRACT_SYSTEM_PROMPT_TEMPLATE = """\
 Bạn là chuyên viên pháp lý và thủ tục hợp đồng mua xe Foton.
 QUY TẮC:
 1. PHẢI xác nhận/ghi nhận thông tin khách vừa cung cấp trước khi hỏi tiếp.
@@ -25,9 +36,9 @@ QUY TẮC:
    và hẹn ngày ký kết/bàn giao xe.
 4. Luôn trả lời bằng tiếng Việt, lịch sự và chuyên nghiệp.
 5. KHÔNG tự bịa thông tin khách chưa cung cấp.
-""" + STYLE_RULES
-SUMMARY_CLOSING = ("Tư vấn viên bên shop sẽ liên hệ bạn để hẹn ngày ký kết và bàn giao xe. "
-                   "Cảm ơn bạn đã tin tưởng và sử dụng dịch vụ bên mình!")
+"""
+SUMMARY_CLOSING_TEMPLATE = ("Tư vấn viên bên shop sẽ liên hệ {customer} để hẹn ngày ký kết và bàn giao xe. "
+                   "Cảm ơn {customer} đã tin tưởng và sử dụng dịch vụ bên {bot}!")
 
 
 def contract(state: AgentState) -> dict:
@@ -41,6 +52,19 @@ def contract(state: AgentState) -> dict:
         workflow = ActiveWorkflow(workflow_id=f"{state.get('session_id', 'session')}_contract",
                                   workflow_type="contract", status=WorkflowStatus.ACTIVE)
     pending = open_pending(state, "contract")
+
+    # Get pronouns for formatting
+    customer, bot = _get_pronouns(state)
+    customer_cap, bot_cap = customer.capitalize(), bot.capitalize()
+
+    # Format prompts with pronouns
+    if customer in ("anh", "chị"):
+        pronoun_instruction = f"LUÔN dùng '{customer}' (khách) với '{bot}' (bot/shop). KHÔNG dùng bạn/mình."
+    else:
+        pronoun_instruction = f"LUÔN dùng '{bot}' hoặc 'shop' (bot) với '{customer}' (khách). KHÔNG dùng anh/chị-em."
+
+    CONTRACT_SYSTEM_PROMPT = CONTRACT_SYSTEM_PROMPT_TEMPLATE + STYLE_RULES.format(pronoun_instruction=pronoun_instruction)
+    SUMMARY_CLOSING = SUMMARY_CLOSING_TEMPLATE.format(customer=customer, bot=bot, customer_cap=customer_cap, bot_cap=bot_cap)
 
     # Contract/price changes need a human. Preprocessing's LLM judges this in context (a keyword list
     # wrongly escalated "Giá chốt là 480 triệu" and names such as "Phí Văn Long").
@@ -58,7 +82,7 @@ def contract(state: AgentState) -> dict:
                          f"⚠️ THÔNG TIN CÒN THIẾU: {labels}\n\n"
                          "Hãy chúc mừng khách và xin nốt các thông tin còn thiếu.",
                          history=state.get("history")) or (
-            f"🎉 Chúc mừng bạn đã quyết định chốt xe!\nĐể hoàn tất hợp đồng, mình cần thêm: {', '.join(labels)}.")
+            f"🎉 Chúc mừng {customer} đã quyết định chốt xe!\nĐể hoàn tất hợp đồng, {bot} cần thêm: {', '.join(labels)}.")
         question = PendingInteraction(
             interaction_id=f"contract_{uuid.uuid4().hex[:8]}", kind=InteractionKind.QUESTION, text=reply,
             status=InteractionStatus.OPEN, metadata={"workflow": "contract", "missing_fields": missing})

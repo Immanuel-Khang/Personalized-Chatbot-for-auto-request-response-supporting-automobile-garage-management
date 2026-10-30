@@ -48,6 +48,9 @@ class AgentState(TypedDict, total=False):
     rejected_slots: list[str]
     active_workflow: ActiveWorkflow | None
     selected_entities: list[dict]
+    # Pronoun adaptation: how to address customer and how bot refers to itself
+    customer_pronoun: str | None  # 'anh', 'chị', or None (use neutral 'bạn')
+    bot_pronoun: str | None  # 'em' (when customer uses anh/chị), or 'mình'/'shop' (neutral)
 
 
 def answer(state: AgentState, agent: str, text: str = "", needs_human: bool = False,

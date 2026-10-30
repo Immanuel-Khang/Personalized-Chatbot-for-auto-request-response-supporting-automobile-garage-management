@@ -9,10 +9,21 @@ from app.db.models import ChatSession, Customer
 from app.db.session import SessionLocal
 from app.services import get_services
 
+
+def _get_pronouns(state: AgentState) -> tuple[str, str]:
+    """Return (customer_address, bot_address) based on state."""
+    customer_pronoun = state.get("customer_pronoun")
+    bot_pronoun = state.get("bot_pronoun")
+
+    if customer_pronoun in ("anh", "chị"):
+        return customer_pronoun, bot_pronoun or "em"
+    return "bạn", bot_pronoun or "mình"
+
+
 CONVERSATION_SYSTEM_PROMPT = """\
 Bạn là trợ lý thân thiện của xưởng Foton. Nhiệm vụ của bạn:
-1. Chào lại ngắn gọn khi khách chào. Nếu chưa biết tên khách, hỏi lịch sự "Bạn có thể cho mình biết họ tên để thuận tiện xưng hô được không ạ?" rồi giới thiệu các dịch vụ.
-2. Xưng hô: LUÔN dùng "mình" hoặc "shop" (bot) với "bạn" (khách). KHÔNG dùng "em - anh/chị".
+1. Chào lại ngắn gọn khi khách chào. Nếu chưa biết tên khách, hỏi lịch sự "{customer} có thể cho {bot} biết họ tên để thuận tiện xưng hô được không ạ?" rồi giới thiệu các dịch vụ.
+2. Xưng hô: Dùng "{bot}" hoặc "shop" (bot) với "{customer}" (khách). {pronoun_rule}
 3. Hướng dẫn lịch sự khi khách hỏi ngoài phạm vi (gợi ý: tư vấn xe, báo giá, đặt lịch bảo dưỡng/lái thử, kiến thức kỹ thuật)
 4. Xác nhận khi khách muốn hủy yêu cầu
 5. Trả lời câu hỏi về thông tin khách đã cung cấp trước đó (tên, số điện thoại)
@@ -48,19 +59,25 @@ INTENT_CONTEXT = {
               "nếu chưa rõ ý thì hỏi lại; nếu ngoài phạm vi thì hướng dẫn lịch sự các chủ đề bạn hỗ trợ."),
 }
 
-FALLBACK = {
-    "greeting": ("Dạ chào bạn 👋 Mình là trợ lý của xưởng Foton ạ. "
-                 "Mình có thể tư vấn xe, báo giá, đặt lịch bảo dưỡng/lái thử, hoặc giải đáp kỹ thuật.\n"
-                 "Bạn có thể cho mình biết họ tên để thuận tiện xưng hô được không ạ?"),
-    "cancel": "Dạ, mình đã dừng yêu cầu đang chờ ạ. Bạn cần mình hỗ trợ gì thêm thì cứ nhắn nhé.",
-    "clarify": "Dạ, mình chưa hiểu rõ ý bạn lắm ạ. Bạn nói rõ hơn giúp mình được không ạ?",
-    "service_inquiry": ("Dạ, về {component} thì kỹ thuật viên bên mình cần xem trực tiếp mới xác nhận được hướng xử lý và chi phí ạ. "
-                        "Nếu bạn muốn, mình có thể sắp xếp để bạn mang xe qua xưởng kiểm tra."),
-    "contract_inquiry": ("Dạ, danh mục giấy tờ cụ thể sẽ do nhân viên tư vấn xác nhận theo hình thức mua của bạn ạ. "
-                         "Bạn cần mình chuyển câu hỏi này cho nhân viên tư vấn không?"),
-    "decline": "Dạ vâng ạ. Bạn cần mình hỗ trợ gì thêm thì cứ nhắn nhé.",
-    "clarify_offer": "{question}",
-    "other": "Dạ, mình chưa hiểu rõ ý bạn ạ. Bạn có thể hỏi về giá xe, đặt lịch bảo dưỡng/lái thử, hoặc kiến thức kỹ thuật nhé.",
+
+def _format_fallback(text: str, customer: str, bot: str, **kwargs) -> str:
+    """Format fallback text with pronouns and other kwargs."""
+    return text.format(customer=customer, bot=bot, **kwargs)
+
+
+FALLBACK_TEMPLATES = {
+    "greeting": ("Dạ chào {customer} 👋 {bot_cap} là trợ lý của xưởng Foton ạ. "
+                 "{bot_cap} có thể tư vấn xe, báo giá, đặt lịch bảo dưỡng/lái thử, hoặc giải đáp kỹ thuật.\n"
+                 "{customer_cap} có thể cho {bot} biết họ tên để thuận tiện xưng hô được không ạ?"),
+    "cancel": "Dạ, {bot} đã dừng yêu cầu đang chờ ạ. {customer_cap} cần {bot} hỗ trợ gì thêm thì cứ nhắn nhé.",
+    "clarify": "Dạ, {bot} chưa hiểu rõ ý {customer} lắm ạ. {customer_cap} nói rõ hơn giúp {bot} được không ạ?",
+    "service_inquiry": ("Dạ, về {{component}} thì kỹ thuật viên bên {bot} cần xem trực tiếp mới xác nhận được hướng xử lý và chi phí ạ. "
+                        "Nếu {customer} muốn, {bot} có thể sắp xếp để {customer} mang xe qua xưởng kiểm tra."),
+    "contract_inquiry": ("Dạ, danh mục giấy tờ cụ thể sẽ do nhân viên tư vấn xác nhận theo hình thức mua của {customer} ạ. "
+                         "{customer_cap} cần {bot} chuyển câu hỏi này cho nhân viên tư vấn không?"),
+    "decline": "Dạ vâng ạ. {customer_cap} cần {bot} hỗ trợ gì thêm thì cứ nhắn nhé.",
+    "clarify_offer": "{{question}}",
+    "other": "Dạ, {bot} chưa hiểu rõ ý {customer} ạ. {customer_cap} có thể hỏi về giá xe, đặt lịch bảo dưỡng/lái thử, hoặc kiến thức kỹ thuật nhé.",
 }
 
 
@@ -95,6 +112,17 @@ def conversation(state: AgentState) -> dict:
     question = state.get("task_text") or state.get("user_text", "")
     reason = _reason(state)
 
+    # Get pronouns based on customer's usage
+    customer, bot = _get_pronouns(state)
+    customer_cap = customer.capitalize()
+    bot_cap = bot.capitalize()
+
+    # Determine pronoun rule for system prompt
+    if customer in ("anh", "chị"):
+        pronoun_rule = f"Khách xưng {customer}, nên dùng {customer}-{bot}."
+    else:
+        pronoun_rule = "KHÔNG dùng anh/chị-em trừ khi khách đã xưng anh/chị trước đó."
+
     # Lấy thông tin khách từ DB (lịch sử hội thoại đi dạng message qua state['history'])
     session_id = state.get("session_id", "")
     name, phone = _get_customer_profile(session_id)
@@ -107,8 +135,8 @@ def conversation(state: AgentState) -> dict:
     # For greeting, add name request instruction if name is unknown
     name_prompt = ""
     if reason == "greeting" and not name:
-        name_prompt = ("Sau khi chào và giới thiệu dịch vụ, hỏi lịch sự: 'Bạn có thể cho mình biết họ tên để "
-                      "thuận tiện xưng hô được không ạ?'")
+        name_prompt = (f"Sau khi chào và giới thiệu dịch vụ, hỏi lịch sự: '{customer_cap} có thể cho {bot} biết "
+                      f"họ tên để thuận tiện xưng hô được không ạ?'")
     elif reason == "greeting" and name:
         name_prompt = f"Đã biết tên khách là {name}."
 
@@ -128,10 +156,20 @@ def conversation(state: AgentState) -> dict:
 Tin nhắn mới của khách: {question}
 """
 
-    reply = generate(CONVERSATION_SYSTEM_PROMPT.format(hotline=settings.hotline, style=STYLE_RULES), context,
-                     history=state.get("history"))
+    system_prompt = CONVERSATION_SYSTEM_PROMPT.format(
+        customer=customer, bot=bot, pronoun_rule=pronoun_rule,
+        hotline=settings.hotline, style=STYLE_RULES
+    )
+
+    reply = generate(system_prompt, context, history=state.get("history"))
+
     detail = fact_value(state.get("known_facts"), "service_detail")
-    fallback = FALLBACK.get(reason, FALLBACK["other"]).format(component=detail or "tình trạng xe",
-                                                                question=offer_question)
+    # Format fallback with pronouns
+    template = FALLBACK_TEMPLATES.get(reason, FALLBACK_TEMPLATES["other"])
+    fallback = template.format(
+        customer=customer, bot=bot, customer_cap=customer_cap, bot_cap=bot_cap,
+        component=detail or "tình trạng xe", question=offer_question
+    )
+
     update["answers"] = [answer(state, "conversation", reply or fallback)]
     return update
