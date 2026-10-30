@@ -5,22 +5,13 @@ import uuid
 
 from app.agent.llm import generate
 from app.agent.nodes.compose import STYLE_RULES
-from app.agent.state import AgentState, answer, fact_value, open_pending
+from app.agent.state import AgentState, answer, fact_value, open_pending, pronoun_instruction, pronoun_vars
+from app.identity import is_full_name
 from app.contracts.schemas import ActiveWorkflow, InteractionKind, InteractionStatus, PendingInteraction, WorkflowStatus
 
 
-def _get_pronouns(state: AgentState) -> tuple[str, str]:
-    """Return (customer_address, bot_address) based on state."""
-    customer_pronoun = state.get("customer_pronoun")
-    bot_pronoun = state.get("bot_pronoun")
-
-    if customer_pronoun in ("anh", "chị"):
-        return customer_pronoun, bot_pronoun or "em"
-    return "bạn", bot_pronoun or "mình"
-
-
 REQUIRED_FIELDS = {
-    "customer_name": "Họ và tên",
+    "customer_name": "Họ và tên đầy đủ",
     "customer_phone": "Số điện thoại",
     "customer_address": "Địa chỉ nhận xe / hộ khẩu",
     "car_model": "Dòng xe chọn mua",
@@ -45,6 +36,8 @@ def contract(state: AgentState) -> dict:
     facts = state.get("known_facts") or {}
     interpretation = state.get("conversation_interpretation")
     collected = {key: fact_value(facts, key) for key in REQUIRED_FIELDS if fact_value(facts, key) is not None}
+    if not is_full_name(str(collected.get("customer_name") or "")):
+        collected.pop("customer_name", None)  # hợp đồng cần họ tên đầy đủ, không chỉ tên gọi
     present = {REQUIRED_FIELDS[key]: value for key, value in collected.items()}
     missing = [key for key in REQUIRED_FIELDS if key not in collected]
     workflow = state.get("active_workflow")
@@ -53,18 +46,11 @@ def contract(state: AgentState) -> dict:
                                   workflow_type="contract", status=WorkflowStatus.ACTIVE)
     pending = open_pending(state, "contract")
 
-    # Get pronouns for formatting
-    customer, bot = _get_pronouns(state)
-    customer_cap, bot_cap = customer.capitalize(), bot.capitalize()
-
-    # Format prompts with pronouns
-    if customer in ("anh", "chị"):
-        pronoun_instruction = f"LUÔN dùng '{customer}' (khách) với '{bot}' (bot/shop). KHÔNG dùng bạn/mình."
-    else:
-        pronoun_instruction = f"LUÔN dùng '{bot}' hoặc 'shop' (bot) với '{customer}' (khách). KHÔNG dùng anh/chị-em."
-
-    CONTRACT_SYSTEM_PROMPT = CONTRACT_SYSTEM_PROMPT_TEMPLATE + STYLE_RULES.format(pronoun_instruction=pronoun_instruction)
-    SUMMARY_CLOSING = SUMMARY_CLOSING_TEMPLATE.format(customer=customer, bot=bot, customer_cap=customer_cap, bot_cap=bot_cap)
+    p = pronoun_vars(state)
+    customer, bot = p["customer"], p["bot"]
+    CONTRACT_SYSTEM_PROMPT = CONTRACT_SYSTEM_PROMPT_TEMPLATE + STYLE_RULES.format(
+        pronoun_instruction=pronoun_instruction(customer, bot))
+    SUMMARY_CLOSING = SUMMARY_CLOSING_TEMPLATE.format(**p)
 
     # Contract/price changes need a human. Preprocessing's LLM judges this in context (a keyword list
     # wrongly escalated "Giá chốt là 480 triệu" and names such as "Phí Văn Long").

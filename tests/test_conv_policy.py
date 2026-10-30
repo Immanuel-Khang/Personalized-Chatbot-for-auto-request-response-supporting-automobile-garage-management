@@ -122,7 +122,7 @@ def test_tc06_short_time_reply_fills_slot(client):
 
 def test_appointment_deferral_does_not_create_a_question_before_writer_runs(client):
     conv = Conversation(client, "deferred-appointment")
-    result = conv.say("Mình chốt mua xe, đặt lịch lái thử nữa")
+    result = conv.say("Mình chốt mua xe, đặt lịch qua showroom xem xe nữa")
     assert "contract" in result["trace"] and "appointment" not in result["trace"]
     assert _workflow(conv.state) == "appointment"
     assert not any(item.metadata.get("workflow") == "appointment" for item in _open_pending(conv.state))
@@ -135,7 +135,7 @@ def test_appointment_deferral_does_not_create_a_question_before_writer_runs(clie
 
 def test_two_writers_deferred_appointment_asks_phone_after_slots_available(client):
     conv = Conversation(client, "deferred-with-phone")
-    result = conv.say(f"Mình chốt mua xe, đặt lịch lái thử nữa, số điện thoại {unique_phone()}")
+    result = conv.say(f"Mình chốt mua xe, đặt lịch qua showroom xem xe nữa, số điện thoại {unique_phone()}")
     assert "contract" in result["trace"] and "appointment" not in result["trace"]
     assert not conv.appointments()
     next_turn = conv.say("Được")
@@ -246,7 +246,7 @@ def test_test_database_session_is_isolated(client):
 
 def test_appointment_writer_is_only_run_after_deferred_request_is_selected(client):
     conv = Conversation(client, "deferred-writer-trace")
-    first = conv.say("Mình chốt mua xe, đặt lịch lái thử nữa")
+    first = conv.say("Mình chốt mua xe, đặt lịch qua showroom xem xe nữa")
     assert "appointment" not in first["trace"]
     second = conv.say("Được")
     assert "appointment" in second["trace"]
@@ -254,7 +254,7 @@ def test_appointment_writer_is_only_run_after_deferred_request_is_selected(clien
 
 def test_two_writer_deferral_preserves_appointment_workflow(client):
     conv = Conversation(client, "deferred-workflow")
-    conv.say("Mình chốt mua xe, đặt lịch lái thử nữa")
+    conv.say("Mình chốt mua xe, đặt lịch qua showroom xem xe nữa")
     workflow = conv.state.get("active_workflow")
     assert workflow and workflow.workflow_type == "appointment"
     assert workflow.status.value == "WAITING_FOR_USER"

@@ -20,6 +20,12 @@ def normalize_phone(raw: str) -> str | None:
     return "+84" + digits[1:] if re.fullmatch(r"0\d{9}", digits) else None
 
 
+def is_full_name(name: str | None) -> bool:
+    """Họ và tên đầy đủ: ít nhất hai từ chữ cái ("Khang" là tên gọi, "Dương Định Khang" là họ tên)."""
+    words = [w for w in (name or "").split() if any(c.isalpha() for c in w)]
+    return len(words) >= 2
+
+
 def get_or_create_session(db: Session, session_id: str) -> ChatSession:
     # ON CONFLICT DO NOTHING: hai request đầu tiên cùng lúc của một trình duyệt không bị lỗi trùng khóa
     db.execute(insert(ChatSession).values(id=session_id).on_conflict_do_nothing(index_elements=["id"]))
@@ -60,8 +66,10 @@ def sync_contact(db: Session, session: ChatSession, raw_phone: str | None = None
             customer.phone_number = phone
         else:
             session.customer_id, customer, switched = owner.id, owner, True
+    if name and not is_full_name(name):
+        name = None  # tên gọi chỉ dùng để xưng hô trong phiên, không ghi vào hồ sơ khách
     if name and customer is not None and customer.full_name != name and (
-            not customer.full_name or (name_corrected and not switched and customer.phone_verified_at is None)):
+            not is_full_name(customer.full_name) or (name_corrected and not switched and customer.phone_verified_at is None)):
         customer.full_name = name
     return customer
 

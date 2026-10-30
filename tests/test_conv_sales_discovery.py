@@ -127,9 +127,9 @@ def test_unsure_is_not_a_comprehension_failure(client):
     assert not _fact(conv.state, "intended_use")
 
 
-def test_sales_plus_test_drive_routes_both_tasks(client):
+def test_sales_plus_showroom_visit_routes_both_tasks(client):
     conv = Conversation(client, "buy-drive")
-    result = conv.say("Tôi muốn mua xe và đặt lịch lái thử")
+    result = conv.say("Tôi muốn mua xe và đặt lịch xem xe tại showroom")
     assert {"sales", "appointment"} <= set(result["trace"])
     assert conv.state.get("active_workflow").workflow_type == "appointment"
 

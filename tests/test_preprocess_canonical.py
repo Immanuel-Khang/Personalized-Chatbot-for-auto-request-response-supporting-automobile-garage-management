@@ -1,7 +1,7 @@
 import json
 from types import SimpleNamespace
 
-from app.agent.nodes.preprocess import _apply_interpretation, _trace_safe, validate_interpretation
+from app.agent.nodes.preprocess import _apply_interpretation, _canonical_value, _trace_safe, validate_interpretation
 from app.contracts.schemas import (
     ConversationInterpretation,
     EntityReference,
@@ -134,9 +134,9 @@ def test_showroom_booking_does_not_invent_intended_use():
 
 
 def test_uncorroborated_fact_is_not_written_to_known_facts():
-    state = {"user_text": "Tôi muốn đặt lịch lái thử", "known_facts": {}}
+    state = {"user_text": "Tôi muốn đặt lịch xem xe", "known_facts": {}}
     interpretation = ConversationInterpretation(
-        message_summary="Khách muốn đặt lịch lái thử.",
+        message_summary="Khách muốn đặt lịch xem xe.",
         tasks=[_task(Intent.APPOINTMENT, "book_appointment", state["user_text"])],
         slot_updates=[SlotUpdate(key="appointment_when", operation=SlotOperation.SET,
                                  value="ngày mai", evidence="ngày mai")],
@@ -229,3 +229,9 @@ def test_redaction_keeps_non_sensitive_catalog_data():
 
     assert result["tasks"][0]["entity_id"] == 12
     assert result["tasks"][0]["entity_type"] == "PRODUCT"
+
+
+def test_test_drive_is_not_a_service_type():
+    """Xưởng không có dịch vụ lái thử: giá trị TEST_DRIVE từ LLM bị loại, không ghi vào known_facts."""
+    assert _canonical_value("service_type", "TEST_DRIVE") is None
+    assert _canonical_value("service_type", "showroom_visit") == "SHOWROOM_VISIT"

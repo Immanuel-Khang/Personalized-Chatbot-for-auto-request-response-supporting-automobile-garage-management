@@ -18,7 +18,7 @@ from pathlib import Path
 from app.agent.llm import generate_structured
 from app.agent.nodes.input import build_context
 from app.agent.state import AgentState
-from app.identity import normalize_phone
+from app.identity import normalize_phone, is_full_name
 from app.contracts.schemas import (
     ConversationInterpretation,
     FactSource,
@@ -40,8 +40,8 @@ CANONICAL_SLOTS = {
     "intended_use": "Mục đích dùng xe (chở hàng, chở người, xe ben...)",
     "payload_tons": "Tải trọng mong muốn (tấn, số)",
     "car_model": "Tên mẫu/dòng xe khách nói rõ",
-    "service_type": ("Loại lịch hẹn: MAINTENANCE (bảo dưỡng) | REPAIR (sửa chữa) | TEST_DRIVE (lái thử) | "
-                     "SHOWROOM_VISIT (xem xe tại showroom)"),
+    "service_type": ("Loại lịch hẹn: MAINTENANCE (bảo dưỡng) | REPAIR (sửa chữa) | "
+                     "SHOWROOM_VISIT (xem xe tại showroom). Xưởng KHÔNG có dịch vụ lái thử"),
     "service_detail": "Hạng mục/bộ phận cần xử lý (kính, phanh, điều hòa...)",
     "appointment_when": "Ngày giờ hẹn đúng như khách nói (VD 'sáng thứ 7 tuần sau')",
     "customer_phone": "Số điện thoại khách",
@@ -71,14 +71,14 @@ ConversationInterpretation. Các node sau chỉ đọc kết quả của bạn, 
    - Hủy/không muốn tiếp tục việc đang làm: CANCEL_TASK.
 2. Tách task: mỗi yêu cầu riêng biệt là một task, đúng thứ tự xuất hiện. "Tìm xe số 1 và đặt
    lịch xem xe" = task SALES product_detail + task APPOINTMENT book_appointment. Chỉ phân tích
-   yêu cầu MỚI; không lặp lại task của các lượt trước. Xem xe tại showroom/lái thử là APPOINTMENT.
+   yêu cầu MỚI; không lặp lại task của các lượt trước. Xem xe tại showroom là APPOINTMENT.
    Mặc cả, xin giảm giá, xin quà là DISCOUNT. Khách chỉ HỎI xưởng có làm dịch vụ X không, hoặc hỏi
    thủ tục/giấy tờ, mà chưa yêu cầu đặt lịch/làm hợp đồng: inquiry_only=true.
 3. Slot: chỉ dùng key trong canonical_slots. Chỉ tạo slot_update khi khách nói rõ trong tin nhắn
    mới (hoặc tin nhắn là câu trả lời ngắn cho câu bot vừa hỏi về đúng slot đó). evidence là đoạn
    nguyên văn trong tin nhắn mới. Không suy đoán giá trị. Khi khách đặt lịch, ghi service_type theo
-   loại lịch khách nói: "xem xe" -> SHOWROOM_VISIT, "lái thử" -> TEST_DRIVE, "bảo dưỡng" -> MAINTENANCE,
-   "sửa" -> REPAIR (evidence là cụm từ đó). Khách nêu thời gian hẹn dù chưa có giờ cụ thể ("chiều thứ 2
+   loại lịch khách nói: "xem xe" -> SHOWROOM_VISIT, "bảo dưỡng" -> MAINTENANCE,
+   "sửa" -> REPAIR (evidence là cụm từ đó). Xưởng không có dịch vụ lái thử: KHÔNG ghi service_type cho "lái thử". Khách nêu thời gian hẹn dù chưa có giờ cụ thể ("chiều thứ 2
    tuần sau", "sáng mai") -> vẫn ghi appointment_when đúng như khách nói; nhân viên sẽ chốt giờ, đó KHÔNG
    phải điểm mơ hồ. Khách sửa tên/SĐT/địa chỉ -> slot_update CORRECT cho đúng key đó.
    Tên khách (customer_name): chỉ khi khách tự giới thiệu hoặc trả lời câu hỏi tên. Ghi dạng chuẩn có dấu, viết hoa
@@ -181,8 +181,11 @@ def _validated_updates(state: AgentState, interpretation: ConversationInterpreta
         old = facts.get(key)
         old_value = getattr(old, "value", old)
         # Identity is only overwritten by an explicit correction, never by a stray mention.
+        # Completing a given name ("Khang") with the full name ("Dương Định Khang") is not an overwrite.
+        completes = (key == "customer_name" and old_value and not is_full_name(str(old_value))
+                     and is_full_name(str(update.value)))
         if (key == "customer_name" and old_value and old_value != update.value and not corrects
-                and update.operation != SlotOperation.CORRECT):
+                and not completes and update.operation != SlotOperation.CORRECT):
             logger.warning("Discarding customer_name update that would overwrite a known name")
             continue
         operation = update.operation

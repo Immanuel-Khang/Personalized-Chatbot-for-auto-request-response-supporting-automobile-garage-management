@@ -51,8 +51,8 @@ def appointments(conv):
         return db.query(Appointment).filter_by(session_id=conv).all()
 
 
-def test_price_and_test_drive_same_turn_single_booking(client):
-    first = chat(client, "Giá xe Foton Aumark bao nhiêu, cho mình chạy thử", "same-turn")
+def test_price_and_showroom_visit_same_turn_single_booking(client):
+    first = chat(client, "Giá xe Foton Aumark bao nhiêu, cho mình qua showroom xem xe", "same-turn")
     conv = first["session_id"]
     assert {"sales", "appointment"} <= set(first["trace"])
     assert "đồng" in first["reply"] and first["reply"].rstrip().endswith("Bạn muốn đến vào ngày giờ nào?")
@@ -65,7 +65,7 @@ def test_price_and_test_drive_same_turn_single_booking(client):
     assert checkpoint(conv)["active_workflow"].status.value == "WAITING_FOR_APPROVAL"
     assert "appointment" not in chat(client, "Cảm ơn", "same-turn", conv)["trace"]
     booked = appointments(conv)
-    assert len(booked) == 1 and booked[0].service_type == "TEST_DRIVE"
+    assert len(booked) == 1 and booked[0].service_type == "SHOWROOM_VISIT"
 
 
 def test_showroom_visit_goes_to_appointment(client):
@@ -83,7 +83,7 @@ def test_read_question_during_booking_keeps_flow(client):
 
 
 def test_two_writers_defer_second_with_note(client):
-    first = chat(client, "Mình chốt mua xe, đặt lịch lái thử nữa", "two-writers")
+    first = chat(client, "Mình chốt mua xe, đặt lịch qua showroom xem xe nữa", "two-writers")
     conv = first["session_id"]
     assert "contract" in first["trace"] and "appointment" not in first["trace"]
     assert "đặt lịch hẹn" in first["reply"]
@@ -112,7 +112,7 @@ def test_cancel_and_greeting_in_active_flow(client):
 
 
 def test_policy_escalation_clears_flow(client):
-    first = chat(client, "Giá xe Foton Aumark bao nhiêu, cho mình chạy thử", "escalate")
+    first = chat(client, "Giá xe Foton Aumark bao nhiêu, cho mình qua showroom xem xe", "escalate")
     conv = first["session_id"]
     escalated = chat(client, "Giảm giá cho mình", "escalate", conv)
     assert escalated["mode"] == "HUMAN_PENDING" and "appointment" not in escalated["trace"]
@@ -161,7 +161,7 @@ def test_cancelled_booking_does_not_reuse_old_date(client):
     conv = first["session_id"]
     chat(client, "Thôi không đặt nữa", "stale-date", conv)
     assert not checkpoint(conv)["known_facts"].get("appointment_when")
-    result = chat(client, "Đặt lịch lái thử 0912345678", "stale-date", conv)
+    result = chat(client, "Đặt lịch sửa xe 0912345678", "stale-date", conv)
     assert "ngày giờ" in result["reply"] and "ghi nhận lịch hẹn" not in result["reply"]
     assert appointments(conv) == []
 
@@ -259,14 +259,14 @@ def test_policy_records_all_handover_reasons(client):
 
 
 def test_canonical_tasks_drive_parallel_plan(monkeypatch):
-    text = "Tư vấn xe 800 triệu và cho lái thử"
+    text = "Tư vấn xe 800 triệu và cho xem xe"
     interpretation = ConversationInterpretation(
-        message_summary="Khách cần tư vấn xe và lái thử.",
+        message_summary="Khách cần tư vấn xe và xem xe.",
         tasks=[
             TaskInterpretation(task_id="sales", domain=Intent.SALES, action="search_catalog",
                                text="Tư vấn xe 800 triệu", relationship=TaskRelationship.NEW_REQUEST),
             TaskInterpretation(task_id="appointment", domain=Intent.APPOINTMENT, action="book_appointment",
-                               text="cho lái thử", relationship=TaskRelationship.NEW_REQUEST),
+                               text="cho xem xe", relationship=TaskRelationship.NEW_REQUEST),
         ],
         slot_updates=[SlotUpdate(key="budget_vnd", operation=SlotOperation.SET,
                                  value=800000000, evidence="800 triệu")],
@@ -278,7 +278,7 @@ def test_canonical_tasks_drive_parallel_plan(monkeypatch):
     assert output["known_facts"]["budget_vnd"].value == 800000000
     plan = router({**output, "user_text": text})["plan"]
     assert [(item["agent"], item["text"]) for item in plan] == [
-        ("sales", "Tư vấn xe 800 triệu"), ("appointment", "cho lái thử")]
+        ("sales", "Tư vấn xe 800 triệu"), ("appointment", "cho xem xe")]
 
 
 def test_canonical_empty_interpretation_and_unsupported_updates(monkeypatch):

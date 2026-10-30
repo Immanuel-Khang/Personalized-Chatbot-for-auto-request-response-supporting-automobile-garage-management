@@ -9,18 +9,8 @@ import re
 from app.agent.llm import generate_with_tools
 from app.agent.nodes.output_guard import FORBIDDEN
 from app.agent.nodes.validation import CLAIMS
-from app.agent.state import AgentState
+from app.agent.state import AgentState, pronoun_instruction, pronouns
 from app.contracts.schemas import Intent
-
-
-def _get_pronouns(state: AgentState) -> tuple[str, str]:
-    """Return (customer_address, bot_address) based on state."""
-    customer_pronoun = state.get("customer_pronoun")
-    bot_pronoun = state.get("bot_pronoun")
-
-    if customer_pronoun in ("anh", "chị"):
-        return customer_pronoun, bot_pronoun or "em"
-    return "bạn", bot_pronoun or "mình"
 
 
 # Quy tắc văn phong chung cho mọi prompt sinh câu trả lời
@@ -30,7 +20,8 @@ STYLE_RULES = """\
 - Nếu không chắc khách muốn gì, hỏi lại ngắn gọn để làm rõ; KHÔNG tự suy đoán.
 - Trả lời thẳng câu khách vừa hỏi trước, sau đó mới gợi ý MỘT bước tiếp theo hữu ích (nếu có); không bắt câu nào cũng kết bằng câu hỏi.
 - Chỉ hỏi thông tin thật sự cần cho việc đang làm; KHÔNG hỏi lại thông tin khách đã cung cấp.
-- Gợi ý một việc (đặt lịch, lái thử, hợp đồng) KHÔNG phải là đã làm; KHÔNG nói đã đặt/xác nhận/áp dụng khi hệ thống chưa báo thành công.
+- Gợi ý một việc (đặt lịch, hợp đồng) KHÔNG phải là đã làm; KHÔNG nói đã đặt/xác nhận/áp dụng khi hệ thống chưa báo thành công.
+- Xưởng KHÔNG có dịch vụ lái thử; không gợi ý hay hứa lái thử.
 - Chỉ dùng dữ liệu được cung cấp (catalog, tài liệu, kết quả hệ thống); thiếu dữ liệu thì nói rõ phần nào cần nhân viên xác nhận.
 - Lịch sự, tự nhiên như nhân viên cố vấn dịch vụ; không lộ tên luồng, intent hay lỗi kỹ thuật nội bộ.
 - Nếu các mẫu xe, bảng so sánh hoặc thông số kỹ thuật đã được trình bày ở các lượt trả lời trước đó trong lịch sử trò chuyện, TUYỆT ĐỐI KHÔNG liệt kê hay trình bày lại từ đầu. Đi thẳng vào giải đáp, phân tích điểm khác biệt cho chi tiết mới mà khách vừa nhắn.
@@ -110,26 +101,19 @@ def _needs_composition(texts: list[str]) -> bool:
 def _rewrite(state: AgentState, texts: list[str], executed: bool) -> str:
     sources = "\n\n".join(texts)
     if not _needs_composition(texts):
-        print("Single-intent ans")
         return sources  # Single clean answer; skip LLM to reduce latency
     accepted: dict[str, str] = {}
 
-    def submit(name: str, args: dict) -> dict:
+    def submit(_name: str, args: dict) -> dict:
         draft = str(args.get("reply", "")).strip()
         problems = _problems(draft, sources, executed)
         if not problems:
             accepted.setdefault("reply", draft)
         return {"accepted": not problems, "problems": problems}
 
-    # Get pronouns and format compose prompt
-    customer, bot = _get_pronouns(state)
-    if customer in ("anh", "chị"):
-        pronoun_instruction = f"LUÔN dùng '{customer}' (khách) với '{bot}' (bot/shop). KHÔNG dùng bạn/mình."
-    else:
-        pronoun_instruction = f"LUÔN dùng '{bot}' hoặc 'shop' (bot) với '{customer}' (khách). KHÔNG dùng anh/chị-em."
-
-    compose_prompt = COMPOSE_PROMPT_TEMPLATE.format(pronoun_instruction=pronoun_instruction)
-    style_rules = STYLE_RULES.format(pronoun_instruction=pronoun_instruction)
+    instruction = pronoun_instruction(*pronouns(state))
+    compose_prompt = COMPOSE_PROMPT_TEMPLATE.format(pronoun_instruction=instruction)
+    style_rules = STYLE_RULES.format(pronoun_instruction=instruction)
     full_prompt = compose_prompt + style_rules
 
     parts = "\n\n".join(f"[Phần {i}]\n{text}" for i, text in enumerate(texts, 1))

@@ -53,9 +53,9 @@ def test_correction_updates_fact_without_mutating_prior_state():
 
 
 def test_uncorroborated_slot_update_is_discarded():
-    state = {"user_text": "Tôi muốn đặt lịch lái thử", "known_facts": {}}
+    state = {"user_text": "Tôi muốn đặt lịch xem xe", "known_facts": {}}
     interpretation = ConversationInterpretation(
-        message_summary="Khách muốn đặt lịch lái thử.",
+        message_summary="Khách muốn đặt lịch xem xe.",
         slot_updates=[SlotUpdate(key="appointment_when", operation=SlotOperation.SET,
                                  value="ngày mai", evidence="ngày mai")],
     )

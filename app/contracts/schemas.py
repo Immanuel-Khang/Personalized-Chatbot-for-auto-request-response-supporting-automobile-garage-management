@@ -28,7 +28,6 @@ class ConversationMode(str, Enum):
 class ServiceType(str, Enum):
     MAINTENANCE = "MAINTENANCE"
     REPAIR = "REPAIR"
-    TEST_DRIVE = "TEST_DRIVE"
     SHOWROOM_VISIT = "SHOWROOM_VISIT"
 
 

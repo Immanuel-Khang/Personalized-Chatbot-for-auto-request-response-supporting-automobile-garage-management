@@ -66,6 +66,26 @@ def fact_value(facts: dict | None, key: str):
     return getattr((facts or {}).get(key), "value", None)
 
 
+def pronouns(state: AgentState) -> tuple[str, str]:
+    """(customer, bot) address terms: anh/chị-em once the customer used them, else neutral bạn-mình."""
+    customer, bot = state.get("customer_pronoun"), state.get("bot_pronoun")
+    if customer in ("anh", "chị"):
+        return customer, bot or "em"
+    return "bạn", bot or "mình"
+
+
+def pronoun_vars(state: AgentState) -> dict[str, str]:
+    """Template kwargs: customer, bot, customer_cap, bot_cap."""
+    customer, bot = pronouns(state)
+    return {"customer": customer, "bot": bot, "customer_cap": customer.capitalize(), "bot_cap": bot.capitalize()}
+
+
+def pronoun_instruction(customer: str, bot: str) -> str:
+    if customer in ("anh", "chị"):
+        return f"LUÔN dùng '{customer}' (khách) với '{bot}' (bot/shop). KHÔNG dùng bạn/mình."
+    return f"LUÔN dùng '{bot}' hoặc 'shop' (bot) với '{customer}' (khách). KHÔNG dùng anh/chị-em."
+
+
 def open_pending(state: AgentState, workflow: str | None = None) -> list[PendingInteraction]:
     """Open pending interactions, optionally only those owned by ``workflow``."""
     return [item for item in state.get("pending_interactions") or [] if item.status == InteractionStatus.OPEN

@@ -118,7 +118,7 @@ Table showrooms {
 Table appointment_slots {
   id integer [pk, increment]
   showroom_id smallint [not null, ref: > showrooms.id]
-  slot_type varchar(20) [not null, check: `slot_type IN ('SERVICE_BAY', 'TEST_DRIVE', 'SHOWROOM_VISIT')`]
+  slot_type varchar(20) [not null, check: `slot_type IN ('SERVICE_BAY', 'SHOWROOM_VISIT')`]
   starts_at timestamp [not null]
   ends_at timestamp [not null]
   capacity smallint [not null, check: `capacity > 0`]
@@ -137,9 +137,9 @@ Table appointments {
   customer_id integer [not null, ref: > customers.id]
   session_id varchar(64) [ref: > chat_sessions.id]
   slot_id integer [not null, ref: > appointment_slots.id]
-  service_type varchar(20) [not null, check: `service_type IN ('MAINTENANCE', 'REPAIR', 'TEST_DRIVE', 'SHOWROOM_VISIT')`]
-  vehicle_id integer [ref: > customer_vehicles.id, note: 'Xe của khách (bảo dưỡng, sửa chữa). NULL khi lái thử hoặc xem xe.']
-  variant_id integer [ref: > vehicle_variants.id, note: 'Mẫu xe muốn lái thử hoặc xem. NULL khi là dịch vụ cho xe của khách.']
+  service_type varchar(20) [not null, check: `service_type IN ('MAINTENANCE', 'REPAIR', 'SHOWROOM_VISIT')`]
+  vehicle_id integer [ref: > customer_vehicles.id, note: 'Xe của khách (bảo dưỡng, sửa chữa). NULL khi xem xe.']
+  variant_id integer [ref: > vehicle_variants.id, note: 'Mẫu xe muốn xem. NULL khi là dịch vụ cho xe của khách.']
   contact_phone varchar(20) [not null]
   status varchar(20) [not null, default: 'PENDING_APPROVAL', check: `status IN ('PENDING_APPROVAL', 'CONFIRMED', 'REJECTED', 'CANCELLED', 'DONE')`]
   note text

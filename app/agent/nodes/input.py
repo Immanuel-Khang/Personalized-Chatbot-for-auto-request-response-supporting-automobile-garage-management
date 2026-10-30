@@ -17,7 +17,7 @@ AVAILABLE_ACTIONS = [
     {"action": "show_catalog", "domain": "SALES", "description": "Show vehicle catalog on explicit request"},
     {"action": "product_detail", "domain": "SALES", "description": "Show a previously displayed product"},
     {"action": "book_appointment", "domain": "APPOINTMENT",
-     "description": "Book service, showroom visit, or test drive",
+     "description": "Book service or showroom visit",
      "required_fields": ["service_type", "appointment_when", "customer_phone"]},
     {"action": "answer_knowledge", "domain": "KNOWLEDGE", "description": "Answer technical or service questions"},
     {"action": "maintenance_schedule", "domain": "MAINTENANCE", "description": "Maintenance milestones and costs"},

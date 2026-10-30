@@ -1,4 +1,4 @@
-"""Appointment Agent: book a service, test drive, or showroom visit from canonical known facts.
+"""Appointment Agent: book a service or showroom visit from canonical known facts.
 
 Slots arrive validated from Preprocessing. Booking is a business action, so the decision to call
 BookingService stays in code: ask for missing slots, confirm unless the customer explicitly asked,
@@ -9,23 +9,13 @@ import uuid
 
 from app.agent.llm import generate
 from app.agent.nodes.compose import STYLE_RULES
-from app.agent.state import AgentState, answer, fact_value, open_pending
+from app.agent.state import AgentState, answer, fact_value, open_pending, pronoun_instruction, pronoun_vars
 from app.config import settings
 from app.contracts.schemas import (
     ActiveWorkflow, InteractionKind, InteractionStatus, PendingInteraction, ServiceType, WorkflowStatus,
 )
 from app.identity import normalize_phone
 from app.services import get_services
-
-
-def _get_pronouns(state: AgentState) -> tuple[str, str]:
-    """Return (customer_address, bot_address) based on state."""
-    customer_pronoun = state.get("customer_pronoun")
-    bot_pronoun = state.get("bot_pronoun")
-
-    if customer_pronoun in ("anh", "chị"):
-        return customer_pronoun, bot_pronoun or "em"
-    return "bạn", bot_pronoun or "mình"
 
 
 APPOINTMENT_SYSTEM_PROMPT_TEMPLATE = """\
@@ -40,13 +30,13 @@ QUY TẮC:
 """
 
 REQUIRED_TEMPLATES = {
-    "service_type": ("Loại dịch vụ (bảo dưỡng/sửa chữa/lái thử/xem xe)",
-                     "{customer_cap} muốn đặt lịch bảo dưỡng, sửa chữa, lái thử hay xem xe tại showroom?"),
+    "service_type": ("Loại dịch vụ (bảo dưỡng/sửa chữa/xem xe)",
+                     "{customer_cap} muốn đặt lịch bảo dưỡng, sửa chữa hay xem xe tại showroom?"),
     "appointment_when": ("Ngày giờ hẹn", "{customer_cap} muốn đến vào ngày giờ nào?"),
     "customer_phone": ("Số điện thoại", "{customer_cap} cho {bot} xin số điện thoại để xác nhận lịch nhé?"),
 }
 LABELS = {ServiceType.MAINTENANCE: "bảo dưỡng", ServiceType.REPAIR: "sửa chữa",
-          ServiceType.TEST_DRIVE: "lái thử", ServiceType.SHOWROOM_VISIT: "xem xe trực tiếp tại showroom"}
+          ServiceType.SHOWROOM_VISIT: "xem xe trực tiếp tại showroom"}
 CONFIRM_TEMPLATE = "{bot_cap} ghi nhận lịch {{label}} ({{when}}) cho {customer}. {customer_cap} xác nhận đặt lịch này giúp {bot} nhé?"
 PHONE_INVALID_TEMPLATE = "Số điện thoại {customer} vừa gửi chưa đúng định dạng (10 số, bắt đầu bằng 0), {customer} kiểm tra lại giúp {bot} nhé."
 BOOKING_FAILED_TEMPLATE = ("Hiện {bot} chưa xác nhận được lịch {{when}} trên hệ thống ạ. {bot_cap} vẫn giữ thông tin {customer} đã cung cấp, "
@@ -54,6 +44,10 @@ BOOKING_FAILED_TEMPLATE = ("Hiện {bot} chưa xác nhận được lịch {{whe
 BOOKING_KEYS = {"service_type", "appointment_when", "service_detail"}
 CONTACT_KEYS = {"customer_name", "customer_phone"}
 EXPLICIT = {"NEW_REQUEST", "CONTINUE_TASK", "ACCEPT_OFFER"}
+
+
+def _required(p: dict[str, str]) -> dict[str, tuple[str, str]]:
+    return {key: (label, question.format(**p)) for key, (label, question) in REQUIRED_TEMPLATES.items()}
 
 
 def _booking_detail(state: AgentState, facts: dict) -> str | None:
@@ -71,29 +65,14 @@ def _booking_detail(state: AgentState, facts: dict) -> str | None:
 
 def _ask(state: AgentState, missing: list[str], facts: dict) -> str:
     """Ask for the first missing slot in context; a just-rejected phone is reported as invalid."""
-    customer, bot = _get_pronouns(state)
-    customer_cap, bot_cap = customer.capitalize(), bot.capitalize()
-
-    # Format REQUIRED with pronouns
-    REQUIRED = {
-        k: (v[0], v[1].format(customer=customer, bot=bot, customer_cap=customer_cap, bot_cap=bot_cap))
-        for k, v in REQUIRED_TEMPLATES.items()
-    }
-
-    PHONE_INVALID = PHONE_INVALID_TEMPLATE.format(customer=customer, bot=bot, customer_cap=customer_cap, bot_cap=bot_cap)
-
+    p = pronoun_vars(state)
+    REQUIRED = _required(p)
     if "customer_phone" in missing and "customer_phone" in (state.get("rejected_slots") or []):
-        return f"{PHONE_INVALID} {REQUIRED['customer_phone'][1]}"
+        return f"{PHONE_INVALID_TEMPLATE.format(**p)} {REQUIRED['customer_phone'][1]}"
 
     collected = {REQUIRED[k][0]: fact_value(facts, k) for k in REQUIRED if k not in missing}
-
-    # Format system prompt with pronouns
-    if customer in ("anh", "chị"):
-        pronoun_instruction = f"LUÔN dùng '{customer}' (khách) với '{bot}' (bot/shop). KHÔNG dùng bạn/mình."
-    else:
-        pronoun_instruction = f"LUÔN dùng '{bot}' hoặc 'shop' (bot) với '{customer}' (khách). KHÔNG dùng anh/chị-em."
-
-    system_prompt = APPOINTMENT_SYSTEM_PROMPT_TEMPLATE + STYLE_RULES.format(pronoun_instruction=pronoun_instruction)
+    system_prompt = APPOINTMENT_SYSTEM_PROMPT_TEMPLATE + STYLE_RULES.format(
+        pronoun_instruction=pronoun_instruction(p["customer"], p["bot"]))
 
     prompt = (f"Tin nhắn của khách: {state.get('task_text') or state.get('user_text', '')}\n\n"
               f"📋 THÔNG TIN ĐÃ CÓ: {json.dumps(collected, ensure_ascii=False)}\n\n"
@@ -121,50 +100,38 @@ def _contact_update_after_booking(state: AgentState, workflow: ActiveWorkflow | 
     keys = {update.key for update in interpretation.slot_updates}
     if not keys or not keys <= CONTACT_KEYS:
         return None
-
-    customer, bot = _get_pronouns(state)
-    customer_cap, bot_cap = customer.capitalize(), bot.capitalize()
-    PHONE_INVALID = PHONE_INVALID_TEMPLATE.format(customer=customer, bot=bot, customer_cap=customer_cap, bot_cap=bot_cap)
-
+    p = pronoun_vars(state)
     if "customer_phone" in (state.get("rejected_slots") or []):
-        return PHONE_INVALID
+        return PHONE_INVALID_TEMPLATE.format(**p)
     booked = workflow.collected_facts
-    return (f"Dạ {bot} đã cập nhật thông tin liên hệ cho yêu cầu đặt lịch {booked.get('service_type')} "
+    return (f"Dạ {p['bot']} đã cập nhật thông tin liên hệ cho yêu cầu đặt lịch {booked.get('service_type')} "
             f"({booked.get('appointment_when')}) đang chờ nhân viên xác nhận ạ.")
 
 
 def appointment(state: AgentState) -> dict:
     facts = dict(state.get("known_facts") or {})
     workflow = state.get("active_workflow")
-    customer, bot = _get_pronouns(state)
-    customer_cap, bot_cap = customer.capitalize(), bot.capitalize()
-
-    # Format templates with pronouns
-    REQUIRED = {
-        k: (v[0], v[1].format(customer=customer, bot=bot, customer_cap=customer_cap, bot_cap=bot_cap))
-        for k, v in REQUIRED_TEMPLATES.items()
-    }
-    CONFIRM = CONFIRM_TEMPLATE.format(customer=customer, bot=bot, customer_cap=customer_cap, bot_cap=bot_cap)
-    BOOKING_FAILED = BOOKING_FAILED_TEMPLATE.format(customer=customer, bot=bot, customer_cap=customer_cap, bot_cap=bot_cap)
+    p = pronoun_vars(state)
 
     def reply(text: str, executed: bool = False, **changes) -> dict:
         return {"answers": [answer(state, "appointment", text, executed=executed)], "known_facts": facts,
                 "trace": ["appointment"], **changes}
-
-    def waiting(**extra) -> ActiveWorkflow:
-        return workflow.model_copy(update={"status": WorkflowStatus.WAITING_FOR_USER, **extra})
 
     if text := _contact_update_after_booking(state, workflow):
         return reply(text)
     if not workflow or workflow.workflow_type != "appointment":
         workflow = ActiveWorkflow(workflow_id=f"{state.get('session_id', 'session')}_appointment",
                                   workflow_type="appointment", status=WorkflowStatus.ACTIVE)
+    current: ActiveWorkflow = workflow
+
+    def waiting(**extra) -> ActiveWorkflow:
+        return current.model_copy(update={"status": WorkflowStatus.WAITING_FOR_USER, **extra})
 
     phone = normalize_phone(str(fact_value(facts, "customer_phone") or ""))
     if not phone:
         facts.pop("customer_phone", None)
-    missing = [key for key in REQUIRED if not fact_value(facts, key)]
-    if missing:
+    missing = [key for key in REQUIRED_TEMPLATES if not fact_value(facts, key)]
+    if missing or not phone:
         question = _ask(state, missing, facts)
         return reply(question, active_workflow=waiting(collected_facts={k: fact_value(facts, k) for k in facts}),
                      pending_interactions=_with_pending(state, question, missing))
@@ -180,7 +147,7 @@ def appointment(state: AgentState) -> dict:
     if confirmation and not accepted:
         return reply(confirmation.text)
     if not (explicit or accepted):
-        question = CONFIRM.format(label=label, when=when)
+        question = CONFIRM_TEMPLATE.format(**p).format(label=label, when=when)
         return reply(question, active_workflow=waiting(),
                      pending_interactions=_with_pending(state, question, [], InteractionKind.CONFIRMATION))
 
@@ -190,13 +157,13 @@ def appointment(state: AgentState) -> dict:
     except Exception:
         result = None
     if result is None or not result.ok:
-        return reply(BOOKING_FAILED.format(when=when, hotline=settings.hotline), active_workflow=waiting())
+        return reply(BOOKING_FAILED_TEMPLATE.format(**p).format(when=when, hotline=settings.hotline), active_workflow=waiting())
 
     if result.status == "CONFIRMED":
-        text = f"{bot_cap} đã xác nhận lịch hẹn {label} ({when}). {result.message}"
+        text = f"{p['bot_cap']} đã xác nhận lịch hẹn {label} ({when}). {result.message}"
         status = WorkflowStatus.NONE
     else:
-        text = (f"{bot_cap} đã gửi yêu cầu đặt lịch {label} ({when}) lên hệ thống. "
+        text = (f"{p['bot_cap']} đã gửi yêu cầu đặt lịch {label} ({when}) lên hệ thống. "
                 f"{result.message or 'Lịch hẹn đang chờ nhân viên xác nhận.'}")
         status = WorkflowStatus.WAITING_FOR_APPROVAL
     # The request is stored; its slots must not drive a second booking (a later name/phone correction

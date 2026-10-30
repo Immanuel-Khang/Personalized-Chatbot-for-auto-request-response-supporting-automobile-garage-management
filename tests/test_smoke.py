@@ -82,8 +82,8 @@ def test_knowledge_complexity_high_goes_to_human(client):
 
 
 def test_sales_and_appointment_same_turn(client):
-    """Giá + lái thử: sales báo giá và appointment hỏi slot trong cùng một lượt, câu hỏi slot nằm cuối."""
-    r = chat(client, "Giá xe Foton Aumark bao nhiêu, cho mình chạy thử", token="t11")
+    """Giá + xem xe tại showroom: sales báo giá và appointment hỏi slot trong cùng một lượt, câu hỏi slot nằm cuối."""
+    r = chat(client, "Giá xe Foton Aumark bao nhiêu, cho mình qua showroom xem xe", token="t11")
     assert {"sales", "appointment"} <= set(r["trace"])
     assert r["trace"][-3:] == ["compose", "output_guard", "respond"]
     assert "đồng" in r["reply"] and r["reply"].rstrip().endswith("Bạn muốn đến vào ngày giờ nào?")

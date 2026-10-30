@@ -2,7 +2,7 @@
 và truy vấn thông tin từ hội thoại. Chỉ đọc, không ghi dữ liệu."""
 from app.agent.llm import generate
 from app.agent.nodes.compose import STYLE_RULES
-from app.agent.state import AgentState, answer, fact_value, open_pending
+from app.agent.state import AgentState, answer, fact_value, open_pending, pronouns
 from app.config import settings
 from app.contracts.schemas import Intent
 from app.db.models import ChatSession, Customer
@@ -10,21 +10,11 @@ from app.db.session import SessionLocal
 from app.services import get_services
 
 
-def _get_pronouns(state: AgentState) -> tuple[str, str]:
-    """Return (customer_address, bot_address) based on state."""
-    customer_pronoun = state.get("customer_pronoun")
-    bot_pronoun = state.get("bot_pronoun")
-
-    if customer_pronoun in ("anh", "chị"):
-        return customer_pronoun, bot_pronoun or "em"
-    return "bạn", bot_pronoun or "mình"
-
-
 CONVERSATION_SYSTEM_PROMPT = """\
 Bạn là trợ lý thân thiện của xưởng Foton. Nhiệm vụ của bạn:
 1. Chào lại ngắn gọn khi khách chào. Nếu chưa biết tên khách, hỏi lịch sự "{customer} có thể cho {bot} biết họ tên để thuận tiện xưng hô được không ạ?" rồi giới thiệu các dịch vụ.
 2. Xưng hô: Dùng "{bot}" hoặc "shop" (bot) với "{customer}" (khách). {pronoun_rule}
-3. Hướng dẫn lịch sự khi khách hỏi ngoài phạm vi (gợi ý: tư vấn xe, báo giá, đặt lịch bảo dưỡng/lái thử, kiến thức kỹ thuật)
+3. Hướng dẫn lịch sự khi khách hỏi ngoài phạm vi (gợi ý: tư vấn xe, báo giá, đặt lịch bảo dưỡng/sửa chữa/xem xe, kiến thức kỹ thuật). Xưởng KHÔNG có dịch vụ lái thử; khách hỏi lái thử thì nói rõ là không có
 4. Xác nhận khi khách muốn hủy yêu cầu
 5. Trả lời câu hỏi về thông tin khách đã cung cấp trước đó (tên, số điện thoại)
 6. Trả lời câu hỏi về dịch vụ / thủ tục dựa trên tài liệu được cung cấp
@@ -60,14 +50,9 @@ INTENT_CONTEXT = {
 }
 
 
-def _format_fallback(text: str, customer: str, bot: str, **kwargs) -> str:
-    """Format fallback text with pronouns and other kwargs."""
-    return text.format(customer=customer, bot=bot, **kwargs)
-
-
 FALLBACK_TEMPLATES = {
     "greeting": ("Dạ chào {customer} 👋 {bot_cap} là trợ lý của xưởng Foton ạ. "
-                 "{bot_cap} có thể tư vấn xe, báo giá, đặt lịch bảo dưỡng/lái thử, hoặc giải đáp kỹ thuật.\n"
+                 "{bot_cap} có thể tư vấn xe, báo giá, đặt lịch bảo dưỡng/sửa chữa/xem xe, hoặc giải đáp kỹ thuật.\n"
                  "{customer_cap} có thể cho {bot} biết họ tên để thuận tiện xưng hô được không ạ?"),
     "cancel": "Dạ, {bot} đã dừng yêu cầu đang chờ ạ. {customer_cap} cần {bot} hỗ trợ gì thêm thì cứ nhắn nhé.",
     "clarify": "Dạ, {bot} chưa hiểu rõ ý {customer} lắm ạ. {customer_cap} nói rõ hơn giúp {bot} được không ạ?",
@@ -77,7 +62,7 @@ FALLBACK_TEMPLATES = {
                          "{customer_cap} cần {bot} chuyển câu hỏi này cho nhân viên tư vấn không?"),
     "decline": "Dạ vâng ạ. {customer_cap} cần {bot} hỗ trợ gì thêm thì cứ nhắn nhé.",
     "clarify_offer": "{{question}}",
-    "other": "Dạ, {bot} chưa hiểu rõ ý {customer} ạ. {customer_cap} có thể hỏi về giá xe, đặt lịch bảo dưỡng/lái thử, hoặc kiến thức kỹ thuật nhé.",
+    "other": "Dạ, {bot} chưa hiểu rõ ý {customer} ạ. {customer_cap} có thể hỏi về giá xe, đặt lịch bảo dưỡng/sửa chữa/xem xe, hoặc kiến thức kỹ thuật nhé.",
 }
 
 
@@ -113,7 +98,7 @@ def conversation(state: AgentState) -> dict:
     reason = _reason(state)
 
     # Get pronouns based on customer's usage
-    customer, bot = _get_pronouns(state)
+    customer, bot = pronouns(state)
     customer_cap = customer.capitalize()
     bot_cap = bot.capitalize()
 
@@ -149,12 +134,12 @@ def conversation(state: AgentState) -> dict:
     pending = open_pending(state)
     offer_question = pending[-1].text if pending else ""
     context = f"""
-{INTENT_CONTEXT.get(reason, INTENT_CONTEXT["other"]).format(question=offer_question, name_prompt=name_prompt)}
-{documents}
-{profile_text}
+        {INTENT_CONTEXT.get(reason, INTENT_CONTEXT["other"]).format(question=offer_question, name_prompt=name_prompt)}
+        {documents}
+        {profile_text}
 
-Tin nhắn mới của khách: {question}
-"""
+        Tin nhắn mới của khách: {question}
+    """
 
     system_prompt = CONVERSATION_SYSTEM_PROMPT.format(
         customer=customer, bot=bot, pronoun_rule=pronoun_rule,
