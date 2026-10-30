@@ -26,8 +26,8 @@ QUY TẮC:
 4. Luôn trả lời bằng tiếng Việt, lịch sự và chuyên nghiệp.
 5. KHÔNG tự bịa thông tin khách chưa cung cấp.
 """ + STYLE_RULES
-SUMMARY_CLOSING = ("Tư vấn viên bên em sẽ liên hệ anh/chị để hẹn ngày ký kết và bàn giao xe. "
-                   "Cảm ơn anh/chị đã tin tưởng và sử dụng dịch vụ bên em!")
+SUMMARY_CLOSING = ("Tư vấn viên bên shop sẽ liên hệ bạn để hẹn ngày ký kết và bàn giao xe. "
+                   "Cảm ơn bạn đã tin tưởng và sử dụng dịch vụ bên mình!")
 
 
 def contract(state: AgentState) -> dict:

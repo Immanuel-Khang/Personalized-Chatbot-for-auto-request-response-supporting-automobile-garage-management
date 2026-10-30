@@ -48,7 +48,7 @@ def test_single_intent():
             "message": "Cảm ơn",
             "history": [
                 {"role": "user", "content": "Chào bạn"},
-                {"role": "assistant", "content": "Chào anh/chị"}
+                {"role": "assistant", "content": "Chào bạn"}
             ],
         },
         {
@@ -56,7 +56,7 @@ def test_single_intent():
             "message": "Tên tôi là Minh",
             "history": [
                 {"role": "user", "content": "Chào"},
-                {"role": "assistant", "content": "Tên anh/chị là gì ạ?"}
+                {"role": "assistant", "content": "Tên bạn là gì ạ?"}
             ],
         },
     ]

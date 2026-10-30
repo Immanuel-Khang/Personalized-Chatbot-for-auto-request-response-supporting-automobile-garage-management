@@ -24,11 +24,11 @@ def test_scenario():
 
     history = [
         {"role": "user", "content": "Chào bạn tôi muốn mua xe"},
-        {"role": "ai", "content": "Dạ em chào anh/chị ạ 😊 Anh/chị đang muốn em hỗ trợ tư vấn xe tải chở hàng hay cần báo giá/đặt lịch xem xe ạ?"},
+        {"role": "ai", "content": "Dạ mình chào bạn ạ 😊 Bạn đang muốn mình hỗ trợ tư vấn xe tải chở hàng hay cần báo giá/đặt lịch xem xe ạ?"},
         {"role": "user", "content": "Tôi muốn được hỗ trợ tư vấn xe tải"},
-        {"role": "ai", "content": "Dạ, em có thể hỗ trợ anh/chị chọn xe phù hợp ạ. Anh/chị dự định sử dụng xe chủ yếu để làm gì, ví dụ chở hàng, phục vụ gia đình hay đi lại hằng ngày?"},
+        {"role": "ai", "content": "Dạ, mình có thể hỗ trợ bạn chọn xe phù hợp ạ. Bạn dự định sử dụng xe chủ yếu để làm gì, ví dụ chở hàng, phục vụ gia đình hay đi lại hằng ngày?"},
         {"role": "user", "content": "Chở hàng"},
-        {"role": "ai", "content": "Dạ với nhu cầu chở hàng... Anh/chị cho em biết anh/chị dự định lắp thùng theo dạng nào (mui bạt/thùng kín/cẩu tự hành…) và chở khoảng bao nhiêu tấn mỗi chuyến để em hướng dẫn cấu hình lắp thùng phù hợp hơn."},
+        {"role": "ai", "content": "Dạ với nhu cầu chở hàng... Bạn cho mình biết bạn dự định lắp thùng theo dạng nào (mui bạt/thùng kín/cẩu tự hành…) và chở khoảng bao nhiêu tấn mỗi chuyến để mình hướng dẫn cấu hình lắp thùng phù hợp hơn."},
     ]
 
     state = AgentState(

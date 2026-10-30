@@ -36,10 +36,10 @@ REQUIRED = {
 }
 LABELS = {ServiceType.MAINTENANCE: "bảo dưỡng", ServiceType.REPAIR: "sửa chữa",
           ServiceType.TEST_DRIVE: "lái thử", ServiceType.SHOWROOM_VISIT: "xem xe trực tiếp tại showroom"}
-CONFIRM = "Em ghi nhận lịch {label} ({when}) cho anh/chị. Anh/chị xác nhận đặt lịch này giúp em nhé?"
-PHONE_INVALID = "Số điện thoại anh/chị vừa gửi chưa đúng định dạng (10 số, bắt đầu bằng 0), anh/chị kiểm tra lại giúp em nhé."
-BOOKING_FAILED = ("Hiện em chưa xác nhận được lịch {when} trên hệ thống ạ. Em vẫn giữ thông tin anh/chị đã cung cấp, "
-                  "anh/chị có thể nhắn lại để em thử lại hoặc gọi hotline {hotline} để nhân viên hỗ trợ.")
+CONFIRM = "Mình ghi nhận lịch {label} ({when}) cho bạn. Bạn xác nhận đặt lịch này giúp mình nhé?"
+PHONE_INVALID = "Số điện thoại bạn vừa gửi chưa đúng định dạng (10 số, bắt đầu bằng 0), bạn kiểm tra lại giúp mình nhé."
+BOOKING_FAILED = ("Hiện mình chưa xác nhận được lịch {when} trên hệ thống ạ. Mình vẫn giữ thông tin bạn đã cung cấp, "
+                  "bạn có thể nhắn lại để mình thử lại hoặc gọi hotline {hotline} để nhân viên hỗ trợ.")
 BOOKING_KEYS = {"service_type", "appointment_when", "service_detail"}
 CONTACT_KEYS = {"customer_name", "customer_phone"}
 EXPLICIT = {"NEW_REQUEST", "CONTINUE_TASK", "ACCEPT_OFFER"}
@@ -92,7 +92,7 @@ def _contact_update_after_booking(state: AgentState, workflow: ActiveWorkflow | 
     if "customer_phone" in (state.get("rejected_slots") or []):
         return PHONE_INVALID
     booked = workflow.collected_facts
-    return (f"Dạ em đã cập nhật thông tin liên hệ cho yêu cầu đặt lịch {booked.get('service_type')} "
+    return (f"Dạ mình đã cập nhật thông tin liên hệ cho yêu cầu đặt lịch {booked.get('service_type')} "
             f"({booked.get('appointment_when')}) đang chờ nhân viên xác nhận ạ.")
 
 

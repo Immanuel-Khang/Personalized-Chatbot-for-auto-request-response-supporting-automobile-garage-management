@@ -32,7 +32,7 @@ def test_simple_single_intent():
     session_id = str(uuid4())
     history = [
         {"role": "user", "content": "Chào bạn"},
-        {"role": "assistant", "content": "Dạ chào anh/chị. Anh/chị cần hỗ trợ gì ạ?"}
+        {"role": "assistant", "content": "Dạ chào bạn. Bạn cần hỗ trợ gì ạ?"}
     ]
 
     print("\n\nTesting simple query latency...")

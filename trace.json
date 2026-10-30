@@ -1,14 +1,14 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách cung cấp tên của mình là Minh.",
+      "message_summary": "Khách chào và cho biết muốn mua xe.",
       "tasks": [
         {
           "task_id": "t1",
           "domain": "OTHER",
           "action": "general_conversation",
-          "text": "Tên tôi là Minh",
-          "relationship": "ANSWER_TO_QUESTION",
+          "text": "Chào shop, anh muốn mua xe",
+          "relationship": "NEW_REQUEST",
           "referenced_interaction_id": null,
           "requires_clarification": false,
           "entity_id": null,
@@ -16,16 +16,7 @@
           "inquiry_only": false
         }
       ],
-      "slot_updates": [
-        {
-          "key": "customer_name",
-          "operation": "SET",
-          "value": "[REDACTED]",
-          "evidence": "[REDACTED]",
-          "source_message_id": null,
-          "related_task_id": "t1"
-        }
-      ],
+      "slot_updates": [],
       "references": [],
       "signals": {
         "wants_human": false,
@@ -39,9 +30,7 @@
       "accepts_offer": null,
       "uncertain": false
     },
-    "known_facts": {
-      "customer_name": "[REDACTED]"
-    },
+    "known_facts": {},
     "rejected_slots": [],
     "trace": [
       "preprocess"

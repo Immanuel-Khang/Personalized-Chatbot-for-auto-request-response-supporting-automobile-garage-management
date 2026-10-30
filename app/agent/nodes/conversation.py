@@ -11,8 +11,8 @@ from app.services import get_services
 
 CONVERSATION_SYSTEM_PROMPT = """\
 Bạn là trợ lý thân thiện của xưởng Foton. Nhiệm vụ của bạn:
-1. Chào lại ngắn gọn khi khách chào. Nếu chưa biết tên khách, hỏi lịch sự "Anh/chị có thể cho em biết họ tên để thuận tiện xưng hô được không ạ?" rồi giới thiệu các dịch vụ.
-2. Xưng hô: LUÔN dùng "em" (bot) với "anh/chị" (khách). Khi đã biết tên và suy ra được giới tính, dùng "anh" hoặc "chị" cho phù hợp. Nếu suy ra sai, khách sẽ sửa thì ghi nhận và đổi ngay.
+1. Chào lại ngắn gọn khi khách chào. Nếu chưa biết tên khách, hỏi lịch sự "Bạn có thể cho mình biết họ tên để thuận tiện xưng hô được không ạ?" rồi giới thiệu các dịch vụ.
+2. Xưng hô: LUÔN dùng "mình" hoặc "shop" (bot) với "bạn" (khách). KHÔNG dùng "em - anh/chị".
 3. Hướng dẫn lịch sự khi khách hỏi ngoài phạm vi (gợi ý: tư vấn xe, báo giá, đặt lịch bảo dưỡng/lái thử, kiến thức kỹ thuật)
 4. Xác nhận khi khách muốn hủy yêu cầu
 5. Trả lời câu hỏi về thông tin khách đã cung cấp trước đó (tên, số điện thoại)
@@ -48,51 +48,19 @@ INTENT_CONTEXT = {
               "nếu chưa rõ ý thì hỏi lại; nếu ngoài phạm vi thì hướng dẫn lịch sự các chủ đề bạn hỗ trợ."),
 }
 
-MALE_NAME_INDICATORS = {
-    # Common Vietnamese male name components (given names)
-    "anh", "bình", "cường", "dũng", "đức", "giang", "hà", "hải", "hiếu", "hoàng", "hùng", "khang", "kiên",
-    "long", "minh", "nam", "nghĩa", "nhân", "phong", "quân", "quang", "quyết", "sơn", "tài", "thành", "thắng",
-    "tiến", "trung", "tuấn", "tùng", "việt", "vinh", "vũ", "hưng", "tuân", "đạt", "phúc",
-}
-FEMALE_NAME_INDICATORS = {
-    # Common Vietnamese female name components (given names)
-    "anh", "ánh", "chi", "châu", "dung", "diễm", "hà", "hằng", "hạnh", "hoa", "hồng", "hương", "lan",
-    "linh", "loan", "mai", "nga", "ngân", "ngọc", "nhung", "như", "phương", "quỳnh", "thảo", "thúy",
-    "trang", "trinh", "uyên", "vân", "vy", "yến", "xuân", "thanh",
-}
-
-
-def _infer_gender(name: str | None) -> str:
-    """Infer gender from Vietnamese name. Returns 'anh' (male), 'chị' (female), or 'anh/chị' (uncertain)."""
-    if not name:
-        return "anh/chị"
-    # Look at the given name (last word) - most indicative of gender
-    parts = name.strip().casefold().split()
-    if not parts:
-        return "anh/chị"
-    given = parts[-1]
-    male_score = sum(1 for indicator in MALE_NAME_INDICATORS if indicator in given)
-    female_score = sum(1 for indicator in FEMALE_NAME_INDICATORS if indicator in given)
-    if male_score > female_score:
-        return "anh"
-    if female_score > male_score:
-        return "chị"
-    return "anh/chị"
-
-
 FALLBACK = {
-    "greeting": ("Dạ chào {pronoun} 👋 Em là trợ lý của xưởng Foton ạ. "
-                 "Em có thể tư vấn xe, báo giá, đặt lịch bảo dưỡng/lái thử, hoặc giải đáp kỹ thuật.\n"
-                 "{pronoun} có thể cho em biết họ tên để thuận tiện xưng hô được không ạ?"),
-    "cancel": "Dạ, em đã dừng yêu cầu đang chờ ạ. {pronoun} cần em hỗ trợ gì thêm thì cứ nhắn nhé.",
-    "clarify": "Dạ, em chưa hiểu rõ ý {pronoun} lắm ạ. {pronoun} nói rõ hơn giúp em được không ạ?",
-    "service_inquiry": ("Dạ, về {component} thì kỹ thuật viên bên em cần xem trực tiếp mới xác nhận được hướng xử lý và chi phí ạ. "
-                        "Nếu {pronoun} muốn, em có thể sắp xếp để {pronoun} mang xe qua xưởng kiểm tra."),
-    "contract_inquiry": ("Dạ, danh mục giấy tờ cụ thể sẽ do nhân viên tư vấn xác nhận theo hình thức mua của {pronoun} ạ. "
-                         "{pronoun} cần em chuyển câu hỏi này cho nhân viên tư vấn không?"),
-    "decline": "Dạ vâng ạ. {pronoun} cần em hỗ trợ gì thêm thì cứ nhắn nhé.",
+    "greeting": ("Dạ chào bạn 👋 Mình là trợ lý của xưởng Foton ạ. "
+                 "Mình có thể tư vấn xe, báo giá, đặt lịch bảo dưỡng/lái thử, hoặc giải đáp kỹ thuật.\n"
+                 "Bạn có thể cho mình biết họ tên để thuận tiện xưng hô được không ạ?"),
+    "cancel": "Dạ, mình đã dừng yêu cầu đang chờ ạ. Bạn cần mình hỗ trợ gì thêm thì cứ nhắn nhé.",
+    "clarify": "Dạ, mình chưa hiểu rõ ý bạn lắm ạ. Bạn nói rõ hơn giúp mình được không ạ?",
+    "service_inquiry": ("Dạ, về {component} thì kỹ thuật viên bên mình cần xem trực tiếp mới xác nhận được hướng xử lý và chi phí ạ. "
+                        "Nếu bạn muốn, mình có thể sắp xếp để bạn mang xe qua xưởng kiểm tra."),
+    "contract_inquiry": ("Dạ, danh mục giấy tờ cụ thể sẽ do nhân viên tư vấn xác nhận theo hình thức mua của bạn ạ. "
+                         "Bạn cần mình chuyển câu hỏi này cho nhân viên tư vấn không?"),
+    "decline": "Dạ vâng ạ. Bạn cần mình hỗ trợ gì thêm thì cứ nhắn nhé.",
     "clarify_offer": "{question}",
-    "other": "Dạ, em chưa hiểu rõ ý {pronoun} ạ. {pronoun} có thể hỏi về giá xe, đặt lịch bảo dưỡng/lái thử, hoặc kiến thức kỹ thuật nhé.",
+    "other": "Dạ, mình chưa hiểu rõ ý bạn ạ. Bạn có thể hỏi về giá xe, đặt lịch bảo dưỡng/lái thử, hoặc kiến thức kỹ thuật nhé.",
 }
 
 
@@ -130,20 +98,19 @@ def conversation(state: AgentState) -> dict:
     # Lấy thông tin khách từ DB (lịch sử hội thoại đi dạng message qua state['history'])
     session_id = state.get("session_id", "")
     name, phone = _get_customer_profile(session_id)
-    pronoun = _infer_gender(name)
 
     if name or phone:
-        profile_text = f"Thông tin khách đã lưu: Tên: {name or 'chưa có'} (xưng hô: {pronoun}), SĐT: {phone or 'chưa có'}"
+        profile_text = f"Thông tin khách đã lưu: Tên: {name or 'chưa có'}, SĐT: {phone or 'chưa có'}"
     else:
         profile_text = "Chưa có thông tin khách hàng trong hồ sơ."
 
     # For greeting, add name request instruction if name is unknown
     name_prompt = ""
     if reason == "greeting" and not name:
-        name_prompt = ("Sau khi chào và giới thiệu dịch vụ, hỏi lịch sự: 'Anh/chị có thể cho em biết họ tên để "
+        name_prompt = ("Sau khi chào và giới thiệu dịch vụ, hỏi lịch sự: 'Bạn có thể cho mình biết họ tên để "
                       "thuận tiện xưng hô được không ạ?'")
     elif reason == "greeting" and name:
-        name_prompt = f"Đã biết tên khách là {name}, xưng hô '{pronoun}' thay vì 'anh/chị'."
+        name_prompt = f"Đã biết tên khách là {name}."
 
     documents = ""
     if reason in ("service_inquiry", "contract_inquiry"):
@@ -165,6 +132,6 @@ Tin nhắn mới của khách: {question}
                      history=state.get("history"))
     detail = fact_value(state.get("known_facts"), "service_detail")
     fallback = FALLBACK.get(reason, FALLBACK["other"]).format(component=detail or "tình trạng xe",
-                                                                question=offer_question, pronoun=pronoun)
+                                                                question=offer_question)
     update["answers"] = [answer(state, "conversation", reply or fallback)]
     return update
