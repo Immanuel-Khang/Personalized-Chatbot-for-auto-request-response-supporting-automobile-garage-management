@@ -50,17 +50,39 @@ def _required(p: dict[str, str]) -> dict[str, tuple[str, str]]:
     return {key: (label, question.format(**p)) for key, (label, question) in REQUIRED_TEMPLATES.items()}
 
 
-def _booking_detail(state: AgentState, facts: dict) -> str | None:
-    """Vehicle/work item for staff: the product an appointment task referenced, else car_model; plus service_detail."""
+def _booking_detail(state: AgentState, facts: dict) -> tuple[str | None, str | None]:
+    """(vehicle, work item) for staff: the product an appointment task referenced, else car_model, else the product
+    the customer was last talking about in sales; plus service_detail."""
     interpretation = state.get("conversation_interpretation")
     shown = {item.get("entity_id"): item.get("name") for item in state.get("selected_entities") or []
              if isinstance(item, dict) and item.get("entity_type") == "PRODUCT"}
     vehicle = next((shown[t.entity_id] for t in (interpretation.tasks if interpretation else [])
                     if t.domain.value == "APPOINTMENT" and shown.get(t.entity_id)), None)
-    vehicle = vehicle or fact_value(facts, "car_model")
-    detail = fact_value(facts, "service_detail")
+    vehicle = vehicle or fact_value(facts, "car_model") or (state.get("focused_product") or {}).get("name")
+    return vehicle, fact_value(facts, "service_detail")
+
+
+def _note(vehicle: str | None, detail: str | None) -> str | None:
     parts = [f"Xe: {vehicle}" if vehicle else None, f"Hạng mục: {detail}" if detail else None]
     return "\n".join(p for p in parts if p) or None
+
+
+def _booked_recap(state: AgentState, workflow: ActiveWorkflow | None) -> str | None:
+    """A request is already stored and this turn brings no new booking slots: answer from the stored request
+    instead of re-collecting service/time (its slots were cleared after booking to prevent duplicates)."""
+    if not (workflow and workflow.workflow_type == "appointment" and workflow.collected_facts.get("appointment_id")):
+        return None
+    interpretation = state.get("conversation_interpretation")
+    if interpretation and any(update.key in BOOKING_KEYS for update in interpretation.slot_updates):
+        return None  # new service/time -> a new booking request
+    booked, p = workflow.collected_facts, pronoun_vars(state)
+    vehicle = booked.get("vehicle")
+    car = (f", xe {vehicle}" if vehicle else
+           f". Yêu cầu này chưa ghi mẫu xe cụ thể, {p['customer']} muốn xem mẫu nào thì nhắn {p['bot']} để bổ sung nhé")
+    status = ("đang chờ nhân viên xác nhận" if workflow.status == WorkflowStatus.WAITING_FOR_APPROVAL
+              else "đã được xác nhận")
+    return (f"Dạ yêu cầu đặt lịch {booked.get('service_type')} của {p['customer']} ({booked.get('appointment_when')}) "
+            f"{status}{car}.")
 
 
 def _ask(state: AgentState, missing: list[str], facts: dict) -> str:
@@ -117,8 +139,10 @@ def appointment(state: AgentState) -> dict:
         return {"answers": [answer(state, "appointment", text, executed=executed)], "known_facts": facts,
                 "trace": ["appointment"], **changes}
 
-    if text := _contact_update_after_booking(state, workflow):
+    if text := _contact_update_after_booking(state, workflow) or _booked_recap(state, workflow):
         return reply(text)
+    if workflow and workflow.collected_facts.get("appointment_id"):
+        workflow = None  # new service/time after a stored request: start a separate booking
     if not workflow or workflow.workflow_type != "appointment":
         workflow = ActiveWorkflow(workflow_id=f"{state.get('session_id', 'session')}_appointment",
                                   workflow_type="appointment", status=WorkflowStatus.ACTIVE)
@@ -151,9 +175,10 @@ def appointment(state: AgentState) -> dict:
         return reply(question, active_workflow=waiting(),
                      pending_interactions=_with_pending(state, question, [], InteractionKind.CONFIRMATION))
 
+    vehicle, detail = _booking_detail(state, facts)
     try:
         result = get_services().booking.create_appointment(state.get("session_id", ""), service, str(when), phone,
-                                                           detail=_booking_detail(state, facts))
+                                                           detail=_note(vehicle, detail))
     except Exception:
         result = None
     if result is None or not result.ok:
@@ -163,7 +188,7 @@ def appointment(state: AgentState) -> dict:
         text = f"{p['bot_cap']} đã xác nhận lịch hẹn {label} ({when}). {result.message}"
         status = WorkflowStatus.NONE
     else:
-        text = (f"{p['bot_cap']} đã gửi yêu cầu đặt lịch {label} ({when}) lên hệ thống. "
+        text = (f"{p['bot_cap']} đã gửi yêu cầu đặt lịch {label} ({when}{', xe ' + vehicle if vehicle else ''}) lên hệ thống. "
                 f"{result.message or 'Lịch hẹn đang chờ nhân viên xác nhận.'}")
         status = WorkflowStatus.WAITING_FOR_APPROVAL
     # The request is stored; its slots must not drive a second booking (a later name/phone correction
@@ -171,6 +196,6 @@ def appointment(state: AgentState) -> dict:
     for key in BOOKING_KEYS:
         facts.pop(key, None)
     booked = workflow.model_copy(update={"status": status, "collected_facts": {
-        "appointment_id": result.appointment_id, "service_type": label, "appointment_when": when}})
+        "appointment_id": result.appointment_id, "service_type": label, "appointment_when": when, "vehicle": vehicle}})
     return reply(text, executed=True, active_workflow=booked,
                  pending_interactions=[p.model_copy(update={"status": InteractionStatus.RESOLVED}) for p in pending])

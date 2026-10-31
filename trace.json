@@ -1,14 +1,14 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách chào lại shop.",
+      "message_summary": "Khách sửa lại tên: từ Phan Huy Anh thành Phan Minh Quân.",
       "tasks": [
         {
           "task_id": "t1",
           "domain": "OTHER",
           "action": "general_conversation",
-          "text": "Chào lại shop nhé",
-          "relationship": "NEW_REQUEST",
+          "text": "Thật ra tôi tên là Phan Minh Quân",
+          "relationship": "CORRECT_PREVIOUS_INFO",
           "referenced_interaction_id": null,
           "requires_clarification": false,
           "entity_id": null,
@@ -16,7 +16,16 @@
           "inquiry_only": false
         }
       ],
-      "slot_updates": [],
+      "slot_updates": [
+        {
+          "key": "customer_name",
+          "operation": "CORRECT",
+          "value": "[REDACTED]",
+          "evidence": "[REDACTED]",
+          "source_message_id": null,
+          "related_task_id": null
+        }
+      ],
       "references": [],
       "signals": {
         "wants_human": false,
@@ -32,8 +41,8 @@
       "customer_pronoun": null
     },
     "known_facts": {
-      "customer_name": "[REDACTED]",
-      "customer_phone": "[REDACTED]"
+      "customer_phone": "[REDACTED]",
+      "customer_name": "[REDACTED]"
     },
     "rejected_slots": [],
     "customer_pronoun": "anh",

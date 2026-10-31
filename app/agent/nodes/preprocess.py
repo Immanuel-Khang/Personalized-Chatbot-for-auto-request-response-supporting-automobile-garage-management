@@ -78,9 +78,10 @@ ConversationInterpretation. Các node sau chỉ đọc kết quả của bạn, 
    thủ tục/giấy tờ, mà chưa yêu cầu đặt lịch/làm hợp đồng: inquiry_only=true.
 3. Slot: chỉ dùng key trong canonical_slots. Chỉ tạo slot_update khi khách nói rõ trong tin nhắn
    mới (hoặc tin nhắn là câu trả lời ngắn cho câu bot vừa hỏi về đúng slot đó). evidence là đoạn
-   nguyên văn trong tin nhắn mới. Không suy đoán giá trị. Khi khách đặt lịch, ghi service_type theo
-   loại lịch khách nói: "xem xe" -> SHOWROOM_VISIT, "bảo dưỡng" -> MAINTENANCE,
-   "sửa" -> REPAIR (evidence là cụm từ đó). Xưởng không có dịch vụ lái thử: KHÔNG ghi service_type cho "lái thử". Khách nêu thời gian hẹn dù chưa có giờ cụ thể ("chiều thứ 2
+   nguyên văn trong tin nhắn mới. Không suy đoán giá trị. Tin nhắn có task APPOINTMENT mà nêu loại lịch thì
+   BẮT BUỘC có slot_update service_type, kể cả khi cùng câu còn có ngày giờ: "xem xe", "xem xe trực tiếp",
+   "đến showroom", "qua xem xe" -> SHOWROOM_VISIT; "bảo dưỡng" -> MAINTENANCE; "sửa" -> REPAIR
+   (evidence là cụm từ đó). Xưởng không có dịch vụ lái thử: KHÔNG ghi service_type cho "lái thử". Khách nêu thời gian hẹn dù chưa có giờ cụ thể ("chiều thứ 2
    tuần sau", "sáng mai") -> vẫn ghi appointment_when đúng như khách nói; nhân viên sẽ chốt giờ, đó KHÔNG
    phải điểm mơ hồ. Khách sửa tên/SĐT/địa chỉ -> slot_update CORRECT cho đúng key đó.
    Tên khách (customer_name): chỉ khi khách tự giới thiệu hoặc trả lời câu hỏi tên. Ghi dạng chuẩn có dấu, viết hoa

@@ -286,6 +286,13 @@ LƯU Ý: Nếu khách đang tiếp tục trao đổi về các mẫu xe đã gi�
                     "name": p_dict["name"]
                 })
         update["selected_entities"] = selected_entities
+        # One product in focus -> booking can name it: the one the customer referenced, else the only returned
+        # product whose full name the reply mentions ("FI170" search also returns "FI170L"). A list leaves no focus.
+        named = [e["entity_id"] for e in selected_entities
+                 if e.get("entity_type") == "PRODUCT" and e["name"].casefold() in (reply or "").casefold()]
+        focus = entity_ids[0] if len(entity_ids) == 1 else (named[0] if len(named) == 1 else None)
+        update["focused_product"] = next(({"entity_id": e["entity_id"], "name": e["name"]} for e in selected_entities
+                                          if e.get("entity_type") == "PRODUCT" and e["entity_id"] == focus), None)
 
         # Track allowed amounts for pricing
         update["allowed_amounts"] = [fmt_vnd(p_dict["list_price_vnd"]) for p_dict in products_found]
