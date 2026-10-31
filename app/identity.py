@@ -74,6 +74,13 @@ def sync_contact(db: Session, session: ChatSession, raw_phone: str | None = None
     return customer
 
 
+def customer_profile(db: Session, session: ChatSession) -> dict | None:
+    """Tên/SĐT trong hồ sơ khách của phiên, đọc trong DB session handle_message đã mở sẵn (db.get dùng
+    identity map, verified_customer_id không truy vấn lại) -> agent không phải mở kết nối DB mỗi lượt."""
+    customer = db.get(Customer, session.customer_id) if session.customer_id else None
+    return {"name": customer.full_name, "phone": customer.phone_number} if customer else None
+
+
 def verified_customer_id(db: Session, session: ChatSession) -> int | None:
     """customer_id chỉ khi SĐT đã xác minh; agent dùng id này để đọc dữ liệu cá nhân."""
     if session.customer_id is None:

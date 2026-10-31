@@ -24,20 +24,26 @@ def _to_product(i: CatalogItem) -> Product:
 
 
 class DbProductService:
-    def search(self, query: str, limit: int = 3, fallback: bool = True) -> list[Product]:
-        """Tìm sản phẩm theo từ trong tên (SQL ILIKE), xếp theo số từ khớp rồi id (thứ tự ổn định).
-        fallback=False: không khớp tên thì trả rỗng để sales tự quyết định, KHÔNG trả xe đầu catalog."""
-        words = _name_words(query)
+    def search(self, query: str = "", limit: int = 3, fallback: bool = True,
+               max_budget_vnd: float | None = None) -> list[Product]:
+        """Tìm xe theo từ trong tên (SQL ILIKE) và/hoặc ngân sách tối đa.
+        Có từ khớp tên: xếp theo số từ khớp rồi id. Chỉ có ngân sách: giá gần ngân sách nhất trước.
+        Ngân sách là giới hạn cứng: KHÔNG bao giờ trả xe vượt ngân sách, kể cả khi fallback.
+        fallback=False: không khớp thì trả rỗng để sales tự quyết định, KHÔNG trả xe đầu catalog."""
+        words = _name_words(query or "")
         with SessionLocal() as db:
+            base = db.query(CatalogItem).filter(CatalogItem.kind.in_(VEHICLE_KINDS))
+            if max_budget_vnd is not None:
+                base = base.filter(CatalogItem.list_price_vnd <= max_budget_vnd)
             items = []
             if words:
-                conditions = [CatalogItem.name.ilike(f"%{w}%") for w in words]
-                items = db.query(CatalogItem).filter(or_(*conditions)).order_by(CatalogItem.id).limit(50).all()
+                items = base.filter(or_(*[CatalogItem.name.ilike(f"%{w}%") for w in words])
+                                    ).order_by(CatalogItem.id).limit(50).all()
                 items = sorted(items, key=lambda i: -sum(w in i.name.lower() for w in words))[:limit]
-            if not items and fallback:
-                # Không khớp tên cụ thể → trả vài xe đầu catalog
-                items = (db.query(CatalogItem).filter(CatalogItem.kind.in_(VEHICLE_KINDS))
-                         .order_by(CatalogItem.id).limit(limit).all())
+            if not items and (fallback or not words):
+                order = ((CatalogItem.list_price_vnd.desc(), CatalogItem.id) if max_budget_vnd is not None
+                         else (CatalogItem.id,))
+                items = base.order_by(*order).limit(limit).all()
             return [_to_product(i) for i in items]
 
     def find_model(self, name: str, limit: int = 3) -> list[Product]:
@@ -65,26 +71,6 @@ class DbProductService:
             rows = (db.query(CatalogItem.kind, func.count(CatalogItem.id))
                     .filter(CatalogItem.kind.in_(VEHICLE_KINDS)).group_by(CatalogItem.kind).all())
             return {kind: count for kind, count in rows}
-
-    def search_by_budget(self, budget_vnd: float, limit: int = 3, offset: int = 0) -> list[Product]:
-        """Xe có giá niêm yết ≤ ngân sách, gần ngân sách nhất trước (giá giảm dần, rồi id: thứ tự ổn định để phân trang).
-        Không có xe nào trong ngân sách → rỗng để sales nói thật, KHÔNG thay bằng xe vượt ngân sách."""
-        with SessionLocal() as db:
-            items = (
-                db.query(CatalogItem)
-                .filter(CatalogItem.kind.in_(VEHICLE_KINDS), CatalogItem.list_price_vnd <= budget_vnd)
-                .order_by(CatalogItem.list_price_vnd.desc(), CatalogItem.id)
-                .offset(offset)
-                .limit(limit)
-                .all()
-            )
-            return [_to_product(i) for i in items]
-
-    def count_by_budget(self, budget_vnd: float) -> int:
-        """Số mẫu xe có giá niêm yết ≤ ngân sách (để biết còn mẫu nào chưa gửi khách)."""
-        with SessionLocal() as db:
-            return (db.query(func.count(CatalogItem.id))
-                    .filter(CatalogItem.kind.in_(VEHICLE_KINDS), CatalogItem.list_price_vnd <= budget_vnd).scalar())
 
     def get_popular(self, limit: int = 3) -> list[Product]:
         """Trả danh sách xe phổ biến (hiện tại theo thứ tự catalog, sau có thể dùng lượt xem thực)."""

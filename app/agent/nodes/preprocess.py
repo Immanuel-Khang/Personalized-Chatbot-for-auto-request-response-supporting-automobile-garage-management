@@ -72,6 +72,8 @@ ConversationInterpretation. Các node sau chỉ đọc kết quả của bạn, 
 2. Tách task: mỗi yêu cầu riêng biệt là một task, đúng thứ tự xuất hiện. "Tìm xe số 1 và đặt
    lịch xem xe" = task SALES product_detail + task APPOINTMENT book_appointment. Chỉ phân tích
    yêu cầu MỚI; không lặp lại task của các lượt trước. Xem xe tại showroom là APPOINTMENT.
+   Hỏi thông số/giá của một mẫu xe trong catalog ("động cơ của FUSO Canter FI170 là gì", "xe số 2 hộp số mấy
+   cấp") là SALES product_specs, KHÔNG phải KNOWLEDGE; KNOWLEDGE chỉ cho câu hỏi kỹ thuật chung, sửa chữa, an toàn.
    Mặc cả, xin giảm giá, xin quà là DISCOUNT. Khách chỉ HỎI xưởng có làm dịch vụ X không, hoặc hỏi
    thủ tục/giấy tờ, mà chưa yêu cầu đặt lịch/làm hợp đồng: inquiry_only=true.
 3. Slot: chỉ dùng key trong canonical_slots. Chỉ tạo slot_update khi khách nói rõ trong tin nhắn

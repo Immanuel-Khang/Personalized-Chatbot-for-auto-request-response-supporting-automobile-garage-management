@@ -1,13 +1,13 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách chào hỏi.",
+      "message_summary": "Khách chào lại shop.",
       "tasks": [
         {
           "task_id": "t1",
           "domain": "OTHER",
           "action": "general_conversation",
-          "text": "Chào bạn",
+          "text": "Chào lại shop nhé",
           "relationship": "NEW_REQUEST",
           "referenced_interaction_id": null,
           "requires_clarification": false,
@@ -32,6 +32,7 @@
       "customer_pronoun": null
     },
     "known_facts": {
+      "customer_name": "[REDACTED]",
       "customer_phone": "[REDACTED]"
     },
     "rejected_slots": [],

@@ -5,8 +5,6 @@ from app.agent.nodes.compose import STYLE_RULES
 from app.agent.state import AgentState, answer, fact_value, open_pending, pronouns
 from app.config import settings
 from app.contracts.schemas import Intent
-from app.db.models import ChatSession, Customer
-from app.db.session import SessionLocal
 from app.services import get_services
 
 
@@ -66,19 +64,12 @@ FALLBACK_TEMPLATES = {
 }
 
 
-def _get_customer_profile(session_id: str) -> tuple[str | None, str | None]:
-    """Truy vấn thông tin khách hàng từ DB. Trả về (tên, số điện thoại)."""
-    db = SessionLocal()
-    try:
-        chat_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
-        if not chat_session or not chat_session.customer_id:
-            return None, None
-        customer = db.query(Customer).filter(Customer.id == chat_session.customer_id).first()
-        if not customer:
-            return None, None
-        return customer.full_name, customer.phone_number
-    finally:
-        db.close()
+def _customer_profile(state: AgentState) -> tuple[str | None, str | None]:
+    """(tên, SĐT): khách nói trong phiên này (known_facts, mới nhất) trước, rồi hồ sơ customers mà
+    handle_message đã nạp sẵn vào state (khách cũ quay lại). Không mở DB trong node."""
+    facts, profile = state.get("known_facts"), state.get("customer_profile") or {}
+    return (fact_value(facts, "customer_name") or profile.get("name"),
+            fact_value(facts, "customer_phone") or profile.get("phone"))
 
 
 def _reason(state: AgentState) -> str:
@@ -108,9 +99,7 @@ def conversation(state: AgentState) -> dict:
     else:
         pronoun_rule = "KHÔNG dùng anh/chị-em trừ khi khách đã xưng anh/chị trước đó."
 
-    # Lấy thông tin khách từ DB (lịch sử hội thoại đi dạng message qua state['history'])
-    session_id = state.get("session_id", "")
-    name, phone = _get_customer_profile(session_id)
+    name, phone = _customer_profile(state)
 
     if name or phone:
         profile_text = f"Thông tin khách đã lưu: Tên: {name or 'chưa có'}, SĐT: {phone or 'chưa có'}"

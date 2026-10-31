@@ -37,8 +37,15 @@ KHI NÀO GỌI TOOL:
 - Khách hỏi xe phổ biến/nổi bật → Gọi get_popular_products
 - Khách muốn xem danh sách → Gọi browse_catalog
 - Khách nói tên xe cụ thể → Gọi find_by_model_name
-- Khách có ngân sách cụ thể → Gọi search_by_budget
+- Khách có ngân sách → Gọi search_products với max_budget_vnd (kèm query nếu có thêm tiêu chí)
+- Khách hỏi thông số (động cơ, hộp số, số chỗ, nhiên liệu) của một mẫu xe → find_by_model_name hoặc
+  get_product_details nếu đã biết ID, rồi trả lời đúng thông số trong "specs"
 - Không rõ tool nào → Gọi search_products với mô tả nhu cầu
+
+THÔNG SỐ XE:
+- Chỉ nêu thông số có trong "specs" của kết quả tool; trả lời thẳng thông số khách hỏi, không liệt kê lại cả xe
+- Thông số khách hỏi không có trong specs (kích thước thùng, tải trọng chi tiết...) → nói thật là dữ liệu
+  hiện chưa có, nhân viên tư vấn sẽ xác nhận
 
 SAU KHI CÓ KẾT QUẢ:
 - Nếu mẫu xe MỚI chưa từng giới thiệu trong lịch sử chat: Giới thiệu ngắn gọn các mẫu tìm được kèm giá niêm yết (price_as_of) và ưu điểm phù hợp.
@@ -51,13 +58,18 @@ SAU KHI CÓ KẾT QUẢ:
 PRODUCT_SEARCH_TOOLS = [
     {
         "name": "search_products",
-        "description": "Tìm kiếm xe theo mô tả tự nhiên. Dùng khi khách cung cấp tiêu chí như 'chở hàng 10 tấn', 'xe chạy đường phố', 'chassis', 'thùng kín'...",
+        "description": ("Tìm xe theo tiêu chí: mô tả nhu cầu ('chassis', 'thùng kín', 'mui bạt'...) và/hoặc ngân sách "
+                        "tối đa. Có ngân sách thì truyền max_budget_vnd; kết quả không bao giờ vượt ngân sách."),
         "input_schema": {
             "type": "object",
             "properties": {
                 "query": {
                     "type": "string",
-                    "description": "Mô tả nhu cầu của khách hàng để tìm kiếm"
+                    "description": "Mô tả nhu cầu của khách (có thể bỏ trống nếu chỉ lọc theo ngân sách)"
+                },
+                "max_budget_vnd": {
+                    "type": "number",
+                    "description": "Ngân sách tối đa của khách (VNĐ), VD 500 triệu -> 500000000"
                 },
                 "limit": {
                     "type": "integer",
@@ -65,7 +77,7 @@ PRODUCT_SEARCH_TOOLS = [
                     "default": 3
                 }
             },
-            "required": ["query"]
+            "required": []
         }
     },
     {
@@ -85,25 +97,6 @@ PRODUCT_SEARCH_TOOLS = [
                 }
             },
             "required": ["model_name"]
-        }
-    },
-    {
-        "name": "search_by_budget",
-        "description": "Tìm xe trong ngân sách. Dùng khi khách nêu rõ ngân sách (VNĐ)",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "budget_vnd": {
-                    "type": "number",
-                    "description": "Ngân sách của khách (VNĐ)"
-                },
-                "limit": {
-                    "type": "integer",
-                    "description": "Số lượng kết quả tối đa (mặc định 3)",
-                    "default": 3
-                }
-            },
-            "required": ["budget_vnd"]
         }
     },
     {
@@ -138,7 +131,7 @@ PRODUCT_SEARCH_TOOLS = [
     },
     {
         "name": "get_product_details",
-        "description": "Lấy thông tin chi tiết 1 mẫu xe cụ thể. Dùng khi khách hỏi về mẫu đã được giới thiệu",
+        "description": "Lấy giá và thông số (specs) của 1 mẫu xe theo ID. Dùng khi khách hỏi về mẫu đã được giới thiệu",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -159,11 +152,15 @@ def _execute_tool(tool_name: str, tool_input: dict[str, Any]) -> dict[str, Any]:
 
     try:
         if tool_name == "search_products":
+            budget = tool_input.get("max_budget_vnd")
             products = service.search(
-                query=tool_input["query"],
+                query=tool_input.get("query") or "",
                 limit=tool_input.get("limit", 3),
-                fallback=True
+                fallback=True,
+                max_budget_vnd=budget,
             )
+            if not products and budget is not None:
+                return {"products": [], "message": f"Không có xe trong ngân sách {fmt_vnd(budget)}"}
             return {"products": [_product_to_dict(p) for p in products]}
 
         elif tool_name == "find_by_model_name":
@@ -173,15 +170,6 @@ def _execute_tool(tool_name: str, tool_input: dict[str, Any]) -> dict[str, Any]:
             )
             if not products:
                 return {"products": [], "message": f"Không tìm thấy mẫu '{tool_input['model_name']}'"}
-            return {"products": [_product_to_dict(p) for p in products]}
-
-        elif tool_name == "search_by_budget":
-            products = service.search_by_budget(
-                budget_vnd=tool_input["budget_vnd"],
-                limit=tool_input.get("limit", 3)
-            )
-            if not products:
-                return {"products": [], "message": f"Không có xe trong ngân sách {fmt_vnd(tool_input['budget_vnd'])}"}
             return {"products": [_product_to_dict(p) for p in products]}
 
         elif tool_name == "get_popular_products":

@@ -13,6 +13,8 @@ from app.contracts.schemas import (
 class AgentState(TypedDict, total=False):
     session_id: str
     customer_id: int | None
+    # customers row of the session ({name, phone}), loaded by handle_message before the turn; None if not linked.
+    customer_profile: dict | None
     user_text: str
     mode: str
     # Previous user/assistant messages only; the current message is in user_text.

@@ -18,7 +18,8 @@ from app.config import settings
 from app.contracts.schemas import ChatRequest, ChatResponse, ConversationMode, FactSource, KnownFact
 from app.db.models import Appointment, ChatSession, Message
 from app.db.session import SessionLocal
-from app.identity import get_or_create_session, normalize_phone, sync_contact, verified_customer_id
+from app.identity import (customer_profile, get_or_create_session, normalize_phone, sync_contact,
+                          verified_customer_id)
 from app.services.handover import open_ticket
 
 _locks: dict[str, threading.Lock] = defaultdict(threading.Lock)  # mỗi phiên 1 khóa
@@ -109,10 +110,11 @@ def handle_message(req: ChatRequest) -> ChatResponse:
                 return ChatResponse(session_id=session_id, reply="", mode=ConversationMode(session.mode),
                                     message_id=user_msg.id)
             negotiation_active, mode = session.negotiation_active, session.mode
+            profile = customer_profile(db, session)
             customer_id = verified_customer_id(db, session)
             history = _history(db, session_id, user_msg.id)
-            
-        result = run_turn(session_id, customer_id, req.message, negotiation_active, mode, history)
+
+        result = run_turn(session_id, customer_id, req.message, negotiation_active, mode, history, profile)
 
         with SessionLocal() as db:
             session = db.get(ChatSession, session_id)
