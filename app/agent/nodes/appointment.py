@@ -1,53 +1,81 @@
-"""Appointment Agent: book a service or showroom visit from canonical known facts.
+"""Appointment Agent: create, reschedule, cancel or look up the session's appointments through four tools.
 
-Slots arrive validated from Preprocessing. Booking is a business action, so the decision to call
-BookingService stays in code: ask for missing slots, confirm unless the customer explicitly asked,
-then book and report only what the service returned.
+Agent -> tool -> BookingService (PostgreSQL) -> tool result -> agent -> customer reply. The LLM picks the tool;
+business rules stay in code: a write needs every required slot and runs only when the customer accepted, on the
+very next message, the confirmation for that exact action. Otherwise the tool returns NEEDS_CONFIRMATION (or
+MISSING) and the agent asks. The reply is grounded in what the service returned this turn.
 """
 import json
+import logging
 import uuid
+from datetime import date, datetime, time, timedelta, timezone
 
-from app.agent.llm import generate
+from app.agent.llm import generate_with_tools
 from app.agent.nodes.compose import STYLE_RULES
 from app.agent.state import AgentState, answer, fact_value, open_pending, pronoun_instruction, pronoun_vars
 from app.config import settings
 from app.contracts.schemas import (
-    ActiveWorkflow, InteractionKind, InteractionStatus, PendingInteraction, ServiceType, WorkflowStatus,
+    ActiveWorkflow, BookingResult, InteractionKind, InteractionStatus, PendingInteraction, ServiceType,
+    TaskRelationship, WorkflowStatus,
 )
-from app.identity import normalize_phone
+from app.identity import is_full_name, normalize_phone
 from app.services import get_services
 
+logger = logging.getLogger(__name__)
 
-APPOINTMENT_SYSTEM_PROMPT_TEMPLATE = """\
-Bạn là chuyên viên đặt lịch của xưởng Foton chuyên nghiệp, thân thiện.
+SYSTEM_PROMPT = """\
+Bạn là chuyên viên lịch hẹn của xưởng Foton (bảo dưỡng, sửa chữa, xem xe tại showroom; KHÔNG có dịch vụ lái thử).
+CÔNG CỤ:
+- get_appointment_details: các lịch hẹn của khách (thời gian, trạng thái). Gọi trước khi trả lời câu hỏi về lịch hẹn
+  và trước khi đổi/hủy để lấy đúng appointment_id.
+- create_appointment: đặt lịch mới từ thông tin đặt lịch đã biết.
+- reschedule_appointment: đổi lịch appointment_id sang thời gian mới.
+- cancel_appointment: hủy lịch appointment_id.
 QUY TẮC:
-1. Luôn trả lời bằng tiếng Việt.
-2. Xin thông tin còn thiếu một cách tự nhiên, không rập khuôn.
-3. PHẢI xác nhận/ghi nhận thông tin khách vừa cung cấp trước khi hỏi tiếp.
-4. KHÔNG tự bịa thông tin khách chưa cung cấp.
-5. Khi khách nói về sản phẩm/xe, ghi nhận và tiếp tục hỏi thông tin đặt lịch còn thiếu.
-6. Chỉ hỏi thông tin trong danh sách còn thiếu, KHÔNG hỏi thêm.
+1. Tiếng Việt, ngắn gọn; chỉ dựa trên kết quả công cụ của lượt này. KHÔNG bịa giờ, trạng thái, mã lịch.
+2. Kết quả status=NEEDS_CONFIRMATION: nêu đúng nội dung "proposal" và hỏi khách xác nhận; CHƯA được nói là đã làm.
+   status=MISSING: ghi nhận thông tin khách vừa đưa rồi hỏi thông tin còn thiếu đầu tiên.
+   ok=true: báo đã thực hiện theo "message". ok=false: báo chưa thực hiện được theo "message", gợi ý hotline {hotline}.
+3. "Khách vừa đồng ý" = có: gọi lại đúng công cụ của thao tác đang chờ xác nhận để thực hiện.
+4. Khách có nhiều lịch đang hiệu lực mà không rõ muốn đổi/hủy lịch nào: liệt kê ngắn và hỏi, KHÔNG tự chọn.
+5. Trạng thái: dùng "status_label"; thời gian: dùng "when_label". Lịch chưa có start_time thì giờ chính xác do nhân
+   viên chốt khi xác nhận.
+6. Khách chỉ cập nhật tên/SĐT: ghi nhận thông tin liên hệ mới, không gọi công cụ.
+7. Tự quy đổi thời gian khách nói ra ngày cụ thể (DD-MM-YYYY) theo "Hôm nay" rồi gọi công cụ ngay. Tuần tính từ
+   thứ 2 đến chủ nhật; "tuần sau" là tuần kế tiếp; ngày tính ra đã qua thì lấy ngày đó của tuần kế tiếp.
+   start_time (HH:MM) chỉ khi khách nêu giờ cụ thể ("8h", "14 giờ 30"); chỉ có ngày hoặc buổi (sáng/chiều) thì bỏ
+   trống start_time và KHÔNG hỏi thêm giờ. Công cụ báo INVALID_DATE thì quy đổi lại.
+8. Tra cứu lịch hẹn hoặc sau khi thao tác thành công: trả lời đúng việc đó rồi dừng, KHÔNG hỏi thêm thông tin
+   (loại xe, biển số...) hay đề nghị việc khác.
+9. Xưng hô: chỉ dùng đúng cặp xưng hô trong quy tắc phong cách bên dưới, KHÔNG trộn (VD "Mình" với "chị/em").
 """
 
-REQUIRED_TEMPLATES = {
-    "service_type": ("Loại dịch vụ (bảo dưỡng/sửa chữa/xem xe)",
-                     "{customer_cap} muốn đặt lịch bảo dưỡng, sửa chữa hay xem xe tại showroom?"),
-    "appointment_when": ("Ngày giờ hẹn", "{customer_cap} muốn đến vào ngày giờ nào?"),
-    "customer_phone": ("Số điện thoại", "{customer_cap} cho {bot} xin số điện thoại để xác nhận lịch nhé?"),
-}
-LABELS = {ServiceType.MAINTENANCE: "bảo dưỡng", ServiceType.REPAIR: "sửa chữa",
-          ServiceType.SHOWROOM_VISIT: "xem xe trực tiếp tại showroom"}
-CONFIRM_TEMPLATE = "{bot_cap} ghi nhận lịch {{label}} ({{when}}) cho {customer}. {customer_cap} xác nhận đặt lịch này giúp {bot} nhé?"
-PHONE_INVALID_TEMPLATE = "Số điện thoại {customer} vừa gửi chưa đúng định dạng (10 số, bắt đầu bằng 0), {customer} kiểm tra lại giúp {bot} nhé."
-BOOKING_FAILED_TEMPLATE = ("Hiện {bot} chưa xác nhận được lịch {{when}} trên hệ thống ạ. {bot_cap} vẫn giữ thông tin {customer} đã cung cấp, "
-                          "{customer} có thể nhắn lại để {bot} thử lại hoặc gọi hotline {{hotline}} để nhân viên hỗ trợ.")
+_WHEN = {"appointment_date": {"type": "string", "description": "Ngày hẹn YYYY-MM-DD, quy đổi từ lời khách"},
+         "start_time": {"type": "string", "description": "Giờ bắt đầu HH:MM; bỏ trống nếu khách chưa nêu giờ cụ thể"}}
+_ID = {"appointment_id": {"type": "integer", "description": "id lịch hẹn lấy từ get_appointment_details"}}
+TOOLS = [
+    {"name": "get_appointment_details", "description": "Xem các lịch hẹn của khách (mới nhất trước).",
+     "input_schema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "create_appointment", "description": "Đặt lịch hẹn mới từ thông tin đặt lịch đã biết.",
+     "input_schema": {"type": "object", "required": ["appointment_date"], "properties": _WHEN}},
+    {"name": "reschedule_appointment", "description": "Đổi lịch hẹn sang ngày giờ mới.",
+     "input_schema": {"type": "object", "required": ["appointment_id", "appointment_date"],
+                      "properties": {**_ID, **_WHEN}}},
+    {"name": "cancel_appointment", "description": "Hủy lịch hẹn.",
+     "input_schema": {"type": "object", "required": ["appointment_id"], "properties": _ID}},
+]
+WRITE_TOOLS = {"create_appointment", "reschedule_appointment", "cancel_appointment"}
+REQUIRED = {"service_type": "loại dịch vụ (bảo dưỡng/sửa chữa/xem xe)", "appointment_when": "ngày giờ hẹn",
+            "customer_name": "họ và tên đầy đủ", "customer_phone": "số điện thoại"}
+LABELS = {ServiceType.MAINTENANCE.value: "bảo dưỡng", ServiceType.REPAIR.value: "sửa chữa",
+          ServiceType.SHOWROOM_VISIT.value: "xem xe tại showroom"}
+STATUS_LABELS = {"PENDING_APPROVAL": "đang chờ nhân viên xác nhận", "CONFIRMED": "đã được xác nhận",
+                 "CANCELLED": "đã hủy", "REJECTED": "không được duyệt", "DONE": "đã hoàn thành"}
 BOOKING_KEYS = {"service_type", "appointment_when", "service_detail"}
-CONTACT_KEYS = {"customer_name", "customer_phone"}
-EXPLICIT = {"NEW_REQUEST", "CONTINUE_TASK", "ACCEPT_OFFER"}
-
-
-def _required(p: dict[str, str]) -> dict[str, tuple[str, str]]:
-    return {key: (label, question.format(**p)) for key, (label, question) in REQUIRED_TEMPLATES.items()}
+LOCAL_TZ = timezone(timedelta(hours=7))
+WEEKDAYS = ("Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật")
+MAX_DAYS_AHEAD = 180
+FAILED = BookingResult(ok=False, status="ERROR", message="Hệ thống chưa thực hiện được thao tác này.")
 
 
 def _booking_detail(state: AgentState, facts: dict) -> tuple[str | None, str | None]:
@@ -67,135 +95,233 @@ def _note(vehicle: str | None, detail: str | None) -> str | None:
     return "\n".join(p for p in parts if p) or None
 
 
-def _booked_recap(state: AgentState, workflow: ActiveWorkflow | None) -> str | None:
-    """A request is already stored and this turn brings no new booking slots: answer from the stored request
-    instead of re-collecting service/time (its slots were cleared after booking to prevent duplicates)."""
-    if not (workflow and workflow.workflow_type == "appointment" and workflow.collected_facts.get("appointment_id")):
-        return None
+def _accepted(state: AgentState) -> bool:
     interpretation = state.get("conversation_interpretation")
-    if interpretation and any(update.key in BOOKING_KEYS for update in interpretation.slot_updates):
-        return None  # new service/time -> a new booking request
-    booked, p = workflow.collected_facts, pronoun_vars(state)
-    vehicle = booked.get("vehicle")
-    car = (f", xe {vehicle}" if vehicle else
-           f". Yêu cầu này chưa ghi mẫu xe cụ thể, {p['customer']} muốn xem mẫu nào thì nhắn {p['bot']} để bổ sung nhé")
-    status = ("đang chờ nhân viên xác nhận" if workflow.status == WorkflowStatus.WAITING_FOR_APPROVAL
-              else "đã được xác nhận")
-    return (f"Dạ yêu cầu đặt lịch {booked.get('service_type')} của {p['customer']} ({booked.get('appointment_when')}) "
-            f"{status}{car}.")
+    return bool(interpretation and (interpretation.accepts_offer is True or any(
+        task.relationship == TaskRelationship.ACCEPT_OFFER for task in interpretation.tasks)))
 
 
-def _ask(state: AgentState, missing: list[str], facts: dict) -> str:
-    """Ask for the first missing slot in context; a just-rejected phone is reported as invalid."""
-    p = pronoun_vars(state)
-    REQUIRED = _required(p)
-    if "customer_phone" in missing and "customer_phone" in (state.get("rejected_slots") or []):
-        return f"{PHONE_INVALID_TEMPLATE.format(**p)} {REQUIRED['customer_phone'][1]}"
-
-    collected = {REQUIRED[k][0]: fact_value(facts, k) for k in REQUIRED if k not in missing}
-    system_prompt = APPOINTMENT_SYSTEM_PROMPT_TEMPLATE + STYLE_RULES.format(
-        pronoun_instruction=pronoun_instruction(p["customer"], p["bot"]))
-
-    prompt = (f"Tin nhắn của khách: {state.get('task_text') or state.get('user_text', '')}\n\n"
-              f"📋 THÔNG TIN ĐÃ CÓ: {json.dumps(collected, ensure_ascii=False)}\n\n"
-              f"⚠️ THÔNG TIN CÒN THIẾU: {', '.join(REQUIRED[k][0] for k in missing)}\n\n"
-              "Hãy xác nhận/ghi nhận thông tin khách vừa cung cấp (nếu có), "
-              "sau đó hỏi thông tin còn thiếu đầu tiên một cách tự nhiên.")
-    return generate(system_prompt, prompt, history=state.get("history")) or REQUIRED[missing[0]][1]
+def _turn(state: AgentState) -> int:
+    """History length identifies the turn; the next turn's history has one more user and one more ai message."""
+    return len(state.get("history") or [])
 
 
-def _with_pending(state: AgentState, text: str, missing: list[str], kind=InteractionKind.QUESTION) -> list:
-    """Expire this workflow's open interactions and open a new one."""
-    expired = [item.model_copy(update={"status": InteractionStatus.EXPIRED}) for item in open_pending(state, "appointment")]
-    return [*expired, PendingInteraction(
-        interaction_id=f"appointment_{uuid.uuid4().hex[:8]}", kind=kind, text=text, status=InteractionStatus.OPEN,
-        metadata={"workflow": "appointment", "missing_slots": missing})]
-
-
-def _contact_update_after_booking(state: AgentState, workflow: ActiveWorkflow | None) -> str | None:
-    """Reply when the customer only corrects name/phone after the request was stored.
-    The DB rows (customers, the pending appointment's contact_phone) are synced by conversation.handle_message."""
+def _new_time_this_turn(state: AgentState) -> bool:
     interpretation = state.get("conversation_interpretation")
-    if not (interpretation and workflow and workflow.workflow_type == "appointment"
-            and workflow.status == WorkflowStatus.WAITING_FOR_APPROVAL and workflow.collected_facts.get("appointment_id")):
-        return None
-    keys = {update.key for update in interpretation.slot_updates}
-    if not keys or not keys <= CONTACT_KEYS:
-        return None
-    p = pronoun_vars(state)
-    if "customer_phone" in (state.get("rejected_slots") or []):
-        return PHONE_INVALID_TEMPLATE.format(**p)
-    booked = workflow.collected_facts
-    return (f"Dạ {p['bot']} đã cập nhật thông tin liên hệ cho yêu cầu đặt lịch {booked.get('service_type')} "
-            f"({booked.get('appointment_when')}) đang chờ nhân viên xác nhận ạ.")
+    return bool(interpretation and any(u.key == "appointment_when" for u in interpretation.slot_updates))
+
+
+def _today() -> date:
+    return datetime.now(LOCAL_TZ).date()
+
+
+def _parse_when(raw_date, raw_time) -> tuple[date, time | None] | str:
+    """Validate the date/time the LLM deduced; an error string goes back to it as the tool result."""
+    try:
+        day = date.fromisoformat(str(raw_date or ""))
+    except ValueError:
+        return "appointment_date phải có dạng YYYY-MM-DD"
+    if day < _today():
+        return f"ngày {day.isoformat()} đã qua"
+    if day > _today() + timedelta(days=MAX_DAYS_AHEAD):
+        return f"ngày {day.isoformat()} quá xa (tối đa {MAX_DAYS_AHEAD} ngày)"
+    if not raw_time:
+        return day, None
+    try:
+        return day, time.fromisoformat(str(raw_time)).replace(second=0, microsecond=0)
+    except ValueError:
+        return "start_time phải có dạng HH:MM"
+
+
+def _fmt(day: str | None, start: str | None) -> str:
+    if not day:
+        return "chưa có ngày"
+    d = date.fromisoformat(day)
+    return f"{WEEKDAYS[d.weekday()]} {d:%d/%m/%Y}" + (f" lúc {start}" if start else "")
+
+
+def _summary(action: str, args: dict, info: dict | None) -> str:
+    """What the customer is asked to confirm, in plain Vietnamese."""
+    if action == "create_appointment":
+        vehicle = f", xe {args['vehicle']}" if args.get("vehicle") else ""
+        return (f"đặt lịch {LABELS[args['service_type']]} ({_fmt(args['date'], args['time'])}{vehicle}) "
+                f"cho {args['name']}, SĐT {args['phone']}")
+    current = (f"lịch {LABELS.get(info['service_type'], '')} ({_fmt(info['appointment_date'], info['start_time'])})"
+               if info else "lịch hẹn")
+    if action == "reschedule_appointment":
+        return f"đổi {current} sang {_fmt(args['date'], args['time'])}"
+    return f"hủy {current}"
 
 
 def appointment(state: AgentState) -> dict:
     facts = dict(state.get("known_facts") or {})
-    workflow = state.get("active_workflow")
+    session_id = state.get("session_id", "")
+    booking = get_services().booking
     p = pronoun_vars(state)
+    workflow = state.get("active_workflow")
+    mine = open_pending(state, "appointment")
+    confirmation = next((item for item in mine if item.kind == InteractionKind.CONFIRMATION
+                         and item.metadata.get("turn") == _turn(state) - 2), None)  # a stale one is never accepted
+    approved = confirmation.metadata if confirmation and _accepted(state) else None
+    vehicle, detail = _booking_detail(state, facts)
+    results: list[tuple[str, dict]] = []
+    done: dict[str, dict] = {}  # executed writes; a repeated call must not write twice
+    proposal: dict = {}
+    missing: list[str] = []
 
-    def reply(text: str, executed: bool = False, **changes) -> dict:
-        return {"answers": [answer(state, "appointment", text, executed=executed)], "known_facts": facts,
-                "trace": ["appointment"], **changes}
+    def own(appointment_id) -> dict | None:
+        return next((info.model_dump() for info in booking.list_appointments(session_id, active_only=True)
+                     if info.id == appointment_id), None)
 
-    if text := _contact_update_after_booking(state, workflow) or _booked_recap(state, workflow):
-        return reply(text)
-    if workflow and workflow.collected_facts.get("appointment_id"):
-        workflow = None  # new service/time after a stored request: start a separate booking
+    def confirm_or_run(action: str, args: dict, matches: bool, info: dict | None, run) -> dict:
+        if action in done:
+            return done[action]
+        if approved and approved.get("action") == action and matches:
+            try:
+                result = run(approved["args"]).model_dump()  # exactly what the customer confirmed
+            except Exception:
+                logger.exception("Appointment %s failed", action)
+                result = FAILED.model_dump()
+            done[action] = result
+            return result
+        proposal.update(action=action, args=args, text=_summary(action, args, info))
+        return {"status": "NEEDS_CONFIRMATION", "proposal": proposal["text"]}
+
+    def when(tool_args: dict) -> tuple[str, str | None] | dict:
+        parsed = _parse_when(tool_args.get("appointment_date"), tool_args.get("start_time"))
+        if isinstance(parsed, str):
+            return {"status": "INVALID_DATE", "message": parsed}
+        return parsed[0].isoformat(), parsed[1].strftime("%H:%M") if parsed[1] else None
+
+    def run_args(a: dict) -> tuple[date, time | None]:
+        return date.fromisoformat(a["date"]), time.fromisoformat(a["time"]) if a["time"] else None
+
+    def create(tool_args: dict) -> dict:
+        phone = normalize_phone(str(fact_value(facts, "customer_phone") or ""))
+        name = str(fact_value(facts, "customer_name") or "")
+        present = {"customer_phone": phone, "customer_name": is_full_name(name)}  # a given name alone is not enough
+        missing[:] = [label for key, label in REQUIRED.items() if not present.get(key, fact_value(facts, key))]
+        if missing:
+            invalid = "customer_phone" in (state.get("rejected_slots") or [])
+            return {"status": "MISSING", "missing": missing,
+                    **({"invalid": "số điện thoại chưa đúng định dạng (10 số, bắt đầu bằng 0)"} if invalid else {})}
+        if isinstance(deduced := when(tool_args), dict):
+            return deduced
+        args = {"service_type": str(fact_value(facts, "service_type")), "when": str(fact_value(facts, "appointment_when")),
+                "date": deduced[0], "time": deduced[1], "name": name, "phone": phone, "vehicle": vehicle,
+                "detail": detail}
+        # On "ok" the confirmed date runs even if the LLM re-deduces it differently; the facts must be unchanged.
+        matches = approved is not None and all(approved.get("args", {}).get(k) == args[k]
+                                               for k in ("service_type", "when", "name", "phone"))
+        return confirm_or_run("create_appointment", args, matches, None,
+                              lambda a: booking.create_appointment(session_id, ServiceType(a["service_type"]),
+                                                                   *run_args(a), a["phone"],
+                                                                   detail=_note(a["vehicle"], a["detail"])))
+
+    def change(name: str, tool_args: dict) -> dict:
+        appointment_id = tool_args.get("appointment_id")
+        info = own(appointment_id)
+        if info is None:
+            return {"ok": False, "status": "NOT_FOUND", "message": "Không tìm thấy lịch hẹn đang hiệu lực với id này."}
+        same_id = approved is not None and approved.get("args", {}).get("appointment_id") == appointment_id
+        if name == "cancel_appointment":
+            return confirm_or_run(name, {"appointment_id": appointment_id}, same_id, info,
+                                  lambda a: booking.cancel_appointment(session_id, a["appointment_id"]))
+        if not tool_args.get("appointment_date"):
+            missing[:] = ["thời gian mới"]
+            return {"status": "MISSING", "missing": missing}
+        if isinstance(deduced := when(tool_args), dict):
+            return deduced
+        args = {"appointment_id": appointment_id, "date": deduced[0], "time": deduced[1]}
+        # "Ok" to the proposal keeps the proposed time; a time stated now is a new proposal.
+        confirmed = (approved or {}).get("args", {})
+        matches = same_id and (not _new_time_this_turn(state)
+                               or (confirmed.get("date"), confirmed.get("time")) == deduced)
+        return confirm_or_run(name, args, matches, info,
+                              lambda a: booking.reschedule_appointment(session_id, a["appointment_id"], *run_args(a)))
+
+    def execute(name: str, tool_args: dict) -> dict:
+        try:
+            if name == "get_appointment_details":
+                result = {"appointments": [{**info.model_dump(), "status_label": STATUS_LABELS.get(info.status, info.status),
+                                            "when_label": _fmt(info.appointment_date, info.start_time),
+                                            "service_label": LABELS.get(info.service_type, info.service_type)}
+                                           for info in booking.list_appointments(session_id)[:5]]}
+            elif name == "create_appointment":
+                result = create(tool_args)
+            elif name in WRITE_TOOLS:
+                result = change(name, tool_args)
+            else:
+                result = {"error": f"unknown tool {name}"}
+        except Exception:
+            logger.exception("Appointment tool %s failed", name)
+            result = FAILED.model_dump()
+        results.append((name, result))
+        return result
+
+    known = {label: fact_value(facts, key) for key, label in REQUIRED.items() if fact_value(facts, key)}
+    if vehicle:
+        known["xe"] = vehicle
+    waiting_for = f"{confirmation.text} (thao tác: {confirmation.metadata.get('action')})" if confirmation else "không"
+    today = _today()
+    context = (f"Hôm nay: {WEEKDAYS[today.weekday()]} {today.isoformat()}\n"
+               f"Tin nhắn của khách: {state.get('task_text') or state.get('user_text', '')}\n"
+               f"Thông tin đặt lịch đã biết: {json.dumps(known, ensure_ascii=False)}\n"
+               f"Xác nhận đang chờ: {waiting_for}\nKhách vừa đồng ý xác nhận: {'có' if approved else 'không'}")
+    system = SYSTEM_PROMPT.format(hotline=settings.hotline) + STYLE_RULES.format(
+        pronoun_instruction=pronoun_instruction(p["customer"], p["bot"]))
+    out = generate_with_tools(system, context, TOOLS, execute, history=state.get("history"), max_turns=4)
+    reply = (out.get("final_response") or "").strip() or _fallback(results, proposal, missing, p)
+    return _update(state, facts, workflow, mine, reply, results, done, proposal, missing)
+
+
+def _fallback(results: list[tuple[str, dict]], proposal: dict, missing: list[str], p: dict) -> str:
+    """Reply from the tool results when the LLM gave no text."""
+    if proposal:
+        return f"Dạ {p['customer']} xác nhận giúp {p['bot']}: {p['customer']} muốn {proposal['text']} phải không ạ?"
+    if missing:
+        return f"Dạ {p['customer']} cho {p['bot']} xin {missing[0]} nhé."
+    if results and (message := results[-1][1].get("message")):
+        return message if results[-1][1].get("ok") else f"{message} {p['customer_cap']} có thể gọi hotline {settings.hotline}."
+    return f"Dạ {p['bot']} chưa tìm thấy lịch hẹn nào của {p['customer']} ạ."
+
+
+def _pending(mine: list[PendingInteraction], status: InteractionStatus, new: PendingInteraction | None = None) -> list:
+    return [*(item.model_copy(update={"status": status}) for item in mine), *([new] if new else [])]
+
+
+def _update(state: AgentState, facts: dict, workflow: ActiveWorkflow | None, mine: list[PendingInteraction],
+            reply: str, results: list[tuple[str, dict]], done: dict[str, dict], proposal: dict,
+            missing: list[str]) -> dict:
+    """State after the turn: open a confirmation/question, or close the workflow once a write succeeded."""
     if not workflow or workflow.workflow_type != "appointment":
         workflow = ActiveWorkflow(workflow_id=f"{state.get('session_id', 'session')}_appointment",
                                   workflow_type="appointment", status=WorkflowStatus.ACTIVE)
-    current: ActiveWorkflow = workflow
+    succeeded = {name: result for name, result in done.items() if result.get("ok")}
+    # Lookups are DB results too, so a reply restating a stored booking is grounded.
+    looked_up = any(name == "get_appointment_details" and result.get("appointments") for name, result in results)
+    update: dict = {"trace": ["appointment"], "known_facts": facts,
+                    "answers": [answer(state, "appointment", reply, executed=bool(succeeded) or looked_up)]}
 
-    def waiting(**extra) -> ActiveWorkflow:
-        return current.model_copy(update={"status": WorkflowStatus.WAITING_FOR_USER, **extra})
-
-    phone = normalize_phone(str(fact_value(facts, "customer_phone") or ""))
-    if not phone:
-        facts.pop("customer_phone", None)
-    missing = [key for key in REQUIRED_TEMPLATES if not fact_value(facts, key)]
-    if missing or not phone:
-        question = _ask(state, missing, facts)
-        return reply(question, active_workflow=waiting(collected_facts={k: fact_value(facts, k) for k in facts}),
-                     pending_interactions=_with_pending(state, question, missing))
-
-    service, when = ServiceType(str(fact_value(facts, "service_type"))), fact_value(facts, "appointment_when")
-    label = LABELS[service]
-    interpretation = state.get("conversation_interpretation")
-    accepted = bool(interpretation and interpretation.accepts_offer is True)
-    explicit = bool(interpretation and any(task.domain.value == "APPOINTMENT" and task.relationship.value in EXPLICIT
-                                           for task in interpretation.tasks))
-    pending = open_pending(state, "appointment")
-    confirmation = next((p for p in pending if p.kind == InteractionKind.CONFIRMATION), None)
-    if confirmation and not accepted:
-        return reply(confirmation.text)
-    if not (explicit or accepted):
-        question = CONFIRM_TEMPLATE.format(**p).format(label=label, when=when)
-        return reply(question, active_workflow=waiting(),
-                     pending_interactions=_with_pending(state, question, [], InteractionKind.CONFIRMATION))
-
-    vehicle, detail = _booking_detail(state, facts)
-    try:
-        result = get_services().booking.create_appointment(state.get("session_id", ""), service, str(when), phone,
-                                                           detail=_note(vehicle, detail))
-    except Exception:
-        result = None
-    if result is None or not result.ok:
-        return reply(BOOKING_FAILED_TEMPLATE.format(**p).format(when=when, hotline=settings.hotline), active_workflow=waiting())
-
-    if result.status == "CONFIRMED":
-        text = f"{p['bot_cap']} đã xác nhận lịch hẹn {label} ({when}). {result.message}"
-        status = WorkflowStatus.NONE
-    else:
-        text = (f"{p['bot_cap']} đã gửi yêu cầu đặt lịch {label} ({when}{', xe ' + vehicle if vehicle else ''}) lên hệ thống. "
-                f"{result.message or 'Lịch hẹn đang chờ nhân viên xác nhận.'}")
-        status = WorkflowStatus.WAITING_FOR_APPROVAL
-    # The request is stored; its slots must not drive a second booking (a later name/phone correction
-    # would otherwise re-enter the confirm-and-book path and create a duplicate row).
-    for key in BOOKING_KEYS:
-        facts.pop(key, None)
-    booked = workflow.model_copy(update={"status": status, "collected_facts": {
-        "appointment_id": result.appointment_id, "service_type": label, "appointment_when": when, "vehicle": vehicle}})
-    return reply(text, executed=True, active_workflow=booked,
-                 pending_interactions=[p.model_copy(update={"status": InteractionStatus.RESOLVED}) for p in pending])
+    if proposal or missing:
+        kind = InteractionKind.CONFIRMATION if proposal else InteractionKind.QUESTION
+        metadata = ({"workflow": "appointment", "action": proposal["action"], "args": proposal["args"],
+                     "turn": _turn(state)} if proposal else {"workflow": "appointment", "missing_slots": missing})
+        new = PendingInteraction(interaction_id=f"appointment_{uuid.uuid4().hex[:8]}", kind=kind, text=reply,
+                                 status=InteractionStatus.OPEN, metadata=metadata)
+        update["pending_interactions"] = _pending(mine, InteractionStatus.EXPIRED, new)
+        update["active_workflow"] = workflow.model_copy(update={"status": WorkflowStatus.WAITING_FOR_USER})
+    elif succeeded:
+        update["pending_interactions"] = _pending(mine, InteractionStatus.RESOLVED)
+        if "create_appointment" in succeeded:
+            for key in BOOKING_KEYS:  # the stored request must not drive a second booking
+                facts.pop(key, None)
+            update["active_workflow"] = workflow.model_copy(update={
+                "status": WorkflowStatus.WAITING_FOR_APPROVAL,
+                "collected_facts": {"appointment_id": succeeded["create_appointment"].get("appointment_id")}})
+        else:
+            facts.pop("appointment_when", None)  # the new time is now stored on the appointment row
+            update["active_workflow"] = None
+    elif done:  # a confirmed write failed: drop the confirmation, the customer can ask again
+        update["pending_interactions"] = _pending(mine, InteractionStatus.EXPIRED)
+    return update

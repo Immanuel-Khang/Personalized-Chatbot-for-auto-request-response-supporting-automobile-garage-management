@@ -141,8 +141,10 @@ Table appointments {
   vehicle_id integer [ref: > customer_vehicles.id, note: 'Xe của khách (bảo dưỡng, sửa chữa). NULL khi xem xe.']
   variant_id integer [ref: > vehicle_variants.id, note: 'Mẫu xe muốn xem. NULL khi là dịch vụ cho xe của khách.']
   contact_phone varchar(20) [not null]
+  appointment_date date [note: 'Ngày hẹn agent quy đổi từ lời khách']
+  start_time time [note: 'Giờ bắt đầu; NULL khi khách chưa nêu giờ']
   status varchar(20) [not null, default: 'PENDING_APPROVAL', check: `status IN ('PENDING_APPROVAL', 'CONFIRMED', 'REJECTED', 'CANCELLED', 'DONE')`]
-  note text
+  note text [note: 'Xe và yêu cầu riêng của khách']
   created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
   updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
   indexes {

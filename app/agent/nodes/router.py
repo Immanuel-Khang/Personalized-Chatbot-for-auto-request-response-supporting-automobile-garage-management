@@ -18,6 +18,8 @@ AGENTS = {
 READ_ONLY = ("sales", "knowledge", "after_sales", "conversation")
 WRITERS = ("contract", "appointment")
 BOOKING_FACTS = {"service_type", "appointment_when", "service_detail"}
+# Actions on stored appointments: always handled by the appointment agent, never as "stop the current task".
+APPOINTMENT_ACTIONS = {"reschedule_appointment", "cancel_appointment", "appointment_details"}
 CONTINUING = {TaskRelationship.ANSWER_TO_QUESTION, TaskRelationship.ACCEPT_OFFER,
               TaskRelationship.CONTINUE_TASK, TaskRelationship.CORRECT_PREVIOUS_INFO}
 
@@ -41,6 +43,8 @@ def _offer_workflow(state: AgentState, task) -> str | None:
 
 def _route_task(state: AgentState, task) -> tuple[str, str | None]:
     """(agent, conversation reason) for one task."""
+    if task.domain == Intent.APPOINTMENT and task.action in APPOINTMENT_ACTIONS:
+        return "appointment", None
     if task.inquiry_only:
         if task.domain == Intent.CONTRACT:
             return "conversation", "contract_inquiry"
@@ -82,14 +86,15 @@ def router(state: AgentState) -> dict:
         return {**update, "plan": plan, "planned_agents": ["knowledge"], "route_reason": "safety"}
     plan: list[dict] = []
     reason = "clarify" if not tasks or (interpretation and interpretation.uncertain) else None
-    cancels = [task for task in tasks if task.relationship == TaskRelationship.CANCEL_TASK]
+    cancels = [task for task in tasks if task.relationship == TaskRelationship.CANCEL_TASK
+               and not (task.domain == Intent.APPOINTMENT and task.action in APPOINTMENT_ACTIONS)]
     if cancels:
         # "Hủy lịch, cho mình hỏi X": cancel first, then still answer X in the same turn.
         cancelled = _cancel(state, cancels)
         plan, reason = cancelled.pop("plan"), cancelled.pop("route_reason")
         update.update(cancelled)
         state = {**state, **cancelled}  # later tasks see the cleared workflow, not the cancelled one
-        tasks = [task for task in tasks if task.relationship != TaskRelationship.CANCEL_TASK]
+        tasks = [task for task in tasks if task not in cancels]
     for order, task in enumerate(tasks, start=len(plan)):
         agent, task_reason = _route_task(state, task)
         reason = reason or task_reason

@@ -3,10 +3,11 @@ HỢP ĐỒNG HÀM giữa Agent (người B) và các Service (người A, C).
 Agent chỉ được gọi các hàm dưới đây, KHÔNG được import trực tiếp DB hay thư viện RAG.
 Nhờ vậy mỗi người viết phần của mình độc lập, ghép lại không vỡ.
 """
+from datetime import date, time
 from typing import Optional, Protocol
 
 from app.contracts.schemas import (
-    BookingResult, HandoverResult, KnowledgeChunk,
+    AppointmentInfo, BookingResult, HandoverResult, KnowledgeChunk,
     MaintenanceResult, Product, ServiceRecord, ServiceType,
 )
 
@@ -27,9 +28,13 @@ class KnowledgeService(Protocol):
 
 class BookingService(Protocol):
     def create_appointment(
-        self, session_id: str, service_type: ServiceType, when_text: str, phone: str,
-        detail: str | None = None,
+        self, session_id: str, service_type: ServiceType, appointment_date: date, start_time: time | None,
+        phone: str, detail: str | None = None,
     ) -> BookingResult: ...
+    def list_appointments(self, session_id: str, active_only: bool = False) -> list[AppointmentInfo]: ...
+    def reschedule_appointment(self, session_id: str, appointment_id: int, appointment_date: date,
+                               start_time: time | None) -> BookingResult: ...
+    def cancel_appointment(self, session_id: str, appointment_id: int) -> BookingResult: ...
 
 
 class HandoverService(Protocol):

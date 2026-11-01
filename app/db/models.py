@@ -6,11 +6,11 @@ Chỉ chạy PostgreSQL (jsonb, timestamptz). Mọi thay đổi schema đi qua A
 Mã trạng thái dạng varchar + CHECK, không dùng native ENUM. Timestamp UTC.
 """
 import json
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timezone
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
-    Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, SmallInteger, String, Text,
+    Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, SmallInteger, String, Text, Time,
     UniqueConstraint, func, text, event, DDL, Computed,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TSVECTOR
@@ -152,8 +152,9 @@ class AppointmentSlot(Base):
 
 
 class Appointment(Base):
-    """Lệch có chủ đích so với schema.dbml: slot_id được NULL khi PENDING_APPROVAL vì bot chưa quy đổi
-    thời gian khách nói ("sáng thứ 7") ra slot; nhân viên gán slot khi duyệt. Thời gian khách nói nằm ở note."""
+    """Lệch có chủ đích so với schema.dbml: slot_id được NULL khi PENDING_APPROVAL; nhân viên gán slot khi duyệt.
+    appointment_date/start_time: ngày giờ khách hẹn do agent quy đổi ("thứ 7 tuần sau" -> ngày cụ thể); start_time NULL
+    khi khách chưa nêu giờ. note chỉ chứa xe và yêu cầu riêng của khách."""
     __tablename__ = "appointments"
     __table_args__ = (
         _in("service_type", SERVICE_TYPES),
@@ -168,6 +169,8 @@ class Appointment(Base):
     service_type: Mapped[str] = mapped_column(String(20))
     # TODO[ĐỢT 3]: vehicle_id -> customer_vehicles.id, variant_id -> vehicle_variants.id khi có các bảng đó
     contact_phone: Mapped[str] = mapped_column(String(20))
+    appointment_date: Mapped[date | None] = mapped_column(Date, index=True)  # NULL chỉ ở dòng cũ trước migration
+    start_time: Mapped[time | None] = mapped_column(Time)
     status: Mapped[str] = mapped_column(String(20), default="PENDING_APPROVAL", server_default="PENDING_APPROVAL",
                                         index=True)
     note: Mapped[str | None] = mapped_column(Text)

@@ -73,8 +73,20 @@ class KnowledgeChunk(BaseModel):
 class BookingResult(BaseModel):
     ok: bool
     appointment_id: int | None = None
-    status: str = ""  # CONFIRMED | PENDING_APPROVAL | REJECTED
+    status: str = ""  # CONFIRMED | PENDING_APPROVAL | REJECTED | CANCELLED | NOT_FOUND
     message: str = ""
+
+
+class AppointmentInfo(BaseModel):
+    """Một lịch hẹn của phiên, đọc từ DB (nguồn sự thật cho tra cứu/đổi/hủy)."""
+    id: int
+    service_type: str
+    status: str  # PENDING_APPROVAL | CONFIRMED | REJECTED | CANCELLED | DONE
+    appointment_date: str | None = None  # YYYY-MM-DD
+    start_time: str | None = None  # HH:MM; None = khách chưa nêu giờ
+    slot_start: str | None = None  # giờ nhân viên đã chốt (khi đã gán slot)
+    vehicle: str | None = None
+    detail: str | None = None
 
 
 class HandoverResult(BaseModel):

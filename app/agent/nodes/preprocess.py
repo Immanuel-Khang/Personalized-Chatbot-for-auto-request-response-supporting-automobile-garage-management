@@ -69,6 +69,10 @@ ConversationInterpretation. Các node sau chỉ đọc kết quả của bạn, 
    - Sửa thông tin đã nói ("Không, 700 triệu"): CORRECT_PREVIOUS_INFO và slot_update CORRECT.
    - Nói tiếp workflow đang mở: CONTINUE_TASK. Bỏ việc cũ để làm việc khác: CHANGE_TOPIC.
    - Hủy/không muốn tiếp tục việc đang làm: CANCEL_TASK.
+   - Lịch hẹn ĐÃ ĐẶT: "hủy lịch hẹn của tôi" -> APPOINTMENT cancel_appointment (NEW_REQUEST, không phải
+     CANCEL_TASK); "đổi lịch sang ngày mai" -> APPOINTMENT reschedule_appointment, kèm slot_update appointment_when;
+     "lịch hẹn của tôi lúc mấy giờ", "đã xác nhận chưa" -> APPOINTMENT appointment_details (inquiry_only=false).
+     Khách đồng ý câu bot hỏi xác nhận đổi/hủy -> ACCEPT_OFFER (accepts_offer=true), KHÔNG phải CANCEL_TASK.
 2. Tách task: mỗi yêu cầu riêng biệt là một task, đúng thứ tự xuất hiện. "Tìm xe số 1 và đặt
    lịch xem xe" = task SALES product_detail + task APPOINTMENT book_appointment. Chỉ phân tích
    yêu cầu MỚI; không lặp lại task của các lượt trước. Xem xe tại showroom là APPOINTMENT.
@@ -245,6 +249,9 @@ def _apply_interpretation(state: AgentState, interpretation: ConversationInterpr
     # Adapt pronouns based on customer's self-reference
     result = {"conversation_interpretation": applied, "known_facts": facts, "rejected_slots": rejected}
     detected = applied.customer_pronoun
+    if detected and not re.search(rf"(?<!\w){re.escape(detected)}(?!\w)", state.get("user_text", ""), re.IGNORECASE):
+        logger.warning("Discarding customer_pronoun %r not present in the message", detected)
+        detected = None  # the model inferred a pronoun the customer never used (e.g. "Tôi" -> "chị")
     if detected in ("anh", "chị"):
         # Customer uses formal pronoun -> Bot adapts to respectful form
         result["customer_pronoun"] = detected
