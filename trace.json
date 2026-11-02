@@ -1,15 +1,15 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách xác nhận đúng với đề xuất đặt lịch bảo dưỡng (chiều 01/11/2026 lúc 15:00 cho Dương Định Khang).",
+      "message_summary": "Khách muốn tiến hành ký hợp đồng mua chiếc xe đang được tư vấn (mẫu 2: FUSO Canter FI170L).",
       "tasks": [
         {
-          "task_id": "t1_20261101_0001",
-          "domain": "APPOINTMENT",
-          "action": "book_appointment",
-          "text": "Đúng rồi",
-          "relationship": "ACCEPT_OFFER",
-          "referenced_interaction_id": "appointment_22882ed5",
+          "task_id": "t1",
+          "domain": "CONTRACT",
+          "action": "start_contract",
+          "text": "Tôi muốn làm hợp đồng mua xe này",
+          "relationship": "NEW_REQUEST",
+          "referenced_interaction_id": null,
           "requires_clarification": false,
           "entity_id": null,
           "entity_type": null,
@@ -17,7 +17,14 @@
         }
       ],
       "slot_updates": [],
-      "references": [],
+      "references": [
+        {
+          "mention": "mẫu 2",
+          "position": 2,
+          "entity_id": null,
+          "ambiguous": true
+        }
+      ],
       "signals": {
         "wants_human": false,
         "complaint": false,
@@ -27,26 +34,19 @@
         "note": null
       },
       "complexity": "LOW",
-      "accepts_offer": true,
+      "accepts_offer": null,
       "uncertain": false,
-      "customer_pronoun": null
+      "customer_pronoun": "tôi"
     },
     "known_facts": {
-      "appointment_when": {
-        "key": "appointment_when",
-        "value": "chiều hôm nay lúc 3 giờ",
-        "source": "USER_EXPLICIT",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "service_type": {
-        "key": "service_type",
-        "value": "MAINTENANCE",
-        "source": "USER_EXPLICIT",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
       "customer_name": "[REDACTED]",
+      "payload_tons": {
+        "key": "payload_tons",
+        "value": "trên 5 tấn",
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
       "customer_phone": "[REDACTED]"
     },
     "rejected_slots": [],

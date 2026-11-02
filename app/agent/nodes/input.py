@@ -3,6 +3,7 @@
 Checkpoints may return pydantic models or plain dicts; every later node relies on
 models. ``build_context`` assembles exactly what preprocessing sends to the LLM.
 """
+from app.agent.memory import windowed_history
 from app.agent.state import AgentState
 from app.contracts.schemas import (
     ActiveWorkflow,
@@ -49,6 +50,9 @@ def load_context(state: AgentState) -> dict:
         "pending_interactions": [item for item in pending if item.status == InteractionStatus.OPEN],
         "known_facts": facts,
         "active_workflow": _model(ActiveWorkflow, state.get("active_workflow")),
+        # Every later LLM call gets the running summary + recent window, never the whole session.
+        **windowed_history(state.get("history") or [], state.get("conversation_summary"),
+                           state.get("summarized_messages") or 0),
         "trace": ["input"],
     }
 

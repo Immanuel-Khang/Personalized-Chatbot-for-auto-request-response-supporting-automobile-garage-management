@@ -43,12 +43,18 @@ def _get_llm():
     return _llm
 
 
-def _messages(system: str, user: str, history: list[dict] | None) -> list:
-    """[system, *lịch sử phiên (cũ → mới), tin hiện tại]. history: [{role: user|ai, content}], không chứa tin hiện tại."""
+def _past(history: list[dict] | None) -> list:
+    """history: [{role: summary|user|ai, content}] (agent/memory.py), không chứa tin hiện tại."""
     from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-    past = [HumanMessage(content=m["content"]) if m["role"] == "user" else AIMessage(content=m["content"])
-            for m in history or []]
-    return [SystemMessage(content=system), *past, HumanMessage(content=user)]
+    roles = {"user": HumanMessage, "ai": AIMessage}
+    return [SystemMessage(content="TÓM TẮT CÁC LƯỢT TRƯỚC:\n" + m["content"]) if m["role"] == "summary"
+            else roles.get(m["role"], AIMessage)(content=m["content"]) for m in history or []]
+
+
+def _messages(system: str, user: str, history: list[dict] | None) -> list:
+    """[system, tóm tắt lượt cũ, *cửa sổ tin gần nhất (cũ → mới), tin hiện tại]."""
+    from langchain_core.messages import HumanMessage, SystemMessage
+    return [SystemMessage(content=system), *_past(history), HumanMessage(content=user)]
 
 
 def generate(system: str, user: str, history: list[dict] | None = None) -> str | None:
@@ -114,10 +120,7 @@ def generate_with_tools(system_prompt: str, user_message: str, tools: list[dict]
         llm_with_tools = llm.bind_tools(tools)
 
         # Build initial messages
-        past = [HumanMessage(content=m["content"]) if m["role"] == "user"
-                else AIMessage(content=m["content"])
-                for m in history or []]
-        messages = [SystemMessage(content=system_prompt), *past, HumanMessage(content=user_message)]
+        messages = [SystemMessage(content=system_prompt), *_past(history), HumanMessage(content=user_message)]
 
         tool_calls_made = []
 

@@ -24,7 +24,7 @@ from app.services import get_services
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """\
-Bạn là chuyên viên lịch hẹn của xưởng Foton (bảo dưỡng, sửa chữa, xem xe tại showroom; KHÔNG có dịch vụ lái thử).
+Bạn là chuyên viên lịch hẹn của xưởng Foton (bảo dưỡng, sửa chữa, xem xe tại showroom).
 CÔNG CỤ:
 - get_appointment_details: các lịch hẹn của khách (thời gian, trạng thái). Gọi trước khi trả lời câu hỏi về lịch hẹn
   và trước khi đổi/hủy để lấy đúng appointment_id.
@@ -32,7 +32,7 @@ CÔNG CỤ:
 - reschedule_appointment: đổi lịch appointment_id sang thời gian mới.
 - cancel_appointment: hủy lịch appointment_id.
 QUY TẮC:
-1. Tiếng Việt, ngắn gọn; chỉ dựa trên kết quả công cụ của lượt này. KHÔNG bịa giờ, trạng thái, mã lịch.
+1. Tiếng Việt, ngắn gọn; chỉ dựa trên kết quả công cụ của lượt này. KHÔNG bịa giờ, tự suy luận ý muốn đặt lịch của khách, trạng thái, mã lịch.
 2. Kết quả status=NEEDS_CONFIRMATION: nêu đúng nội dung "proposal" và hỏi khách xác nhận; CHƯA được nói là đã làm.
    status=MISSING: ghi nhận thông tin khách vừa đưa rồi hỏi thông tin còn thiếu đầu tiên.
    ok=true: báo đã thực hiện theo "message". ok=false: báo chưa thực hiện được theo "message", gợi ý hotline {hotline}.
@@ -102,8 +102,8 @@ def _accepted(state: AgentState) -> bool:
 
 
 def _turn(state: AgentState) -> int:
-    """History length identifies the turn; the next turn's history has one more user and one more ai message."""
-    return len(state.get("history") or [])
+    """Full history length identifies the turn; the next turn's is two higher. state["history"] is windowed."""
+    return state.get("turn", len(state.get("history") or []))
 
 
 def _new_time_this_turn(state: AgentState) -> bool:

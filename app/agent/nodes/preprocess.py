@@ -16,7 +16,7 @@ import uuid
 from pathlib import Path
 
 from app.agent.llm import generate_structured
-from app.agent.nodes.input import build_context
+from app.agent.nodes.input import AVAILABLE_ACTIONS, build_context
 from app.agent.state import AgentState
 from app.identity import normalize_phone, is_full_name
 from app.contracts.schemas import (
@@ -58,7 +58,7 @@ _NORMALISED_VALUE_KEYS = {"appointment_when", "service_type", "service_detail", 
 
 INTERPRETATION_PROMPT = """\
 Bạn là Preprocessing Agent của trợ lý gara ô tô. Phân tích TIN NHẮN MỚI NHẤT của khách
-trong ngữ cảnh lịch sử hội thoại và CONVERSATION STATE, trả về đúng schema
+trong ngữ cảnh hội thoại (tóm tắt các lượt trước + các tin gần nhất) và CONVERSATION STATE, trả về đúng schema
 ConversationInterpretation. Các node sau chỉ đọc kết quả của bạn, không đọc lại câu chữ.
 
 1. Ý định theo ngữ cảnh (relationship của từng task):
@@ -100,7 +100,8 @@ ConversationInterpretation. Các node sau chỉ đọc kết quả của bạn, 
    safety_risk (xe có dấu hiệu nguy hiểm: mất phanh, cháy, khói, mất lái...), discount_request,
    deal_change (khách muốn sửa điều khoản hợp đồng, thương lượng lại giá, hoặc hỏi phí/chi phí phát sinh
    của hợp đồng; KHÔNG bật khi khách chỉ trả lời giá chốt bot hỏi hay khi chữ "giá/phí" nằm trong tên riêng).
-   complexity=HIGH chỉ khi câu hỏi kỹ thuật vượt quá tư vấn thông thường (chẩn đoán phức tạp).
+   complexity=HIGH chỉ khi câu hỏi kỹ thuật vượt quá tư vấn thông thường (chẩn đoán phức tạp). Tin nhắn có
+   nhiều yêu cầu thông thường (tìm xe + đặt lịch...), lời chào, hỏi giá/thông số -> LOW.
 7. Xưng hô (customer_pronoun): Phát hiện cách khách tự xưng trong tin nhắn MỚI NHẤT. Chỉ ghi khi khách
    THỰC SỰ dùng đại từ nhân xưng để chỉ bản thân trong câu có hành động/yêu cầu:
    - "anh muốn mua xe" / "cho anh đặt lịch" -> customer_pronoun="anh"
@@ -111,11 +112,27 @@ ConversationInterpretation. Các node sau chỉ đọc kết quả của bạn, 
 """
 
 
+def _action_line(item: dict) -> str:
+    required = f" [bắt buộc: {', '.join(item['required_fields'])}]" if item.get("required_fields") else ""
+    return f"- {item['domain']} {item['action']}: {item['description']}{required}"
+
+
+# Static part, identical every turn (a stable prefix also lets the provider cache it).
+SYSTEM_PROMPT = (f"{INTERPRETATION_PROMPT}\ncanonical_slots (key: ý nghĩa):\n"
+                 + "\n".join(f"- {key}: {desc}" for key, desc in CANONICAL_SLOTS.items())
+                 + "\n\navailable_actions (domain action: mô tả):\n"
+                 + "\n".join(_action_line(item) for item in AVAILABLE_ACTIONS))
+
+
 def _context_prompt(state: AgentState) -> str:
-    # History and current text go to the LLM as chat messages (llm.py); send only state here.
+    # History and current text go to the LLM as chat messages (llm.py); only the per-turn state goes here,
+    # and empty parts are left out.
     context = build_context(state, CANONICAL_SLOTS)
-    metadata = context.model_dump(mode="json", exclude={"history", "current_message"})
-    return f"{INTERPRETATION_PROMPT}\nCONVERSATION STATE JSON:\n{json.dumps(metadata, ensure_ascii=False, default=str)}"
+    dynamic = context.model_dump(mode="json", exclude_none=True,
+                                 include={"pending_interactions", "active_workflow", "shown_products"})
+    dynamic["known_facts"] = {key: fact.value for key, fact in context.known_facts.items()}
+    dynamic = {key: value for key, value in dynamic.items() if value}
+    return f"{SYSTEM_PROMPT}\n\nCONVERSATION STATE JSON:\n{json.dumps(dynamic, ensure_ascii=False, default=str)}"
 
 
 def _neutral_interpretation(text: str, reason: str) -> ConversationInterpretation:

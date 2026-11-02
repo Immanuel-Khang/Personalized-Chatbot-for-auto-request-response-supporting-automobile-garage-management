@@ -1,15 +1,18 @@
-"""Response Composer: an LLM agent merges the validated specialist answers into one smooth plain-text reply.
+"""Response Composer: joins the validated specialist answers of a multi-task turn.
 
-The agent can only finish through the submit_reply tool, and code checks every submission: no markdown,
-no new numbers, no discount/commitment wording, no booking/contract claim unless a writer executed this
-turn. If no submission passes, the joined answers are sent with markdown stripped. Output Guard still runs after.
+Specialists return finished, cleaned replies (state.clean_reply), so a single answer is sent as-is with no
+LLM call. Several answers are simply joined; the LLM reorganises them only when the join reads badly
+(``_messy``: several follow-up questions or lines repeated across parts). The agent can only finish through
+the submit_reply tool, and code checks every submission: no markdown, no new numbers, no discount/commitment
+wording, no booking/contract claim unless a writer executed this turn. If no submission passes, the joined
+answers are sent. Output Guard still runs after.
 """
 import re
 
 from app.agent.llm import generate_with_tools
 from app.agent.nodes.output_guard import FORBIDDEN
 from app.agent.nodes.validation import CLAIMS
-from app.agent.state import AgentState, pronoun_instruction, pronouns
+from app.agent.state import MARKDOWN, AgentState, pronoun_instruction, pronouns, strip_greeting  # noqa: F401
 from app.contracts.schemas import Intent
 
 
@@ -23,6 +26,8 @@ STYLE_RULES = """\
 - Gợi ý một việc (đặt lịch, hợp đồng) KHÔNG phải là đã làm; KHÔNG nói đã đặt/xác nhận/áp dụng khi hệ thống chưa báo thành công.
 - Xưởng KHÔNG có dịch vụ lái thử; không gợi ý hay hứa lái thử.
 - Chỉ dùng dữ liệu được cung cấp (catalog, tài liệu, kết quả hệ thống); thiếu dữ liệu thì nói rõ phần nào cần nhân viên xác nhận.
+- Văn bản thuần, gửi thẳng cho khách: KHÔNG dùng markdown (không *, **, #, `); danh sách dùng "- " ở đầu dòng.
+- Không để lộ tên trường kỹ thuật hay mã nội bộ (price_as_of, ID sản phẩm); viết "giá áp dụng từ ngày ...".
 - Lịch sự, tự nhiên như nhân viên cố vấn dịch vụ; không lộ tên luồng, intent hay lỗi kỹ thuật nội bộ.
 - Nếu các mẫu xe, bảng so sánh hoặc thông số kỹ thuật đã được trình bày ở các lượt trả lời trước đó trong lịch sử trò chuyện, TUYỆT ĐỐI KHÔNG liệt kê hay trình bày lại từ đầu. Đi thẳng vào giải đáp, phân tích điểm khác biệt cho chi tiết mới mà khách vừa nhắn.
 """
@@ -44,26 +49,9 @@ Khi được chấp nhận thì dừng, không viết thêm.
 TOOLS = [{"name": "submit_reply", "description": "Gửi tin nhắn cuối cùng cho khách; hệ thống kiểm tra trước khi chấp nhận.",
           "input_schema": {"type": "object", "properties": {"reply": {"type": "string"}}, "required": ["reply"]}}]
 
-# "Chào Khang," / "Xin chào bạn!" / "Chào anh/chị." ở đầu câu trả lời
-GREETING_PREFIX = re.compile(r"^\s*(?:xin\s+)?chào(?:\s+[^\s,.!\n]+){0,3}\s*[,.!]+\s*", re.IGNORECASE)
-MARKDOWN = re.compile(r"[*`]|^\s*#+\s", re.MULTILINE)
+QUESTION_END = re.compile(r"\?\s*$")
 LIST_MARKER = re.compile(r"^\s*\d+[.)]\s", re.MULTILINE)
 NUMBER = re.compile(r"\d[\d.,:/]*\d|\d")
-
-
-def strip_greeting(text: str) -> str:
-    """Bỏ lời chào ở đầu câu trả lời (dùng khi hội thoại đã bắt đầu)."""
-    stripped = GREETING_PREFIX.sub("", text, count=1)
-    if not stripped.strip() or stripped == text:
-        return text
-    return stripped[0].upper() + stripped[1:]
-
-
-def _plain(text: str) -> str:
-    """Markdown -> plain text: bullets become "- ", emphasis and headings are dropped."""
-    text = re.sub(r"^(\s*)[*•]\s+", r"\1- ", text, flags=re.MULTILINE)
-    text = re.sub(r"^\s*#+\s*", "", text, flags=re.MULTILINE)
-    return re.sub(r"[*`]", "", text)
 
 
 def _numbers(text: str) -> set[str]:
@@ -86,22 +74,26 @@ def _problems(draft: str, sources: str, executed: bool) -> list[str]:
     return problems
 
 
-def _needs_composition(texts: list[str]) -> bool:
-    """Check if multiple answers need LLM composition or if they can be used as-is."""
-    if len(texts) != 1:
-        return True  # Multiple answers need composition
-    single = texts[0]
-    # Single answer with markdown needs cleaning
-    if MARKDOWN.search(single):
+def _messy(texts: list[str]) -> bool:
+    """Several cleaned parts that read badly when simply joined: more than one follow-up question,
+    or the same line in more than one part."""
+    if len(texts) < 2:
+        return False
+    if sum(bool(QUESTION_END.search(text)) for text in texts) > 1:
         return True
-    # Clean, plain-text single answer - no composition needed
+    seen: set[str] = set()
+    for text in texts:
+        lines = {line.strip().casefold() for line in text.splitlines() if len(line.strip()) > 15}
+        if lines & seen:
+            return True
+        seen |= lines
     return False
 
 
 def _rewrite(state: AgentState, texts: list[str], executed: bool) -> str:
     sources = "\n\n".join(texts)
-    if not _needs_composition(texts):
-        return sources  # Single clean answer; skip LLM to reduce latency
+    if not _messy(texts):
+        return sources  # one answer, or parts that already read well: no LLM call
     accepted: dict[str, str] = {}
 
     def submit(_name: str, args: dict) -> dict:
@@ -119,7 +111,7 @@ def _rewrite(state: AgentState, texts: list[str], executed: bool) -> str:
     parts = "\n\n".join(f"[Phần {i}]\n{text}" for i, text in enumerate(texts, 1))
     generate_with_tools(full_prompt, f"Tin nhắn của khách: {state.get('user_text', '')}\n\nCác phần trả lời:\n{parts}",
                         TOOLS, submit, history=state.get("history"), max_turns=3)
-    return accepted.get("reply") or _plain(sources)
+    return accepted.get("reply") or sources
 
 
 def compose(state: AgentState) -> dict:
@@ -127,7 +119,7 @@ def compose(state: AgentState) -> dict:
     usable = [a for a in answers if not a.get("needs_human") and a.get("text", "").strip()]
     interpretation = state.get("conversation_interpretation")
     greeted = bool(interpretation and any(task.domain == Intent.GREETING for task in interpretation.tasks))
-    texts = [a["text"].strip() if greeted else strip_greeting(a["text"].strip()) for a in usable]
+    texts = [a["text"].strip() for a in usable]  # already cleaned by the specialist (state.answer)
     reply = _rewrite(state, texts, any(a.get("executed") for a in usable)) if texts else ""
     update: dict = {"draft_reply": reply if greeted else strip_greeting(reply), "trace": ["compose"]}
     reasons = [a.get("handover_reason") or a["agent"].upper() for a in answers if a.get("needs_human")]

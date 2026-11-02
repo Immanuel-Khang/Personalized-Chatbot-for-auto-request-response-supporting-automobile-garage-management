@@ -2,10 +2,12 @@
 
 Hard rules (never delegated to the LLM):
 - A discount/bargaining request always goes to a human manager for approval.
-Judgement calls (human request, complaint, safety, complexity) are made by an LLM agent
-that reads the structured interpretation and acts only through tools. The agent runs only
-when preprocessing raised a policy signal or HIGH complexity, so ordinary turns add no
-latency. Without an LLM the preprocessing signals are applied directly.
+- An explicit request for a human (wants_human) is handed over directly.
+Judgement calls (how serious a complaint or safety symptom is, whether a technical question
+needs a human) are made by an LLM agent that reads the structured interpretation and acts only
+through tools. The agent runs only for those ambiguous cases (``_needs_judgement``), so greetings
+and ordinary requests, including multi-intent ones, add no latency. Without an LLM the
+preprocessing signals are applied directly.
 """
 import json
 
@@ -48,10 +50,20 @@ def _signal_decision(interpretation) -> tuple[list[str], bool]:
     signals = interpretation.signals
     reasons = [reason for flag, reason in ((signals.wants_human, "HUMAN_REQUEST"), (signals.complaint, "COMPLAINT"))
                if flag]
-    if interpretation.complexity == "HIGH" and any(
-            task.domain in (Intent.KNOWLEDGE, Intent.MAINTENANCE) for task in interpretation.tasks):
+    if _high_complexity(interpretation):
         reasons.append("COMPLEXITY_HIGH")
     return reasons, signals.safety_risk
+
+
+def _high_complexity(interpretation) -> bool:
+    """HIGH only counts for technical questions; elsewhere it is not a reason for a human."""
+    return interpretation.complexity == "HIGH" and any(
+        task.domain in (Intent.KNOWLEDGE, Intent.MAINTENANCE) for task in interpretation.tasks)
+
+
+def _needs_judgement(interpretation) -> bool:
+    signals = interpretation.signals
+    return signals.complaint or signals.safety_risk or _high_complexity(interpretation)
 
 
 def _agent_decision(state: AgentState, interpretation) -> tuple[list[str], bool] | None:
@@ -91,8 +103,9 @@ def policy_guard(state: AgentState) -> dict:
         if interpretation.signals.discount_request or any(t.domain == Intent.DISCOUNT for t in interpretation.tasks):
             negotiation = True
             reasons.append("NEGOTIATION")
-        signals = interpretation.signals
-        if signals.wants_human or signals.complaint or signals.safety_risk or interpretation.complexity == "HIGH":
+        if interpretation.signals.wants_human:  # explicit request: nothing to judge
+            reasons.append("HUMAN_REQUEST")
+        if _needs_judgement(interpretation):
             decision = _agent_decision(state, interpretation) or _signal_decision(interpretation)
             reasons += decision[0]
             safety = decision[1]

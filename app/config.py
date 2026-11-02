@@ -32,6 +32,10 @@ class Settings:
     rag_min_vector_sim: float = float(os.getenv("RAG_MIN_VECTOR_SIM", "0.35"))
     hotline: str = os.getenv("HOTLINE", "0900 000 000")
     handover_timeout_minutes: float = float(os.getenv("HANDOVER_TIMEOUT_MINUTES", "10"))
+    # LLM context: older messages are folded into a running summary; the last N go verbatim (see agent/memory.py).
+    history_window_messages: int = int(os.getenv("HISTORY_WINDOW_MESSAGES", "6"))
+    # Fold only after this many extra messages, so the summary LLM call runs every few turns, not every turn.
+    history_summary_batch: int = int(os.getenv("HISTORY_SUMMARY_BATCH", "4"))
 
 
 settings = Settings()
