@@ -256,23 +256,9 @@ class ActiveWorkflow(BaseModel):
         default_factory=dict, description="Facts collected during this workflow")
 
 
-class ConversationContext(BaseModel):
-    """Complete context passed to the conversation interpreter."""
-    schema_version: str = Field(default="1.0", description="Version of this context schema")
-    current_message: dict = Field(description="Current user message: {id, text, timestamp}")
-    history: list[dict] = Field(
-        default_factory=list, description="Chronological conversation history")
-    known_facts: dict[str, KnownFact] = Field(
-        default_factory=dict, description="Facts known about the customer")
-    pending_interactions: list[PendingInteraction] = Field(
-        default_factory=list, description="Open questions/offers awaiting response")
-    active_workflow: Optional[ActiveWorkflow] = Field(
-        default=None, description="Currently active workflow if any")
-    selected_entities: list[dict] = Field(
-        default_factory=list, description="Resolved entities (products, bookings) from prior turns")
-    shown_products: list[dict] = Field(
-        default_factory=list, description="Most recent product list shown by the bot, with 1-based positions")
-    canonical_slots: dict[str, str] = Field(
-        default_factory=dict, description="The only slot keys allowed in slot_updates")
-    available_actions: list[dict] = Field(
-        default_factory=list, description="Canonical actions the application permits")
+class ShortReplyInterpretation(BaseModel):
+    """Preprocessing tier 1: a short reply to the latest open question/offer of a workflow."""
+    relationship: TaskRelationship = Field(description="How the reply relates to the open question")
+    slot_updates: list[SlotUpdate] = Field(default_factory=list, description="Slots the customer stated explicitly")
+    needs_full_analysis: bool = Field(
+        default=False, description="True when the message is more than an answer to the open question")

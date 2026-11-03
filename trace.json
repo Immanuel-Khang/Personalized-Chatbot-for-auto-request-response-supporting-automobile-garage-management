@@ -1,30 +1,24 @@
 {
+  "tier": 2,
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách muốn tiến hành ký hợp đồng mua chiếc xe đang được tư vấn (mẫu 2: FUSO Canter FI170L).",
+      "message_summary": "Khách muốn tìm hiểu các dịch vụ của bên hãng.",
       "tasks": [
         {
           "task_id": "t1",
-          "domain": "CONTRACT",
-          "action": "start_contract",
-          "text": "Tôi muốn làm hợp đồng mua xe này",
+          "domain": "OTHER",
+          "action": "general_conversation",
+          "text": "Tôi muốn tìm hiểu về những dịch vụ của bên hãng",
           "relationship": "NEW_REQUEST",
           "referenced_interaction_id": null,
           "requires_clarification": false,
           "entity_id": null,
           "entity_type": null,
-          "inquiry_only": false
+          "inquiry_only": true
         }
       ],
       "slot_updates": [],
-      "references": [
-        {
-          "mention": "mẫu 2",
-          "position": 2,
-          "entity_id": null,
-          "ambiguous": true
-        }
-      ],
+      "references": [],
       "signals": {
         "wants_human": false,
         "complaint": false,
@@ -36,7 +30,7 @@
       "complexity": "LOW",
       "accepts_offer": null,
       "uncertain": false,
-      "customer_pronoun": "tôi"
+      "customer_pronoun": null
     },
     "known_facts": {
       "customer_name": "[REDACTED]",
@@ -47,7 +41,15 @@
         "updated_at_message_id": null,
         "confidence": null
       },
-      "customer_phone": "[REDACTED]"
+      "customer_phone": "[REDACTED]",
+      "customer_address": "[REDACTED]",
+      "decided_price": {
+        "key": "decided_price",
+        "value": 845000000,
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      }
     },
     "rejected_slots": [],
     "trace": [

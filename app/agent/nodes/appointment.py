@@ -7,6 +7,7 @@ MISSING) and the agent asks. The reply is grounded in what the service returned 
 """
 import json
 import logging
+import re
 import uuid
 from datetime import date, datetime, time, timedelta, timezone
 
@@ -41,7 +42,9 @@ QUY TẮC:
 5. Trạng thái: dùng "status_label"; thời gian: dùng "when_label". Lịch chưa có start_time thì giờ chính xác do nhân
    viên chốt khi xác nhận.
 6. Khách chỉ cập nhật tên/SĐT: ghi nhận thông tin liên hệ mới, không gọi công cụ.
-7. Tự quy đổi thời gian khách nói ra ngày cụ thể (DD-MM-YYYY) theo "Hôm nay" rồi gọi công cụ ngay. Tuần tính từ
+7. Chỉ quy đổi từ "Thời gian khách đã nêu" ra ngày cụ thể (YYYY-MM-DD) theo "Hôm nay" rồi gọi công cụ ngay. Khách
+   chưa nêu thời gian: gọi create_appointment KHÔNG kèm appointment_date rồi hỏi khách muốn ngày nào; KHÔNG tự chọn
+   ngày (kể cả hôm nay) và KHÔNG nhắc ngày nào trong câu trả lời. Tuần tính từ
    thứ 2 đến chủ nhật; "tuần sau" là tuần kế tiếp; ngày tính ra đã qua thì lấy ngày đó của tuần kế tiếp.
    start_time (HH:MM) chỉ khi khách nêu giờ cụ thể ("8h", "14 giờ 30"); chỉ có ngày hoặc buổi (sáng/chiều) thì bỏ
    trống start_time và KHÔNG hỏi thêm giờ. Công cụ báo INVALID_DATE thì quy đổi lại.
@@ -57,7 +60,7 @@ TOOLS = [
     {"name": "get_appointment_details", "description": "Xem các lịch hẹn của khách (mới nhất trước).",
      "input_schema": {"type": "object", "properties": {}, "required": []}},
     {"name": "create_appointment", "description": "Đặt lịch hẹn mới từ thông tin đặt lịch đã biết.",
-     "input_schema": {"type": "object", "required": ["appointment_date"], "properties": _WHEN}},
+     "input_schema": {"type": "object", "required": [], "properties": _WHEN}},
     {"name": "reschedule_appointment", "description": "Đổi lịch hẹn sang ngày giờ mới.",
      "input_schema": {"type": "object", "required": ["appointment_id", "appointment_date"],
                       "properties": {**_ID, **_WHEN}}},
@@ -75,6 +78,9 @@ BOOKING_KEYS = {"service_type", "appointment_when", "service_detail"}
 LOCAL_TZ = timezone(timedelta(hours=7))
 WEEKDAYS = ("Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật")
 MAX_DAYS_AHEAD = 180
+# A day the customer never stated ("hôm nay", "ngày mai", "02-11-2026", "Thứ 2") must not appear in the reply.
+INVENTED_DATE = re.compile(r"hôm nay|ngày mai|\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?|\d{4}-\d{2}-\d{2}|"
+                           r"thứ\s*[2-7]|thứ\s*(?:hai|ba|tư|năm|sáu|bảy)|chủ\s*nhật", re.IGNORECASE)
 FAILED = BookingResult(ok=False, status="ERROR", message="Hệ thống chưa thực hiện được thao tác này.")
 
 
@@ -190,7 +196,11 @@ def appointment(state: AgentState) -> dict:
     def when(tool_args: dict) -> tuple[str, str | None] | dict:
         parsed = _parse_when(tool_args.get("appointment_date"), tool_args.get("start_time"))
         if isinstance(parsed, str):
-            return {"status": "INVALID_DATE", "message": parsed}
+            # The customer already gave a time: converting it is the agent's job, never a question to the customer.
+            stated = fact_value(facts, "appointment_when")
+            hint = (f" Tự quy đổi '{stated}' theo 'Hôm nay' ra appointment_date YYYY-MM-DD rồi gọi lại công cụ; "
+                    "KHÔNG hỏi khách ngày dương lịch." if stated else "")
+            return {"status": "INVALID_DATE", "message": parsed + hint}
         return parsed[0].isoformat(), parsed[1].strftime("%H:%M") if parsed[1] else None
 
     def run_args(a: dict) -> tuple[date, time | None]:
@@ -202,6 +212,8 @@ def appointment(state: AgentState) -> dict:
         present = {"customer_phone": phone, "customer_name": is_full_name(name)}  # a given name alone is not enough
         missing[:] = [label for key, label in REQUIRED.items() if not present.get(key, fact_value(facts, key))]
         if missing:
+            if "appointment_when" not in facts:  # never let a date the LLM picked itself reach the customer
+                missing[:] = [REQUIRED["appointment_when"], *(m for m in missing if m != REQUIRED["appointment_when"])]
             invalid = "customer_phone" in (state.get("rejected_slots") or [])
             return {"status": "MISSING", "missing": missing,
                     **({"invalid": "số điện thoại chưa đúng định dạng (10 số, bắt đầu bằng 0)"} if invalid else {})}
@@ -266,13 +278,23 @@ def appointment(state: AgentState) -> dict:
     today = _today()
     context = (f"Hôm nay: {WEEKDAYS[today.weekday()]} {today.isoformat()}\n"
                f"Tin nhắn của khách: {state.get('task_text') or state.get('user_text', '')}\n"
+               f"Thời gian khách đã nêu: {fact_value(facts, 'appointment_when') or 'chưa nêu'}\n"
                f"Thông tin đặt lịch đã biết: {json.dumps(known, ensure_ascii=False)}\n"
                f"Xác nhận đang chờ: {waiting_for}\nKhách vừa đồng ý xác nhận: {'có' if approved else 'không'}")
     system = SYSTEM_PROMPT.format(hotline=settings.hotline) + STYLE_RULES.format(
         pronoun_instruction=pronoun_instruction(p["customer"], p["bot"]))
     out = generate_with_tools(system, context, TOOLS, execute, history=state.get("history"), max_turns=4)
-    reply = (out.get("final_response") or "").strip() or _fallback(results, proposal, missing, p)
+    reply = (out.get("final_response") or "").strip()
+    if not _new_time_this_turn(state) and "appointment_when" not in facts and not results_have_dates(results)             and INVENTED_DATE.search(reply):
+        logger.warning("Appointment reply named a date the customer never gave; using the fallback")
+        reply = ""
+    reply = reply or _fallback(results, proposal, missing, p)
     return _update(state, facts, workflow, mine, reply, results, done, proposal, missing)
+
+
+def results_have_dates(results: list[tuple[str, dict]]) -> bool:
+    """A lookup of stored appointments may legitimately mention their dates."""
+    return any(name == "get_appointment_details" and result.get("appointments") for name, result in results)
 
 
 def _fallback(results: list[tuple[str, dict]], proposal: dict, missing: list[str], p: dict) -> str:

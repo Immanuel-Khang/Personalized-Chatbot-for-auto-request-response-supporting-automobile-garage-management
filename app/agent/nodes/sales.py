@@ -7,7 +7,7 @@ from typing import Any
 
 from app.agent.llm import generate_with_tools
 from app.agent.nodes.compose import STYLE_RULES
-from app.agent.state import AgentState, answer, fact_value
+from app.agent.state import AgentState, answer, fact_value, pronoun_instruction, pronouns
 from app.contracts.schemas import Product
 from app.services import get_services
 from app.utils import fmt_vnd
@@ -146,6 +146,16 @@ PRODUCT_SEARCH_TOOLS = [
 ]
 
 
+NEED_KEYS = {"budget_vnd", "payload_tons", "intended_use", "car_model"}
+PURCHASE_WITH_PRODUCT = (
+    "\nKhách vừa nói muốn mua xe này nhưng chưa nói bước tiếp theo. KHÔNG liệt kê lại thông số và KHÔNG tìm xe khác. "
+    "Xác nhận ngắn tên xe (và giá niêm yết nếu chưa nêu ở lượt trước), rồi hỏi MỘT câu khách muốn làm gì tiếp: "
+    "làm hợp đồng mua xe, đặt lịch xem xe tại showroom, hay cần tư vấn thêm.\n")
+PURCHASE_UNRESOLVED = (
+    "\nKhách nói muốn mua xe nhưng chưa rõ mẫu nào. KHÔNG gọi tool tìm kiếm và KHÔNG tự chọn xe. "
+    "Hỏi lại ngắn gọn khách muốn mua mẫu nào (nêu tên các mẫu vừa giới thiệu nếu có trong lịch sử).\n")
+
+
 def _execute_tool(tool_name: str, tool_input: dict[str, Any]) -> dict[str, Any]:
     """Execute a product search tool and return results."""
     service = get_services().product
@@ -233,6 +243,14 @@ def sales(state: AgentState) -> dict:
                          if task.task_id in task_ids and task.entity_id is not None})
     referenced = (f"\nKhách đang nói về sản phẩm ID {', '.join(map(str, entity_ids))}: gọi get_product_details "
                   "với ID này và chỉ trả lời về đúng xe đó, không liệt kê lại danh sách.\n") if entity_ids else ""
+    buying = any(task.task_id in task_ids and task.action == "purchase_intent"
+                 for task in (interpretation.tasks if interpretation else []))
+    # "Tôi muốn mua xe tải chở hàng 5 tấn" states criteria: that is a search, not a purchase of a shown vehicle.
+    criteria = interpretation is not None and any(
+        u.key in NEED_KEYS for u in interpretation.slot_updates)
+    if buying and (entity_ids or not criteria):
+        # "Tôi muốn mua mẫu 2" is not a search: confirm which vehicle and ask how the customer wants to proceed.
+        referenced += (PURCHASE_WITH_PRODUCT if len(entity_ids) == 1 else PURCHASE_UNRESOLVED)
 
     context = f"""Tin nhắn của khách: {user_message}
 
@@ -244,7 +262,7 @@ LƯU Ý: Nếu khách đang tiếp tục trao đổi về các mẫu xe đã gi�
 
     # Call LLM with tools
     result = generate_with_tools(
-        system_prompt=SALES_SYSTEM_PROMPT,
+        system_prompt=SALES_SYSTEM_PROMPT.format(pronoun_instruction=pronoun_instruction(*pronouns(state))),
         user_message=context,
         tools=PRODUCT_SEARCH_TOOLS,
         tool_executor=_execute_tool,

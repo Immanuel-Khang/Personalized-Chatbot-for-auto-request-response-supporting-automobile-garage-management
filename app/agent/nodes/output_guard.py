@@ -19,10 +19,12 @@ def _violation(draft: str, allowed: set[str]) -> str | None:
     # Chỉ kiểm tra số tiền khi allowed_amounts không rỗng, và chỉ dạng chuẩn "X.XXX.XXX đồng"
     # (định dạng fmt_vnd, ≥ 9 chữ số) – bỏ qua cách viết tắt (800 triệu) vì đó là ngân sách khách tự nêu.
     if allowed:
+        # Compare digits only: the LLM writes the same price as "đồng", "VNĐ" or "đ".
+        allowed_digits = {re.sub(r"[^\d]", "", item) for item in allowed}
         for amount in AMOUNT.findall(draft):
             amount_str = amount.strip()
             digits = re.sub(r"[^\d]", "", amount_str.split()[0])
-            if len(digits) >= 9 and amount_str not in allowed:
+            if len(digits) >= 9 and digits not in allowed_digits:
                 return f"OUTPUT_GUARD: số tiền lạ ({amount_str})"
     return None
 

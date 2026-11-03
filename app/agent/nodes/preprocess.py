@@ -12,19 +12,23 @@ Preprocessing has no side effects other than writing the debug trace.
 import json
 import logging
 import re
+import unicodedata
 import uuid
 from pathlib import Path
 
 from app.agent.llm import generate_structured
-from app.agent.nodes.input import AVAILABLE_ACTIONS, build_context
-from app.agent.state import AgentState
+from app.agent.nodes.input import AVAILABLE_ACTIONS
+from app.agent.state import AgentState, fact_value, open_pending
 from app.identity import normalize_phone, is_full_name
 from app.contracts.schemas import (
     ConversationInterpretation,
     FactSource,
     Intent,
+    InteractionKind,
     KnownFact,
+    PendingInteraction,
     ServiceType,
+    ShortReplyInterpretation,
     SlotOperation,
     SlotUpdate,
     TaskInterpretation,
@@ -78,6 +82,9 @@ ConversationInterpretation. Các node sau chỉ đọc kết quả của bạn, 
    yêu cầu MỚI; không lặp lại task của các lượt trước. Xem xe tại showroom là APPOINTMENT.
    Hỏi thông số/giá của một mẫu xe trong catalog ("động cơ của FUSO Canter FI170 là gì", "xe số 2 hộp số mấy
    cấp") là SALES product_specs, KHÔNG phải KNOWLEDGE; KNOWLEDGE chỉ cho câu hỏi kỹ thuật chung, sửa chữa, an toàn.
+   Khách chỉ nói muốn mua một xe/mẫu ("tôi muốn mua mẫu 2", "lấy xe này") mà chưa nói làm hợp đồng, báo giá
+   hay đặt lịch: SALES purchase_intent (gán entity_id nếu tham chiếu rõ), KHÔNG phải product_detail. Khách nêu
+   nhu cầu/tiêu chí (tải trọng, ngân sách, mục đích) để tìm xe thì là search_catalog dù có chữ "mua".
    Mặc cả, xin giảm giá, xin quà là DISCOUNT. Khách chỉ HỎI xưởng có làm dịch vụ X không, hoặc hỏi
    thủ tục/giấy tờ, mà chưa yêu cầu đặt lịch/làm hợp đồng: inquiry_only=true.
 3. Slot: chỉ dùng key trong canonical_slots. Chỉ tạo slot_update khi khách nói rõ trong tin nhắn
@@ -127,10 +134,14 @@ SYSTEM_PROMPT = (f"{INTERPRETATION_PROMPT}\ncanonical_slots (key: ý nghĩa):\n"
 def _context_prompt(state: AgentState) -> str:
     # History and current text go to the LLM as chat messages (llm.py); only the per-turn state goes here,
     # and empty parts are left out.
-    context = build_context(state, CANONICAL_SLOTS)
-    dynamic = context.model_dump(mode="json", exclude_none=True,
-                                 include={"pending_interactions", "active_workflow", "shown_products"})
-    dynamic["known_facts"] = {key: fact.value for key, fact in context.known_facts.items()}
+    workflow = state.get("active_workflow")
+    dynamic = {
+        "pending_interactions": [item.model_dump(mode="json", exclude_none=True)
+                                 for item in state.get("pending_interactions") or []],
+        "active_workflow": workflow.model_dump(mode="json", exclude_none=True) if workflow else None,
+        "shown_products": state.get("selected_entities") or [],
+        "known_facts": {key: getattr(fact, "value", fact) for key, fact in (state.get("known_facts") or {}).items()},
+    }
     dynamic = {key: value for key, value in dynamic.items() if value}
     return f"{SYSTEM_PROMPT}\n\nCONVERSATION STATE JSON:\n{json.dumps(dynamic, ensure_ascii=False, default=str)}"
 
@@ -244,7 +255,9 @@ def _resolve_references(state: AgentState, interpretation: ConversationInterpret
         if entity_id is None and len(resolved) == 1 and task.domain in (Intent.SALES, Intent.APPOINTMENT,
                                                                          Intent.CONTRACT, Intent.DISCOUNT):
             entity_id = resolved[0]
-        tasks.append(task.model_copy(update={"entity_id": entity_id,
+        # The model sometimes prefixes the domain ("SALES purchase_intent"); consumers match the bare action.
+        tasks.append(task.model_copy(update={"action": task.action.split()[-1] if task.action.strip() else task.action,
+                                             "entity_id": entity_id,
                                              "entity_type": "PRODUCT" if entity_id is not None else None}))
     return interpretation.model_copy(update={"references": references, "tasks": tasks})
 
@@ -263,23 +276,13 @@ def _apply_interpretation(state: AgentState, interpretation: ConversationInterpr
         facts[update.key] = KnownFact(key=update.key, value=update.value, source=source,
                                       updated_at_message_id=update.source_message_id)
 
-    # Adapt pronouns based on customer's self-reference
     result = {"conversation_interpretation": applied, "known_facts": facts, "rejected_slots": rejected}
+    # Only an anh/chị the customer actually typed changes address terms; otherwise the stored pair stays.
     detected = applied.customer_pronoun
-    if detected and not re.search(rf"(?<!\w){re.escape(detected)}(?!\w)", state.get("user_text", ""), re.IGNORECASE):
+    if detected in ("anh", "chị") and re.search(rf"(?<!\w){detected}(?!\w)", state.get("user_text", ""), re.IGNORECASE):
+        result["customer_pronoun"], result["bot_pronoun"] = detected, "em"
+    elif detected in ("anh", "chị"):
         logger.warning("Discarding customer_pronoun %r not present in the message", detected)
-        detected = None  # the model inferred a pronoun the customer never used (e.g. "Tôi" -> "chị")
-    if detected in ("anh", "chị"):
-        # Customer uses formal pronoun -> Bot adapts to respectful form
-        result["customer_pronoun"] = detected
-        result["bot_pronoun"] = "em"
-    elif detected or state.get("customer_pronoun"):
-        # Customer uses neutral/informal (em/bạn/tôi) or no pronoun detected but we have existing preference
-        # Keep existing preference or default to neutral
-        if not detected:
-            result["customer_pronoun"] = state.get("customer_pronoun")
-            result["bot_pronoun"] = state.get("bot_pronoun") or "mình"
-
     return result
 
 
@@ -300,22 +303,136 @@ def _trace_safe(value, key: str | None = None):
     return value
 
 
-def _write_preprocess_trace(result: dict) -> None:
+def _write_preprocess_trace(result: dict, tier: int) -> None:
     path = Path(__file__).resolve().parents[3] / "trace.json"
-    payload = {"preprocess_result": _trace_safe(result), "fields": list(result)}
+    payload = {"tier": tier, "preprocess_result": _trace_safe(result), "fields": list(result)}
     try:
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     except OSError:
         logger.exception("Could not write preprocess trace at %s", path)
 
 
-def preprocess(state: AgentState) -> dict:
+# ---- Tiers: the cheapest reading that is certain wins; every tier's output goes through _apply_interpretation.
+# Tier 0, rules, no LLM: a pure greeting, or a bare yes/no/phone number answering the latest open interaction.
+# Tier 1, small structured call: a short reply to the open question/offer of a writer workflow.
+# Tier 2, the full interpretation call above: everything else, and whenever tier 0/1 is not sure.
+
+# Workflow of a pending interaction -> the task that continues it (the router sends it to that writer).
+WORKFLOW_TASK = {"appointment": (Intent.APPOINTMENT, "book_appointment"),
+                 "contract": (Intent.CONTRACT, "start_contract")}
+WORKFLOW_SLOTS = {
+    "appointment": ("service_type", "service_detail", "appointment_when", "customer_name", "customer_phone"),
+    "contract": ("customer_name", "customer_phone", "customer_address", "car_model", "decided_price"),
+}
+FOLLOW_UPS = {TaskRelationship.ANSWER_TO_QUESTION, TaskRelationship.ACCEPT_OFFER, TaskRelationship.REJECT_OFFER,
+              TaskRelationship.CORRECT_PREVIOUS_INFO, TaskRelationship.CONTINUE_TASK}
+MAX_SHORT_WORDS = 12
+
+_TAIL = r"(?:\s+(?:ạ|nhé|nha|nhá|luôn|rồi|bạn|shop|em|anh|chị|ad))*"
+_GREETING = re.compile(rf"(?:(?:xin\s+)?chào|hello|hi|alo|hey){_TAIL}")
+_YES = re.compile(rf"(?:(?:dạ|vâng)\s+)?(?:ok|oke|okay|đúng|được|đồng\s+ý|vâng|dạ|ừ|ừm|uh|chốt|xác\s+nhận|chuẩn){_TAIL}")
+_NO = re.compile(rf"(?:dạ\s+)?(?:không|ko|thôi|không\s+cần|thôi\s+khỏi|khỏi){_TAIL}")
+_BARE_PHONE = re.compile(r"\+?\d[\d\s.\-]{7,14}")
+
+SHORT_REPLY_PROMPT = """\
+Bạn phân tích một TIN NHẮN NGẮN của khách gara ô tô, gửi ngay sau câu bot hỏi bên dưới. Trả về đúng schema
+ShortReplyInterpretation.
+- relationship: ANSWER_TO_QUESTION (trả lời câu bot hỏi), ACCEPT_OFFER / REJECT_OFFER (đồng ý / từ chối điều bot
+  đề nghị hoặc xin xác nhận), CORRECT_PREVIOUS_INFO (sửa thông tin đã nói), CONTINUE_TASK (nói tiếp việc đang làm).
+- slot_updates: chỉ dùng key trong danh sách slot; chỉ khi khách nói rõ trong tin nhắn; evidence là cụm nguyên văn
+  khách gõ; không suy đoán. Sửa giá trị đã biết -> operation CORRECT. Thời gian hẹn ghi đúng như khách nói
+  ("chiều thứ 7"). Tên khách viết chuẩn có dấu, hoa chữ cái đầu, không kèm anh/chị. service_type chỉ nhận
+  MAINTENANCE | REPAIR | SHOWROOM_VISIT. Tiền là số nguyên VND (500 triệu -> 500000000).
+- needs_full_analysis=true khi tin nhắn KHÔNG chỉ là câu trả lời cho câu bot hỏi: có yêu cầu hay câu hỏi mới, hỏi về
+  xe, đổi chủ đề, hủy việc, muốn gặp nhân viên, phàn nàn, xe có dấu hiệu nguy hiểm, mặc cả giá, hoặc bạn không chắc.
+"""
+
+
+def _plain(text: str) -> str:
+    """Casefolded words only, so "Đúng rồi ạ!" and "đúng rồi ạ" compare equal."""
+    text = unicodedata.normalize("NFC", text).casefold()
+    return " ".join(re.sub(r"[^\w\s]", " ", text).split())
+
+
+def _latest_open(state: AgentState) -> PendingInteraction | None:
+    items = open_pending(state)
+    return items[-1] if items else None
+
+
+def _workflow(pending: PendingInteraction | None) -> str:
+    return str(pending.metadata.get("workflow") or "") if pending else ""
+
+
+def _follow_up(text: str, summary: str, relationship: TaskRelationship, pending: PendingInteraction | None,
+               greeting: bool = False, **fields) -> ConversationInterpretation:
+    """One-task interpretation; it continues the pending item's workflow, or is a greeting."""
+    domain, action = ((Intent.GREETING, "general_conversation") if greeting
+                      else WORKFLOW_TASK.get(_workflow(pending), (Intent.OTHER, "general_conversation")))
+    task = TaskInterpretation(task_id=f"task_{uuid.uuid4().hex[:8]}", domain=domain, action=action, text=text,
+                              relationship=relationship,
+                              referenced_interaction_id=pending.interaction_id if pending else None)
+    return ConversationInterpretation(message_summary=summary, tasks=[task], **fields)
+
+
+def _rule_interpretation(state: AgentState) -> ConversationInterpretation | None:
+    """Tier 0: messages whose meaning is fixed by their form and the open interaction."""
+    text = state.get("user_text", "").strip()
+    plain = _plain(text)
+    if _GREETING.fullmatch(plain):
+        return _follow_up(text, "Khách chào hỏi.", TaskRelationship.NEW_REQUEST, None, greeting=True)
+    pending = _latest_open(state)
+    if pending is None:
+        return None
+    accepted = True if _YES.fullmatch(plain) else False if _NO.fullmatch(plain) else None
+    if accepted is not None and pending.kind in (InteractionKind.CONFIRMATION, InteractionKind.OFFER):
+        relationship = TaskRelationship.ACCEPT_OFFER if accepted else TaskRelationship.REJECT_OFFER
+        return _follow_up(text, f"Khách {'đồng ý' if accepted else 'từ chối'}: {pending.text[:80]}",
+                          relationship, pending, accepts_offer=accepted)
+    if (_BARE_PHONE.fullmatch(text) and pending.kind == InteractionKind.QUESTION
+            and "customer_phone" in WORKFLOW_SLOTS.get(_workflow(pending), ())):
+        update = SlotUpdate(key="customer_phone", operation=SlotOperation.SET, value=text, evidence=text)
+        return _follow_up(text, "Khách gửi số điện thoại.", TaskRelationship.ANSWER_TO_QUESTION, pending,
+                          slot_updates=[update])
+    return None
+
+
+def _short_reply_interpretation(state: AgentState) -> ConversationInterpretation | None:
+    """Tier 1: a short reply to the open interaction of a writer, read with only that question and its slots."""
+    text = state.get("user_text", "").strip()
+    pending = _latest_open(state)
+    keys = WORKFLOW_SLOTS.get(_workflow(pending), ())
+    if pending is None or not keys or "?" in text or len(text.split()) > MAX_SHORT_WORDS:
+        return None
+    facts = state.get("known_facts") or {}
+    known = {key: fact_value(facts, key) for key in keys if fact_value(facts, key) is not None}
+    system = (f"{SHORT_REPLY_PROMPT}\nCâu bot vừa hỏi ({pending.kind.value}): {pending.text}\n"
+              "Slot (key: ý nghĩa):\n" + "\n".join(f"- {key}: {CANONICAL_SLOTS[key]}" for key in keys)
+              + f"\nĐã biết: {json.dumps(known, ensure_ascii=False, default=str)}")
+    out = generate_structured(system, text, ShortReplyInterpretation)
+    if out is None or out.needs_full_analysis or out.relationship not in FOLLOW_UPS:
+        return None
+    accepted = {TaskRelationship.ACCEPT_OFFER: True, TaskRelationship.REJECT_OFFER: False}.get(out.relationship)
+    return _follow_up(text, f"Khách trả lời câu hỏi đang chờ: {text}", out.relationship, pending,
+                      slot_updates=[u for u in out.slot_updates if u.key in keys], accepts_offer=accepted)
+
+
+def _interpret(state: AgentState) -> tuple[int, ConversationInterpretation]:
+    """(tier, interpretation). A validation retry always gets the full call."""
+    if not state.get("validation_feedback"):
+        if (interpretation := _rule_interpretation(state)) is not None:
+            return 0, interpretation
+        if (interpretation := _short_reply_interpretation(state)) is not None:
+            return 1, interpretation
     text = state.get("user_text", "")
     interpretation = generate_structured(_context_prompt(state), text, ConversationInterpretation,
                                          state.get("history"))
-    if interpretation is None:
-        interpretation = _neutral_interpretation(text, "LLM unavailable")
+    return 2, interpretation or _neutral_interpretation(text, "LLM unavailable")
+
+
+def preprocess(state: AgentState) -> dict:
+    tier, interpretation = _interpret(state)
+    logger.info("Preprocess tier %d", tier)
     result = _apply_interpretation(state, interpretation)
     result["trace"] = ["preprocess"]
-    _write_preprocess_trace(result)
+    _write_preprocess_trace(result, tier)
     return result

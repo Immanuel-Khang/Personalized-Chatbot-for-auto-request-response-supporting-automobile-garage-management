@@ -1,13 +1,12 @@
 """Input / Load Context: normalise persisted conversation state before interpretation.
 
 Checkpoints may return pydantic models or plain dicts; every later node relies on
-models. ``build_context`` assembles exactly what preprocessing sends to the LLM.
+models.
 """
 from app.agent.memory import windowed_history
 from app.agent.state import AgentState
 from app.contracts.schemas import (
     ActiveWorkflow,
-    ConversationContext,
     InteractionStatus,
     KnownFact,
     PendingInteraction,
@@ -17,6 +16,8 @@ AVAILABLE_ACTIONS = [
     {"action": "search_catalog", "domain": "SALES", "description": "Search vehicles by explicit criteria"},
     {"action": "show_catalog", "domain": "SALES", "description": "Show vehicle catalog on explicit request"},
     {"action": "product_detail", "domain": "SALES", "description": "Show a previously displayed product"},
+    {"action": "purchase_intent", "domain": "SALES",
+     "description": "Customer says they want to buy a vehicle but has not asked for a contract, quote or visit"},
     {"action": "product_specs", "domain": "SALES",
      "description": "Specs of a catalog vehicle (engine, transmission, seats, fuel, price)"},
     {"action": "book_appointment", "domain": "APPOINTMENT",
@@ -56,15 +57,3 @@ def load_context(state: AgentState) -> dict:
         "trace": ["input"],
     }
 
-
-def build_context(state: AgentState, canonical_slots: dict[str, str]) -> ConversationContext:
-    return ConversationContext(
-        current_message={"id": None, "text": state.get("user_text", ""), "timestamp": None},
-        history=state.get("history", []),
-        known_facts=state.get("known_facts") or {},
-        pending_interactions=state.get("pending_interactions") or [],
-        active_workflow=state.get("active_workflow"),
-        shown_products=state.get("selected_entities") or [],
-        canonical_slots=canonical_slots,
-        available_actions=AVAILABLE_ACTIONS,
-    )
