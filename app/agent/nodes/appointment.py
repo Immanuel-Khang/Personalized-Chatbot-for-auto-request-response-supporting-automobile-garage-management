@@ -12,7 +12,7 @@ from datetime import date, datetime, time, timedelta, timezone
 
 from app.agent.llm import generate_with_tools
 from app.agent.nodes.compose import STYLE_RULES
-from app.agent.state import AgentState, answer, fact_value, open_pending, pronoun_instruction, pronoun_vars
+from app.agent.state import AgentState, answer, fact_value, open_pending
 from app.config import settings
 from app.contracts.schemas import (
     ActiveWorkflow, BookingResult, InteractionKind, InteractionStatus, PendingInteraction, ServiceType,
@@ -24,7 +24,7 @@ from app.services import get_services
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """\
-Bạn là chuyên viên lịch hẹn của xưởng Foton (bảo dưỡng, sửa chữa, xem xe tại showroom).
+Bạn là chuyên viên lịch hẹn của xưởng Foton (bảo dưỡng, sửa chữa, xem xe tại showroom, ký hợp đồng mua xe).
 CÔNG CỤ:
 - get_appointment_details: các lịch hẹn của khách (thời gian, trạng thái). Gọi trước khi trả lời câu hỏi về lịch hẹn
   và trước khi đổi/hủy để lấy đúng appointment_id.
@@ -41,13 +41,16 @@ QUY TẮC:
 5. Trạng thái: dùng "status_label"; thời gian: dùng "when_label". Lịch chưa có start_time thì giờ chính xác do nhân
    viên chốt khi xác nhận.
 6. Khách chỉ cập nhật tên/SĐT: ghi nhận thông tin liên hệ mới, không gọi công cụ.
-7. Tự quy đổi thời gian khách nói ra ngày cụ thể (DD-MM-YYYY) theo "Hôm nay" rồi gọi công cụ ngay. Tuần tính từ
+7. Chỉ dùng thời gian khách NÓI RÕ (có trong "ngày giờ hẹn" của thông tin đã biết hoặc trong tin nhắn). Khách chưa
+   nêu ngày/thời điểm nào thì KHÔNG tự chọn hay giả định ngày (kể cả "hôm nay"), KHÔNG gọi công cụ ghi; hỏi khách
+   muốn hẹn ngày nào. Có thời gian rồi thì tự quy đổi ra ngày cụ thể (DD-MM-YYYY) theo "Hôm nay" và gọi công cụ ngay. Tuần tính từ
    thứ 2 đến chủ nhật; "tuần sau" là tuần kế tiếp; ngày tính ra đã qua thì lấy ngày đó của tuần kế tiếp.
    start_time (HH:MM) chỉ khi khách nêu giờ cụ thể ("8h", "14 giờ 30"); chỉ có ngày hoặc buổi (sáng/chiều) thì bỏ
    trống start_time và KHÔNG hỏi thêm giờ. Công cụ báo INVALID_DATE thì quy đổi lại.
 8. Tra cứu lịch hẹn hoặc sau khi thao tác thành công: trả lời đúng việc đó rồi dừng, KHÔNG hỏi thêm thông tin
-   (loại xe, biển số...) hay đề nghị việc khác.
-9. Xưng hô: chỉ dùng đúng cặp xưng hô trong quy tắc phong cách bên dưới, KHÔNG trộn (VD "Mình" với "chị/em").
+   (loại xe, biển số, tải trọng...) hay đề nghị việc khác.
+9. Lịch "ký hợp đồng mua xe" (CONTRACT_SIGN): hợp đồng đã đủ thông tin, chỉ cần ngày giờ ký; KHÔNG hỏi lại thông tin
+   hợp đồng (tên, địa chỉ, dòng xe, giá).
 """
 
 _WHEN = {"appointment_date": {"type": "string", "description": "Ngày hẹn YYYY-MM-DD, quy đổi từ lời khách"},
@@ -65,16 +68,17 @@ TOOLS = [
      "input_schema": {"type": "object", "required": ["appointment_id"], "properties": _ID}},
 ]
 WRITE_TOOLS = {"create_appointment", "reschedule_appointment", "cancel_appointment"}
-REQUIRED = {"service_type": "loại dịch vụ (bảo dưỡng/sửa chữa/xem xe)", "appointment_when": "ngày giờ hẹn",
+REQUIRED = {"service_type": "loại dịch vụ (bảo dưỡng/sửa chữa/xem xe/ký hợp đồng)", "appointment_when": "ngày giờ hẹn",
             "customer_name": "họ và tên đầy đủ", "customer_phone": "số điện thoại"}
 LABELS = {ServiceType.MAINTENANCE.value: "bảo dưỡng", ServiceType.REPAIR.value: "sửa chữa",
-          ServiceType.SHOWROOM_VISIT.value: "xem xe tại showroom"}
+          ServiceType.SHOWROOM_VISIT.value: "xem xe tại showroom", ServiceType.CONTRACT_SIGN.value: "ký hợp đồng mua xe"}
 STATUS_LABELS = {"PENDING_APPROVAL": "đang chờ nhân viên xác nhận", "CONFIRMED": "đã được xác nhận",
                  "CANCELLED": "đã hủy", "REJECTED": "không được duyệt", "DONE": "đã hoàn thành"}
 BOOKING_KEYS = {"service_type", "appointment_when", "service_detail"}
 LOCAL_TZ = timezone(timedelta(hours=7))
 WEEKDAYS = ("Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật")
 MAX_DAYS_AHEAD = 180
+MAX_ASKS = 3  # turns asking the same thing (missing info / confirmation) before staff take over
 FAILED = BookingResult(ok=False, status="ERROR", message="Hệ thống chưa thực hiện được thao tác này.")
 
 
@@ -84,6 +88,8 @@ def _booking_detail(state: AgentState, facts: dict) -> tuple[str | None, str | N
     interpretation = state.get("conversation_interpretation")
     shown = {item.get("entity_id"): item.get("name") for item in state.get("selected_entities") or []
              if isinstance(item, dict) and item.get("entity_type") == "PRODUCT"}
+    if fact_value(facts, "service_type") == ServiceType.CONTRACT_SIGN.value and fact_value(facts, "car_model"):
+        return fact_value(facts, "car_model"), fact_value(facts, "service_detail")
     vehicle = next((shown[t.entity_id] for t in (interpretation.tasks if interpretation else [])
                     if t.domain.value == "APPOINTMENT" and shown.get(t.entity_id)), None)
     vehicle = vehicle or fact_value(facts, "car_model") or (state.get("focused_product") or {}).get("name")
@@ -157,7 +163,6 @@ def appointment(state: AgentState) -> dict:
     facts = dict(state.get("known_facts") or {})
     session_id = state.get("session_id", "")
     booking = get_services().booking
-    p = pronoun_vars(state)
     workflow = state.get("active_workflow")
     mine = open_pending(state, "appointment")
     confirmation = next((item for item in mine if item.kind == InteractionKind.CONFIRMATION
@@ -264,26 +269,29 @@ def appointment(state: AgentState) -> dict:
         known["xe"] = vehicle
     waiting_for = f"{confirmation.text} (thao tác: {confirmation.metadata.get('action')})" if confirmation else "không"
     today = _today()
-    context = (f"Hôm nay: {WEEKDAYS[today.weekday()]} {today.isoformat()}\n"
+    # Without a time the customer stated, the LLM gets no date to anchor on, so it cannot assume "hôm nay".
+    stated = bool(fact_value(facts, "appointment_when"))
+    today_line = (f"Hôm nay: {WEEKDAYS[today.weekday()]} {today.isoformat()}" if stated else
+                  "Khách CHƯA nêu ngày giờ hẹn: hỏi khách muốn hẹn ngày nào, KHÔNG tự chọn ngày")
+    context = (f"{today_line}\n"
                f"Tin nhắn của khách: {state.get('task_text') or state.get('user_text', '')}\n"
                f"Thông tin đặt lịch đã biết: {json.dumps(known, ensure_ascii=False)}\n"
                f"Xác nhận đang chờ: {waiting_for}\nKhách vừa đồng ý xác nhận: {'có' if approved else 'không'}")
-    system = SYSTEM_PROMPT.format(hotline=settings.hotline) + STYLE_RULES.format(
-        pronoun_instruction=pronoun_instruction(p["customer"], p["bot"]))
+    system = SYSTEM_PROMPT.format(hotline=settings.hotline) + STYLE_RULES
     out = generate_with_tools(system, context, TOOLS, execute, history=state.get("history"), max_turns=4)
-    reply = (out.get("final_response") or "").strip() or _fallback(results, proposal, missing, p)
+    reply = (out.get("final_response") or "").strip() or _fallback(results, proposal, missing)
     return _update(state, facts, workflow, mine, reply, results, done, proposal, missing)
 
 
-def _fallback(results: list[tuple[str, dict]], proposal: dict, missing: list[str], p: dict) -> str:
+def _fallback(results: list[tuple[str, dict]], proposal: dict, missing: list[str]) -> str:
     """Reply from the tool results when the LLM gave no text."""
     if proposal:
-        return f"Dạ {p['customer']} xác nhận giúp {p['bot']}: {p['customer']} muốn {proposal['text']} phải không ạ?"
+        return f"Dạ bạn xác nhận giúp mình: bạn muốn {proposal['text']} phải không ạ?"
     if missing:
-        return f"Dạ {p['customer']} cho {p['bot']} xin {missing[0]} nhé."
+        return f"Dạ bạn cho mình xin {missing[0]} nhé."
     if results and (message := results[-1][1].get("message")):
-        return message if results[-1][1].get("ok") else f"{message} {p['customer_cap']} có thể gọi hotline {settings.hotline}."
-    return f"Dạ {p['bot']} chưa tìm thấy lịch hẹn nào của {p['customer']} ạ."
+        return message if results[-1][1].get("ok") else f"{message} Bạn có thể gọi hotline {settings.hotline}."
+    return "Dạ mình chưa tìm thấy lịch hẹn nào của bạn ạ."
 
 
 def _pending(mine: list[PendingInteraction], status: InteractionStatus, new: PendingInteraction | None = None) -> list:
@@ -305,8 +313,19 @@ def _update(state: AgentState, facts: dict, workflow: ActiveWorkflow | None, min
 
     if proposal or missing:
         kind = InteractionKind.CONFIRMATION if proposal else InteractionKind.QUESTION
+        # Same question as last turn again: count it; after MAX_ASKS staff take over instead of asking forever.
+        asks = 1 + max((int(item.metadata.get("asks", 1)) for item in mine if item.kind == kind
+                        and item.metadata.get("missing_slots") == (None if proposal else missing)
+                        and item.metadata.get("action") == (proposal.get("action") if proposal else None)), default=0)
+        if asks > MAX_ASKS:
+            update["answers"] = [answer(state, "appointment", needs_human=True,
+                                        handover_reason="APPOINTMENT_APPROVAL: booking not settled after repeated asks")]
+            update["pending_interactions"] = _pending(mine, InteractionStatus.EXPIRED)
+            update["active_workflow"] = workflow.model_copy(update={"status": WorkflowStatus.WAITING_FOR_APPROVAL})
+            return update
         metadata = ({"workflow": "appointment", "action": proposal["action"], "args": proposal["args"],
-                     "turn": _turn(state)} if proposal else {"workflow": "appointment", "missing_slots": missing})
+                     "turn": _turn(state), "asks": asks} if proposal
+                    else {"workflow": "appointment", "missing_slots": missing, "asks": asks})
         new = PendingInteraction(interaction_id=f"appointment_{uuid.uuid4().hex[:8]}", kind=kind, text=reply,
                                  status=InteractionStatus.OPEN, metadata=metadata)
         update["pending_interactions"] = _pending(mine, InteractionStatus.EXPIRED, new)

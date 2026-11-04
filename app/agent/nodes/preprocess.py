@@ -41,7 +41,8 @@ CANONICAL_SLOTS = {
     "payload_tons": "Tải trọng mong muốn (tấn, số)",
     "car_model": "Tên mẫu/dòng xe khách nói rõ",
     "service_type": ("Loại lịch hẹn: MAINTENANCE (bảo dưỡng) | REPAIR (sửa chữa) | "
-                     "SHOWROOM_VISIT (xem xe tại showroom). Xưởng KHÔNG có dịch vụ lái thử"),
+                     "SHOWROOM_VISIT (xem xe tại showroom) | CONTRACT_SIGN (đến ký hợp đồng mua xe). "
+                     "Xưởng KHÔNG có dịch vụ lái thử"),
     "service_detail": "Hạng mục/bộ phận cần xử lý (kính, phanh, điều hòa...)",
     "appointment_when": "Ngày giờ hẹn đúng như khách nói (VD 'sáng thứ 7 tuần sau')",
     "customer_phone": "Số điện thoại khách",
@@ -51,6 +52,14 @@ CANONICAL_SLOTS = {
     "decided_price": "Giá chốt hợp đồng (VND)",
     "current_mileage_km": "Số km hiện tại của xe (số)",
 }
+# Explicit service phrases in the customer's own message; used when the model skipped service_type for an
+# APPOINTMENT task, so a later bare "đúng rồi" is never needed to supply it (it carries no evidence).
+_SERVICE_PHRASES = (
+    (re.compile(r"ký\s+hợp\s+đồng", re.IGNORECASE), ServiceType.CONTRACT_SIGN),
+    (re.compile(r"xem\s+xe|showroom", re.IGNORECASE), ServiceType.SHOWROOM_VISIT),
+    (re.compile(r"bảo\s+dưỡng", re.IGNORECASE), ServiceType.MAINTENANCE),
+    (re.compile(r"sửa", re.IGNORECASE), ServiceType.REPAIR),
+)
 _ALIASES = {"phone": "customer_phone", "when_text": "appointment_when", "budget": "budget_vnd", "name": "customer_name"}
 # Values that are usually paraphrased/normalised by the model (e.g. "500 triệu" -> 500000000).
 _NORMALISED_VALUE_KEYS = {"appointment_when", "service_type", "service_detail", "budget_vnd", "customer_name",
@@ -85,7 +94,9 @@ ConversationInterpretation. Các node sau chỉ đọc kết quả của bạn, 
    nguyên văn trong tin nhắn mới. Không suy đoán giá trị. Tin nhắn có task APPOINTMENT mà nêu loại lịch thì
    BẮT BUỘC có slot_update service_type, kể cả khi cùng câu còn có ngày giờ: "xem xe", "xem xe trực tiếp",
    "đến showroom", "qua xem xe" -> SHOWROOM_VISIT; "bảo dưỡng" -> MAINTENANCE; "sửa" -> REPAIR
-   (evidence là cụm từ đó). Xưởng không có dịch vụ lái thử: KHÔNG ghi service_type cho "lái thử". Khách nêu thời gian hẹn dù chưa có giờ cụ thể ("chiều thứ 2
+   (evidence là cụm từ đó); "ký hợp đồng" -> CONTRACT_SIGN. Bot vừa hỏi ngày giờ ký hợp đồng (pending của workflow
+   appointment) mà khách trả lời thời gian -> APPOINTMENT book_appointment ANSWER_TO_QUESTION với slot appointment_when,
+   KHÔNG phải CONTRACT. KHÔNG tạo appointment_when khi khách chưa nói thời gian. Xưởng không có dịch vụ lái thử: KHÔNG ghi service_type cho "lái thử". Khách nêu thời gian hẹn dù chưa có giờ cụ thể ("chiều thứ 2
    tuần sau", "sáng mai") -> vẫn ghi appointment_when đúng như khách nói; nhân viên sẽ chốt giờ, đó KHÔNG
    phải điểm mơ hồ. Khách sửa tên/SĐT/địa chỉ -> slot_update CORRECT cho đúng key đó.
    Tên khách (customer_name): chỉ khi khách tự giới thiệu hoặc trả lời câu hỏi tên. Ghi dạng chuẩn có dấu, viết hoa
@@ -102,13 +113,6 @@ ConversationInterpretation. Các node sau chỉ đọc kết quả của bạn, 
    của hợp đồng; KHÔNG bật khi khách chỉ trả lời giá chốt bot hỏi hay khi chữ "giá/phí" nằm trong tên riêng).
    complexity=HIGH chỉ khi câu hỏi kỹ thuật vượt quá tư vấn thông thường (chẩn đoán phức tạp). Tin nhắn có
    nhiều yêu cầu thông thường (tìm xe + đặt lịch...), lời chào, hỏi giá/thông số -> LOW.
-7. Xưng hô (customer_pronoun): Phát hiện cách khách tự xưng trong tin nhắn MỚI NHẤT. Chỉ ghi khi khách
-   THỰC SỰ dùng đại từ nhân xưng để chỉ bản thân trong câu có hành động/yêu cầu:
-   - "anh muốn mua xe" / "cho anh đặt lịch" -> customer_pronoun="anh"
-   - "chị cần tư vấn" / "chị hỏi giá" -> customer_pronoun="chị"
-   - "em muốn xem" / "tôi muốn" / "bạn cho mình hỏi" -> customer_pronoun=null (giữ neutral)
-   KHÔNG ghi khi: khách chỉ chào hỏi chung ("Chào anh"), lời xã giao, hoặc không có đại từ rõ ràng.
-   Chỉ nhận "anh" hoặc "chị"; các xưng hô khác (em/bạn/tôi/mình) -> null (dùng xưng hô neutral).
 """
 
 
@@ -263,24 +267,13 @@ def _apply_interpretation(state: AgentState, interpretation: ConversationInterpr
         facts[update.key] = KnownFact(key=update.key, value=update.value, source=source,
                                       updated_at_message_id=update.source_message_id)
 
-    # Adapt pronouns based on customer's self-reference
-    result = {"conversation_interpretation": applied, "known_facts": facts, "rejected_slots": rejected}
-    detected = applied.customer_pronoun
-    if detected and not re.search(rf"(?<!\w){re.escape(detected)}(?!\w)", state.get("user_text", ""), re.IGNORECASE):
-        logger.warning("Discarding customer_pronoun %r not present in the message", detected)
-        detected = None  # the model inferred a pronoun the customer never used (e.g. "Tôi" -> "chị")
-    if detected in ("anh", "chị"):
-        # Customer uses formal pronoun -> Bot adapts to respectful form
-        result["customer_pronoun"] = detected
-        result["bot_pronoun"] = "em"
-    elif detected or state.get("customer_pronoun"):
-        # Customer uses neutral/informal (em/bạn/tôi) or no pronoun detected but we have existing preference
-        # Keep existing preference or default to neutral
-        if not detected:
-            result["customer_pronoun"] = state.get("customer_pronoun")
-            result["bot_pronoun"] = state.get("bot_pronoun") or "mình"
-
-    return result
+    booking = any(task.domain == Intent.APPOINTMENT and task.action == "book_appointment" for task in applied.tasks)
+    if booking and "service_type" not in facts:
+        text = state.get("user_text", "")
+        match = next(((m, kind) for pattern, kind in _SERVICE_PHRASES if (m := pattern.search(text))), None)
+        if match:
+            facts["service_type"] = KnownFact(key="service_type", value=match[1].value, source=FactSource.USER_EXPLICIT)
+    return {"conversation_interpretation": applied, "known_facts": facts, "rejected_slots": rejected}
 
 
 def _trace_safe(value, key: str | None = None):

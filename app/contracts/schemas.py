@@ -29,6 +29,7 @@ class ServiceType(str, Enum):
     MAINTENANCE = "MAINTENANCE"
     REPAIR = "REPAIR"
     SHOWROOM_VISIT = "SHOWROOM_VISIT"
+    CONTRACT_SIGN = "CONTRACT_SIGN"  # hẹn khách đến ký hợp đồng mua xe
 
 
 # ---- API ----
@@ -218,11 +219,6 @@ class ConversationInterpretation(BaseModel):
     complexity: str = Field(default="LOW", description="LOW or HIGH complexity of this turn")
     accepts_offer: Optional[bool] = Field(default=None)
     uncertain: bool = Field(default=False)
-    # Pronoun adaptation based on customer's self-reference
-    customer_pronoun: Optional[str] = Field(
-        default=None,
-        description="Customer's self-reference pronoun detected in this message: 'anh', 'chị', 'em', 'bạn', or 'tôi'. Only set if explicitly used by customer."
-    )
 
 
 class KnownFact(BaseModel):

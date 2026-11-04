@@ -255,7 +255,7 @@ LƯU Ý: Nếu khách đang tiếp tục trao đổi về các mẫu xe đã gi�
     if result.get("error"):
         reply = f"Xin lỗi, có lỗi khi xử lý: {result['error']}"
     else:
-        reply = result.get("final_response", "Xin lỗi, em chưa thể tư vấn được ạ.")
+        reply = result.get("final_response", "Xin lỗi, mình chưa thể tư vấn được ạ.")
 
     # Extract products that were found
     products_found = []
@@ -264,6 +264,8 @@ LƯU Ý: Nếu khách đang tiếp tục trao đổi về các mẫu xe đã gi�
         if "products" in tool_result:
             for p_dict in tool_result["products"]:
                 products_found.append(p_dict)
+        elif "product" in tool_result:  # get_product_details: the customer picked this one ("mẫu thứ 2")
+            products_found.append(tool_result["product"])
 
     update = {
         "trace": ["sales"],

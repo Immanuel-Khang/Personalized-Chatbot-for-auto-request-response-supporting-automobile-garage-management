@@ -58,12 +58,9 @@ class AgentState(TypedDict, total=False):
     selected_entities: list[dict]
     # The one product the customer is currently talking about ({entity_id, name}); set by sales, used by booking.
     focused_product: dict | None
-    # Pronoun adaptation: how to address customer and how bot refers to itself
-    customer_pronoun: str | None  # 'anh', 'chị', or None (use neutral 'bạn')
-    bot_pronoun: str | None  # 'em' (when customer uses anh/chị), or 'mình'/'shop' (neutral)
 
 
-# "Chào Khang," / "Xin chào bạn!" / "Chào anh/chị." ở đầu câu trả lời
+# "Chào Khang," / "Xin chào bạn!" ở đầu câu trả lời
 GREETING_PREFIX = re.compile(r"^\s*(?:xin\s+)?chào(?:\s+[^\s,.!\n]+){0,3}\s*[,.!]+\s*", re.IGNORECASE)
 MARKDOWN = re.compile(r"[*`]|^\s*#+\s", re.MULTILINE)
 PRICE_AS_OF = re.compile(r"price_as_of\s*[:=]?\s*", re.IGNORECASE)
@@ -107,24 +104,9 @@ def fact_value(facts: dict | None, key: str):
     return getattr((facts or {}).get(key), "value", None)
 
 
-def pronouns(state: AgentState) -> tuple[str, str]:
-    """(customer, bot) address terms: anh/chị-em once the customer used them, else neutral bạn-mình."""
-    customer, bot = state.get("customer_pronoun"), state.get("bot_pronoun")
-    if customer in ("anh", "chị"):
-        return customer, bot or "em"
-    return "bạn", bot or "mình"
-
-
-def pronoun_vars(state: AgentState) -> dict[str, str]:
-    """Template kwargs: customer, bot, customer_cap, bot_cap."""
-    customer, bot = pronouns(state)
-    return {"customer": customer, "bot": bot, "customer_cap": customer.capitalize(), "bot_cap": bot.capitalize()}
-
-
-def pronoun_instruction(customer: str, bot: str) -> str:
-    if customer in ("anh", "chị"):
-        return f"LUÔN dùng '{customer}' (khách) với '{bot}' (bot/shop). KHÔNG dùng bạn/mình."
-    return f"LUÔN dùng '{bot}' hoặc 'shop' (bot) với '{customer}' (khách). KHÔNG dùng anh/chị-em."
+# The bot always says "mình"/"shop" and calls the customer "bạn", whatever the customer calls themselves.
+PRONOUN_RULE = ("Xưng 'mình' (hoặc 'shop'), gọi khách là 'bạn' trong MỌI trường hợp, kể cả khi khách tự xưng "
+                "anh/chị/em/tôi. KHÔNG dùng anh, chị, em, anh/chị, quý khách để gọi khách hay xưng bot.")
 
 
 def open_pending(state: AgentState, workflow: str | None = None) -> list[PendingInteraction]:
