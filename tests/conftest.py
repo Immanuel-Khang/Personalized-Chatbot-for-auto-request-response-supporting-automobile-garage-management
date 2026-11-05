@@ -9,6 +9,7 @@ os.environ["DATABASE_URL"] = os.getenv(
 os.environ.setdefault("LLM_PROVIDER", "none")  # tests run rule-based unless explicitly enabled
 # RAG chạy BM25-only: không gọi OpenAI embeddings (mỗi câu hỏi 1 request mạng, mạng chậm -> treo cả suite)
 os.environ["EMBEDDING_PROVIDER"] = "none"
+os.environ["ADMIN_AUTH_REQUIRED"] = "false"  # test admin API không đăng nhập
 
 import pytest
 from fastapi.testclient import TestClient
