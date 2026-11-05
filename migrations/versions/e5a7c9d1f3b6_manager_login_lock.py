@@ -1,7 +1,7 @@
 """managers.failed_logins / locked_until (khóa tạm khi đăng nhập sai liên tiếp)
 
-Revision ID: d4f6b8c0e2a5
-Revises: c3e5a7b9d1f4
+Revision ID: e5a7c9d1f3b6
+Revises: d4f6b8c0e2a5
 Create Date: 2026-11-05 10:00:00
 """
 from typing import Sequence, Union
@@ -9,8 +9,8 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "d4f6b8c0e2a5"
-down_revision: Union[str, Sequence[str], None] = "c3e5a7b9d1f4"
+revision: str = "e5a7c9d1f3b6"
+down_revision: Union[str, Sequence[str], None] = "d4f6b8c0e2a5"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
