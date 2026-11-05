@@ -29,7 +29,7 @@ body.admin-page{background:var(--canvas);color:var(--ink);font-size:13px}
 .admin-page .list-intro p{font-size:10px;color:#8a95a5;margin:4px 0 0}
 .admin-page .live-pill{display:flex;align-items:center;gap:6px;font-size:9px;font-weight:700;color:#168558;background:#eaf8f1;padding:6px 8px;border-radius:99px;white-space:nowrap}
 .admin-page .live-pill i{width:6px;height:6px;background:#1db779;border-radius:50%;box-shadow:0 0 0 3px #1db77918}
-.admin-page .tabs{grid-template-columns:repeat(4,minmax(0,1fr));padding:0 12px;border-bottom:1px solid var(--line);gap:2px}
+.admin-page .tabs{grid-template-columns:repeat(5,minmax(0,1fr));padding:0 12px;border-bottom:1px solid var(--line);gap:2px}
 .admin-page .tab{min-width:0;padding:11px 3px 12px;font-size:10px;font-weight:700;gap:5px;color:#7d8798;border-bottom:2px solid transparent;white-space:nowrap}
 .admin-page .tab[aria-selected=true]{color:var(--blue);border-color:var(--blue)}
 .admin-page .tab .n{padding:2px 6px;background:#f0f3f8;color:#65738a;font-size:9px;font-weight:800}

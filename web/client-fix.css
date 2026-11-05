@@ -14,3 +14,5 @@ body.customer-page .details-panel.show{display:block}
   body.customer-page .message-area,body.customer-page .composer-wrap,body.customer-page .handover-status{padding-inline:12px}
   body.customer-page .conversation-banner{margin-inline:12px}
 }
+
+.record-note{margin:0 0 6px;padding:0 14px;font-size:11px;color:#7d8798;text-align:center}

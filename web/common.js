@@ -13,8 +13,42 @@ function body(text) {
   return f;
 }
 
-async function api(path, opt) {
-  const r = await fetch(path, opt); let j = null;
+const TOKEN_KEY = "admin_token";
+let loginPromise = null;
+function showLogin() {  // một hộp thoại duy nhất dù nhiều request cùng gặp 401
+  if (loginPromise) return loginPromise;
+  loginPromise = new Promise(resolve => {
+    const ov = el("div", "login-ov");
+    ov.innerHTML = `<form class="login-box" autocomplete="on"><h2>Đăng nhập nhân viên</h2>
+      <input name="username" placeholder="Tên đăng nhập" autocomplete="username" required>
+      <input name="password" type="password" placeholder="Mật khẩu" autocomplete="current-password" required>
+      <p class="login-err" role="alert" hidden></p><button class="btn" type="submit">Đăng nhập</button></form>
+      <style>.login-ov{position:fixed;inset:0;background:#0b1f33b0;display:grid;place-items:center;z-index:50}
+      .login-box{background:#fff;border-radius:16px;padding:24px;width:min(360px,92vw);display:flex;flex-direction:column;gap:12px}
+      .login-box h2{font-size:18px;margin:0}.login-box input{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+      .login-box .btn{justify-content:center}.login-err{color:var(--red);font-size:13px;margin:0}</style>`;
+    document.body.append(ov);
+    const f = $("form", ov), fu = $("[name=username]", f), fp = $("[name=password]", f); fu.focus();
+    f.onsubmit = async e => {
+      e.preventDefault(); $(".login-err", ov).hidden = true;
+      try {
+        const r = await fetch("/admin/login", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: fu.value, password: fp.value }) });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.detail || "Không đăng nhập được");
+        localStorage.setItem(TOKEN_KEY, j.token); ov.remove(); loginPromise = null; resolve();
+      } catch (err) { const m = $(".login-err", ov); m.textContent = err.message; m.hidden = false; }
+    };
+  });
+  return loginPromise;
+}
+function logout() { localStorage.removeItem(TOKEN_KEY); location.reload(); }
+
+async function api(path, opt = {}, retry = true) {
+  const t = localStorage.getItem(TOKEN_KEY);
+  const r = await fetch(path, { ...opt, headers: { ...(opt.headers || {}), ...(t ? { Authorization: "Bearer " + t } : {}) } });
+  if (r.status === 401 && retry) { await showLogin(); return api(path, opt, false); }
+  let j = null;
   try { j = await r.json(); } catch {}
   if (!r.ok) throw Object.assign(new Error((j && j.detail) || r.statusText), { status: r.status });
   return j;
