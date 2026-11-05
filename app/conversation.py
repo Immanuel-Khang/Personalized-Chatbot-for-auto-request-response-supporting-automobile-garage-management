@@ -96,8 +96,8 @@ def handle_message(req: ChatRequest) -> ChatResponse:
             session = db.get(ChatSession, session_id)
             if session is None:
                 raise RuntimeError(f"Chat session {session_id!r} disappeared before processing")
-            if session.mode == ConversationMode.HUMAN_ACTIVE.value:
-                # Không gọi graph/LLM; nhân viên xem tin đã lưu qua inbox hiện có.
+            if session.mode in (ConversationMode.HUMAN_PENDING.value, ConversationMode.HUMAN_ACTIVE.value):
+                # Chờ nhận hoặc đang xử lý: không gọi graph/LLM; nhân viên xem tin đã lưu qua inbox hiện có.
                 ticket = open_ticket(db, session_id)
                 if ticket:
                     ticket.summary = f"{ticket.summary or ''}\n[Khách] {req.message}".strip()
