@@ -1,19 +1,19 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách hỏi ngoài mẫu đang chốt còn mẫu nào khác không.",
+      "message_summary": "Khách cung cấp thông tin để làm hợp đồng: tên Dương Định Khang, số điện thoại, địa chỉ Hà Đông Hà Nội và xác nhận mức giá theo như đã báo.",
       "tasks": [
         {
           "task_id": "t1",
-          "domain": "SALES",
-          "action": "search_catalog",
-          "text": "Ngoài mẫu trên ra còn mẫu nào không ?",
-          "relationship": "NEW_REQUEST",
-          "referenced_interaction_id": null,
+          "domain": "CONTRACT",
+          "action": "start_contract",
+          "text": "[REDACTED]",
+          "relationship": "ANSWER_TO_QUESTION",
+          "referenced_interaction_id": "contract_7578ce54",
           "requires_clarification": false,
           "entity_id": null,
           "entity_type": null,
-          "inquiry_only": true
+          "inquiry_only": false
         }
       ],
       "slot_updates": [],
@@ -31,26 +31,9 @@
       "uncertain": false
     },
     "known_facts": {
-      "customer_name": "[REDACTED]",
-      "payload_tons": {
-        "key": "payload_tons",
-        "value": "trên 5 tấn",
-        "source": "USER_EXPLICIT",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "customer_phone": "[REDACTED]",
-      "customer_address": "[REDACTED]",
-      "decided_price": {
-        "key": "decided_price",
-        "value": 845000000,
-        "source": "USER_EXPLICIT",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
       "car_model": {
         "key": "car_model",
-        "value": "FUSO Canter FI170L (Thùng mui bạt)",
+        "value": "ISUZU Forward FRR90NE5 Chassis",
         "source": "INFERRED",
         "updated_at_message_id": null,
         "confidence": null

@@ -9,6 +9,7 @@ import json
 import uuid
 
 from app.agent.llm import generate
+from app.agent.nodes.appointment import appointment
 from app.agent.nodes.compose import STYLE_RULES
 from app.agent.state import AgentState, answer, fact_value, open_pending
 from app.identity import is_full_name
@@ -30,9 +31,9 @@ MAX_ASKS = 3  # turns asking for the same missing fields before staff take over
 CONTRACT_SYSTEM_PROMPT = """\
 Bạn là chuyên viên pháp lý và thủ tục hợp đồng mua xe Foton.
 QUY TẮC:
-1. PHẢI xác nhận/ghi nhận thông tin khách vừa cung cấp trước khi hỏi tiếp.
-2. Nếu còn thông tin thiếu, xin đúng các thông tin trong danh sách CÒN THIẾU; KHÔNG hỏi lại hay xin khách xác
-   nhận lại thông tin đã có trong THÔNG TIN ĐÃ CÓ.
+1. Ghi nhận ngắn (một câu) thông tin khách vừa cung cấp; KHÔNG liệt kê lại toàn bộ thông tin đã có.
+2. Nếu còn thông tin thiếu, xin GỘP mọi thông tin trong danh sách CÒN THIẾU trong một câu; KHÔNG hỏi lại hay xin
+   khách xác nhận lại thông tin đã có trong THÔNG TIN ĐÃ CÓ, KHÔNG hỏi thêm điều ngoài danh sách đó.
 3. Nếu đã ĐỦ TẤT CẢ thông tin, tóm tắt lại hợp đồng (Tên, SĐT, Địa chỉ, Dòng xe, Giá chốt) rồi hỏi khách
    muốn hẹn ngày giờ nào đến ký hợp đồng. KHÔNG tự đề xuất hay tự chọn ngày giờ.
 4. Luôn trả lời bằng tiếng Việt, lịch sự và chuyên nghiệp.
@@ -109,24 +110,39 @@ def contract(state: AgentState) -> dict:
                                                                "collected_facts": collected}),
                 "pending_interactions": [*expired, question], "known_facts": facts, "trace": ["contract"]}
 
+    # A signing time given in this message ("giá chốt 650 triệu, sáng thứ 6 tôi qua ký") is kept and booked now;
+    # an older booking time is not the signing date.
+    signing_time = next((u.value for u in (interpretation.slot_updates if interpretation else [])
+                         if u.key == "appointment_when" and u.value), None)
+    ask = (f"Khách đã nêu thời gian ký: {signing_time}. Tóm tắt hợp đồng ngắn gọn; KHÔNG hỏi ngày giờ ký, KHÔNG hỏi "
+           "xác nhận (bước xác nhận lịch ký nằm ở phần sau)." if signing_time else
+           "Đã đủ tất cả thông tin. Hãy tóm tắt hợp đồng và hỏi khách muốn hẹn ngày giờ nào đến ký.")
     reply = generate(CONTRACT_SYSTEM_PROMPT,
                      f"Câu hỏi/tin nhắn của khách: {message}\n\n"
-                     f"📋 THÔNG TIN ĐẦY ĐỦ: {json.dumps(present, ensure_ascii=False)}\n\n"
-                     "Đã đủ tất cả thông tin. Hãy tóm tắt hợp đồng và hỏi khách muốn hẹn ngày giờ nào đến ký.",
+                     f"📋 THÔNG TIN ĐẦY ĐỦ: {json.dumps(present, ensure_ascii=False)}\n\n{ask}",
                      history=state.get("history")) or (
         "Tóm tắt hợp đồng:\n" + "\n".join(f"- {label}: {value}" for label, value in present.items())
-        + "\n\nBạn muốn hẹn ngày giờ nào đến ký hợp đồng ạ?")
+        + ("" if signing_time else "\n\nBạn muốn hẹn ngày giờ nào đến ký hợp đồng ạ?"))
     # The signing date is the appointment agent's job: CONTRACT_SIGN, vehicle from car_model.
     facts["service_type"] = KnownFact(key="service_type", value=ServiceType.CONTRACT_SIGN.value,
                                       source=FactSource.APPLICATION_VERIFIED)
-    facts.pop("appointment_when", None)  # an older booking time is not the signing date
+    if not signing_time:
+        facts.pop("appointment_when", None)
     offer = PendingInteraction(
         interaction_id=f"appointment_{uuid.uuid4().hex[:8]}", kind=InteractionKind.QUESTION, text=reply,
         status=InteractionStatus.OPEN, metadata={"workflow": "appointment", "missing_slots": ["ngày giờ ký hợp đồng"]})
     signing = ActiveWorkflow(workflow_id=f"{state.get('session_id', 'session')}_appointment",
                              workflow_type="appointment", status=WorkflowStatus.WAITING_FOR_USER,
                              collected_facts={"contract": collected})
-    return {"answers": [answer(state, "contract", reply, executed=True)],
-            "pending_interactions": [*(item.model_copy(update={"status": InteractionStatus.RESOLVED})
-                                       for item in pending), offer],
+    resolved = [item.model_copy(update={"status": InteractionStatus.RESOLVED}) for item in pending]
+    summary = answer(state, "contract", reply, executed=True)
+    if signing_time:
+        # Same turn: the appointment agent proposes the signing slot, so the customer confirms once.
+        booked = appointment({**state, "known_facts": facts, "active_workflow": signing,
+                              "pending_interactions": open_pending(state, "appointment")})
+        return {"answers": [summary, *booked["answers"]],
+                "pending_interactions": [*resolved, *booked.get("pending_interactions", [])],
+                "active_workflow": booked.get("active_workflow", signing), "known_facts": booked["known_facts"],
+                "trace": ["contract", "appointment"]}
+    return {"answers": [summary], "pending_interactions": [*resolved, offer],
             "active_workflow": signing, "known_facts": facts, "trace": ["contract"]}

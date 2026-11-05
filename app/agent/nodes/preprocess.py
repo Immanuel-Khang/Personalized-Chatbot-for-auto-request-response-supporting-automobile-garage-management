@@ -34,6 +34,9 @@ from app.contracts.schemas import (
 logger = logging.getLogger(__name__)
 
 _PHONE_RE = re.compile(r"(?<!\d)(?:\+84|0)\d{9}(?!\d)")
+# Evidence for appointment_when must name a time: a digit or a date/period word.
+_TIME_WORDS = re.compile(r"\d|(?<!\w)(?:mai|nay|kia|mốt|thứ|chủ\s+nhật|sáng|trưa|chiều|tối|đêm|tuần|tháng|ngày|giờ|"
+                         r"hôm|bữa|buổi)(?!\w)", re.IGNORECASE)
 
 CANONICAL_SLOTS = {
     "budget_vnd": "Ngân sách tối đa, số nguyên VND (500 triệu -> 500000000)",
@@ -99,6 +102,11 @@ ConversationInterpretation. Các node sau chỉ đọc kết quả của bạn, 
    KHÔNG phải CONTRACT. KHÔNG tạo appointment_when khi khách chưa nói thời gian. Xưởng không có dịch vụ lái thử: KHÔNG ghi service_type cho "lái thử". Khách nêu thời gian hẹn dù chưa có giờ cụ thể ("chiều thứ 2
    tuần sau", "sáng mai") -> vẫn ghi appointment_when đúng như khách nói; nhân viên sẽ chốt giờ, đó KHÔNG
    phải điểm mơ hồ. Khách sửa tên/SĐT/địa chỉ -> slot_update CORRECT cho đúng key đó.
+   appointment_when: tin nhắn mới có ngày/giờ hẹn ("đến vào ngày mai lúc 8 giờ", "đổi sang thứ 6", "sáng thứ 6 tuần
+   này tôi qua ký") -> BẮT BUỘC có slot_update appointment_when. value là TOÀN BỘ thời gian hẹn hiện tại theo lời
+   khách, KHÔNG đổi sang ngày tháng cụ thể. Khách chỉ bổ sung một phần cho thời gian đã có trong known_facts (đã có
+   "ngày mai", khách nói "lúc 8 giờ" hoặc "sáng") -> value là thời gian đã gộp ("sáng ngày mai lúc 8 giờ"); evidence
+   CHỈ là đoạn có trong tin nhắn mới ("lúc 8 giờ"), không chép từ lịch sử.
    Tên khách (customer_name): chỉ khi khách tự giới thiệu hoặc trả lời câu hỏi tên. Ghi dạng chuẩn có dấu, viết hoa
    chữ cái đầu; khách chỉ nói tên gọi ("Khang", "anh Khang") thì ghi đúng phần đó, KHÔNG tự thêm họ. Xưng hô,
    lời chào, tên xe, địa danh không phải tên. evidence là cụm khách gõ nguyên văn.
@@ -194,6 +202,10 @@ def _validated_updates(state: AgentState, interpretation: ConversationInterpreta
             logger.warning("Discarding non-canonical slot update: %s", update.key)
             continue
         update = update.model_copy(update={"key": key})
+        if key == "appointment_when" and not _TIME_WORDS.search(update.evidence or ""):
+            # "Đúng rồi" to a proposal carries no time; a time copied from the bot's text must not replace the fact.
+            logger.warning("Discarding appointment_when update without a time in its evidence")
+            continue
         if not _evidence_is_current(update, text):
             logger.warning("Discarding slot update with invalid current-turn evidence: %s %s", key,
                            "" if key in {"customer_phone", "customer_name", "customer_address"}

@@ -7,6 +7,7 @@ MISSING) and the agent asks. The reply is grounded in what the service returned 
 """
 import json
 import logging
+import re
 import uuid
 from datetime import date, datetime, time, timedelta, timezone
 
@@ -34,23 +35,30 @@ CÔNG CỤ:
 QUY TẮC:
 1. Tiếng Việt, ngắn gọn; chỉ dựa trên kết quả công cụ của lượt này. KHÔNG bịa giờ, tự suy luận ý muốn đặt lịch của khách, trạng thái, mã lịch.
 2. Kết quả status=NEEDS_CONFIRMATION: nêu đúng nội dung "proposal" và hỏi khách xác nhận; CHƯA được nói là đã làm.
-   status=MISSING: ghi nhận thông tin khách vừa đưa rồi hỏi thông tin còn thiếu đầu tiên.
+   status=MISSING: ghi nhận ngắn thông tin khách vừa đưa rồi hỏi GỘP mọi thông tin trong "missing" trong một câu.
    ok=true: báo đã thực hiện theo "message". ok=false: báo chưa thực hiện được theo "message", gợi ý hotline {hotline}.
 3. "Khách vừa đồng ý" = có: gọi lại đúng công cụ của thao tác đang chờ xác nhận để thực hiện.
 4. Khách có nhiều lịch đang hiệu lực mà không rõ muốn đổi/hủy lịch nào: liệt kê ngắn và hỏi, KHÔNG tự chọn.
 5. Trạng thái: dùng "status_label"; thời gian: dùng "when_label". Lịch chưa có start_time thì giờ chính xác do nhân
    viên chốt khi xác nhận.
 6. Khách chỉ cập nhật tên/SĐT: ghi nhận thông tin liên hệ mới, không gọi công cụ.
-7. Chỉ dùng thời gian khách NÓI RÕ (có trong "ngày giờ hẹn" của thông tin đã biết hoặc trong tin nhắn). Khách chưa
-   nêu ngày/thời điểm nào thì KHÔNG tự chọn hay giả định ngày (kể cả "hôm nay"), KHÔNG gọi công cụ ghi; hỏi khách
-   muốn hẹn ngày nào. Có thời gian rồi thì tự quy đổi ra ngày cụ thể (DD-MM-YYYY) theo "Hôm nay" và gọi công cụ ngay. Tuần tính từ
-   thứ 2 đến chủ nhật; "tuần sau" là tuần kế tiếp; ngày tính ra đã qua thì lấy ngày đó của tuần kế tiếp.
-   start_time (HH:MM) chỉ khi khách nêu giờ cụ thể ("8h", "14 giờ 30"); chỉ có ngày hoặc buổi (sáng/chiều) thì bỏ
-   trống start_time và KHÔNG hỏi thêm giờ. Công cụ báo INVALID_DATE thì quy đổi lại.
+7. Chỉ dùng thời gian khách NÓI RÕ (trong "ngày giờ hẹn" của thông tin đã biết hoặc trong tin nhắn). Khách chưa
+   nêu ngày nào thì KHÔNG tự chọn ngày (kể cả "hôm nay"), KHÔNG gọi công cụ ghi; hỏi khách muốn hẹn ngày nào.
+   Có ngày rồi thì gọi công cụ ngay. appointment_date LẤY TỪ BẢNG LỊCH, không tự tính: "hôm nay"/"ngày mai" là dòng
+   có nhãn đó; "thứ X tuần sau" là thứ X có nhãn (tuần sau); "thứ X tuần này" là thứ X có nhãn (tuần này); chỉ
+   "thứ X" là thứ X đầu tiên sau hôm nay trong bảng; "ngày 14", "14/11" là dòng có ngày đó.
+   start_time (HH:MM, 24 giờ) chỉ khi khách nêu giờ ("8h", "14 giờ 30"); "8 giờ tối" = 20:00, "2 giờ chiều" = 14:00.
+   Chỉ có ngày hoặc buổi (sáng/chiều) thì bỏ trống start_time và KHÔNG hỏi thêm giờ. Công cụ báo INVALID_DATE thì
+   tra bảng lại; NEEDS_AM_PM thì hỏi đúng một câu: giờ đó buổi sáng hay chiều/tối.
 8. Tra cứu lịch hẹn hoặc sau khi thao tác thành công: trả lời đúng việc đó rồi dừng, KHÔNG hỏi thêm thông tin
    (loại xe, biển số, tải trọng...) hay đề nghị việc khác.
 9. Lịch "ký hợp đồng mua xe" (CONTRACT_SIGN): hợp đồng đã đủ thông tin, chỉ cần ngày giờ ký; KHÔNG hỏi lại thông tin
    hợp đồng (tên, địa chỉ, dòng xe, giá).
+10. Đủ thông tin thì gọi công cụ ghi ngay; proposal của công cụ là câu xác nhận DUY NHẤT. KHÔNG tự hỏi "đúng không",
+   "bạn xác nhận ngày ... nhé" hay nhắc lại lịch cũ trước khi gọi công cụ.
+11. "Yêu cầu" là đặt lịch mới -> create_appointment, kể cả khi khách đã có lịch khác; KHÔNG hỏi có muốn đổi lịch cũ
+   không. Chỉ đổi/hủy khi yêu cầu là đổi/hủy lịch.
+12. KHÔNG nhắc tới "bảng lịch", "proposal", mã/id lịch hẹn hay tên công cụ với khách.
 """
 
 _WHEN = {"appointment_date": {"type": "string", "description": "Ngày hẹn YYYY-MM-DD, quy đổi từ lời khách"},
@@ -78,6 +86,9 @@ BOOKING_KEYS = {"service_type", "appointment_when", "service_detail"}
 LOCAL_TZ = timezone(timedelta(hours=7))
 WEEKDAYS = ("Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật")
 MAX_DAYS_AHEAD = 180
+CALENDAR_DAYS = 21  # this week and the next two, so "thứ 7 tuần sau" is always a row to read, not a sum
+# Day period words; "tối đa" (at most) is not "tối" (evening).
+PERIOD = re.compile(r"(?<!\w)(sáng|trưa|chiều|tối(?!\s+đa)|đêm)(?!\w)", re.IGNORECASE)
 MAX_ASKS = 3  # turns asking the same thing (missing info / confirmation) before staff take over
 FAILED = BookingResult(ok=False, status="ERROR", message="Hệ thống chưa thực hiện được thao tác này.")
 
@@ -119,6 +130,55 @@ def _new_time_this_turn(state: AgentState) -> bool:
 
 def _today() -> date:
     return datetime.now(LOCAL_TZ).date()
+
+
+def _calendar(today: date) -> str:
+    """Dated rows from today to the end of next week, labelled, so the LLM reads a date instead of counting days."""
+    monday = today - timedelta(days=today.weekday())
+    end = monday + timedelta(days=CALENDAR_DAYS - 1)
+    near = {0: "hôm nay", 1: "ngày mai", 2: "ngày kia"}
+    weeks = {0: "tuần này", 1: "tuần sau", 2: "2 tuần nữa"}
+    rows = []
+    for offset in range((end - today).days + 1):
+        day = today + timedelta(days=offset)
+        labels = [near[offset]] if offset in near else []
+        labels.append(weeks[(day - monday).days // 7])
+        rows.append(f"- {WEEKDAYS[day.weekday()]} {day:%d/%m/%Y} = {day.isoformat()} ({', '.join(labels)})")
+    return "\n".join(rows)
+
+
+def _ambiguous_hour(start: time, stated: str) -> bool:
+    """A 1-11 o'clock hour said without sáng/chiều/tối could be morning or evening; so could a PM hour the LLM
+    made from "8 giờ" (20:00) on its own."""
+    if PERIOD.search(stated):
+        return False
+    said = set(re.findall(r"\d{1,2}", stated))
+    return 1 <= start.hour <= 11 or (start.hour >= 13 and str(start.hour) not in said and str(start.hour - 12) in said)
+
+
+_RELATIVE = ((re.compile(r"(?<!\w)hôm\s+nay(?!\w)"), 0), (re.compile(r"(?<!\w)(?:ngày\s+)?mai(?!\w)"), 1),
+             (re.compile(r"(?<!\w)ngày\s+(?:kia|mốt)(?!\w)"), 2))
+_WEEKDAY_WORDS = {"2": 0, "hai": 0, "3": 1, "ba": 1, "4": 2, "tư": 2, "5": 3, "năm": 3, "6": 4, "sáu": 4,
+                  "7": 5, "bảy": 5}
+_WEEKDAY = re.compile(r"(?<!\w)(?:thứ\s+(2|3|4|5|6|7|hai|ba|tư|năm|sáu|bảy)|(chủ\s+nhật))(?!\w)")
+_WEEK = re.compile(r"(?<!\w)tuần\s+(này|sau|tới)(?!\w)")
+
+
+def _date_mismatch(day: date, stated: str, today: date) -> str | None:
+    """The LLM picks the date; this only rejects one that contradicts the customer's own words
+    ("ngày mai", "thứ 7", "tuần sau"), so a miscount goes back to it instead of into the booking."""
+    text = stated.casefold()
+    for pattern, offset in _RELATIVE:
+        if pattern.search(text):
+            expected = today + timedelta(days=offset)
+            return None if day == expected else f"khách nói '{pattern.search(text).group(0)}' = {expected:%d/%m/%Y}"
+    if (m := _WEEKDAY.search(text)) and day.weekday() != (6 if m.group(2) else _WEEKDAY_WORDS[m.group(1)]):
+        return f"ngày {day:%d/%m/%Y} là {WEEKDAYS[day.weekday()]}, không phải '{m.group(0)}'"
+    if m := _WEEK.search(text):
+        week = (day - (today - timedelta(days=today.weekday()))).days // 7
+        if week != (0 if m.group(1) == "này" else 1):
+            return f"ngày {day:%d/%m/%Y} không thuộc '{m.group(0)}'; dùng dòng có nhãn ({m.group(0)})"
+    return None
 
 
 def _parse_when(raw_date, raw_time) -> tuple[date, time | None] | str:
@@ -196,6 +256,17 @@ def appointment(state: AgentState) -> dict:
         parsed = _parse_when(tool_args.get("appointment_date"), tool_args.get("start_time"))
         if isinstance(parsed, str):
             return {"status": "INVALID_DATE", "message": parsed}
+        # "8 giờ" alone: ask sáng or tối once instead of booking 08:00 (or 20:00) on a guess.
+        # The current message counts too: a reply "Buổi sáng" may come with the previous turn's task text.
+        stated = (f"{fact_value(facts, 'appointment_when') or ''} {state.get('task_text') or ''} "
+                  f"{state.get('user_text', '')}")
+        if mismatch := _date_mismatch(parsed[0], str(fact_value(facts, "appointment_when") or ""), _today()):
+            return {"status": "INVALID_DATE", "message": mismatch}
+        already_confirmed = approved is not None and approved.get("args", {}).get("time") == parsed[1].strftime(
+            "%H:%M") if parsed[1] else False
+        if parsed[1] and not already_confirmed and _ambiguous_hour(parsed[1], stated):
+            hour = parsed[1].hour % 12 or 12
+            return {"status": "NEEDS_AM_PM", "message": f"{hour} giờ sáng hay {hour} giờ chiều/tối?"}
         return parsed[0].isoformat(), parsed[1].strftime("%H:%M") if parsed[1] else None
 
     def run_args(a: dict) -> tuple[date, time | None]:
@@ -269,12 +340,10 @@ def appointment(state: AgentState) -> dict:
         known["xe"] = vehicle
     waiting_for = f"{confirmation.text} (thao tác: {confirmation.metadata.get('action')})" if confirmation else "không"
     today = _today()
-    # Without a time the customer stated, the LLM gets no date to anchor on, so it cannot assume "hôm nay".
-    stated = bool(fact_value(facts, "appointment_when"))
-    today_line = (f"Hôm nay: {WEEKDAYS[today.weekday()]} {today.isoformat()}" if stated else
-                  "Khách CHƯA nêu ngày giờ hẹn: hỏi khách muốn hẹn ngày nào, KHÔNG tự chọn ngày")
-    context = (f"{today_line}\n"
-               f"Tin nhắn của khách: {state.get('task_text') or state.get('user_text', '')}\n"
+    # The calendar is always given, so "ngày mai" is read from a row; rule 7 still forbids picking a day unasked.
+    context = (f"Hôm nay: {WEEKDAYS[today.weekday()]} {today:%d/%m/%Y}\nBẢNG LỊCH:\n{_calendar(today)}\n"
+               f"Tin nhắn của khách: {state.get('user_text', '')}\n"
+               f"Yêu cầu: {state.get('task_text') or state.get('user_text', '')}\n"
                f"Thông tin đặt lịch đã biết: {json.dumps(known, ensure_ascii=False)}\n"
                f"Xác nhận đang chờ: {waiting_for}\nKhách vừa đồng ý xác nhận: {'có' if approved else 'không'}")
     system = SYSTEM_PROMPT.format(hotline=settings.hotline) + STYLE_RULES
