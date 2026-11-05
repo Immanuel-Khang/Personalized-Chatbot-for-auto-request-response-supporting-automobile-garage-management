@@ -48,7 +48,7 @@ APPOINTMENT_STATUSES = ("PENDING_APPROVAL", "CONFIRMED", "REJECTED", "CANCELLED"
 
 
 class Manager(Base):
-    """Nhân viên nội bộ (bắt buộc đăng nhập). TODO[PLATFORM]: đăng nhập + RBAC cho admin API."""
+    """Nhân viên nội bộ (bắt buộc đăng nhập, xem app/auth.py). failed_logins/locked_until: khóa tạm khi sai mật khẩu liên tiếp."""
     __tablename__ = "managers"
     __table_args__ = (_in("role", ("sales_admin", "manager", "technician")),)
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -56,6 +56,8 @@ class Manager(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(20), default="sales_admin", server_default="sales_admin")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    failed_logins: Mapped[int] = mapped_column(SmallInteger, default=0, server_default="0")  # số lần sai liên tiếp
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # khóa đăng nhập tới thời điểm này
     created_at: Mapped[datetime] = _created()
     updated_at: Mapped[datetime] = _updated()
 

@@ -30,6 +30,15 @@ class Settings:
     # Ngưỡng "không tìm thấy -> chuyển người": chunk phải khớp >= N từ khóa HOẶC cosine >= ngưỡng.
     rag_min_keyword_hits: int = int(os.getenv("RAG_MIN_KEYWORD_HITS", "2"))
     rag_min_vector_sim: float = float(os.getenv("RAG_MIN_VECTOR_SIM", "0.35"))
+    # --- Admin ---
+    # ADMIN_AUTH_REQUIRED=false chỉ dùng khi dev/test. ADMIN_SECRET ký token đăng nhập; PHẢI đặt khi chạy nhiều worker/production.
+    admin_auth_required: bool = os.getenv("ADMIN_AUTH_REQUIRED", "true").lower() not in ("0", "false", "no")
+    admin_secret: str = os.getenv("ADMIN_SECRET", "")
+    admin_token_hours: float = float(os.getenv("ADMIN_TOKEN_HOURS", "12"))
+    admin_max_login_attempts: int = int(os.getenv("ADMIN_MAX_LOGIN_ATTEMPTS", "3"))  # sai liên tiếp quá số này -> khóa
+    admin_lock_minutes: int = int(os.getenv("ADMIN_LOCK_MINUTES", "15"))
+    # Sức chứa mặc định của một khung giờ khi nhân viên xác nhận lịch (số xe/khách làm cùng lúc).
+    slot_capacity: int = int(os.getenv("SLOT_CAPACITY", "2"))
     hotline: str = os.getenv("HOTLINE", "0900 000 000")
     handover_timeout_minutes: float = float(os.getenv("HANDOVER_TIMEOUT_MINUTES", "10"))
     # LLM context: older messages are folded into a running summary; the last N go verbatim (see agent/memory.py).
