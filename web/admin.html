@@ -33,6 +33,10 @@
 .th .hd{flex:1;min-width:0}.th b{font-weight:600;font-size:16px}
 .th .sub{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--mute);flex-wrap:wrap}
 .back{display:none}
+.topnav{display:flex;gap:6px;margin:12px 0 8px}.topnav a{flex:1;text-align:center;padding:8px;border-radius:10px;font-size:13px;font-weight:700;color:var(--mute);background:#f3f6fa}
+.topnav a[aria-current=page]{background:#e8f1ff;color:var(--blue-d)}
+.whoami{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--mute);margin-bottom:4px}
+.linkbtn{color:var(--blue-d);font-weight:700;font-size:12px}
 .sum{background:#fff;border-bottom:1px solid var(--line);padding:8px 16px;font-size:13px;color:var(--mute)}
 .sum summary{cursor:pointer;font-weight:500;color:var(--ink)}
 .sum p{margin-top:6px;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -44,12 +48,14 @@
   <aside class="side">
     <div class="sh"><div class="row1"><div class="brand-lockup"><span class="brand-icon"><svg class="ic"><use href="#i-truck"/></svg></span><span><strong>Garage One</strong><small>TRUNG TÂM HỘI THOẠI</small></span></div><a class="ibtn" href="/" title="Mở giao diện khách hàng" aria-label="Mở giao diện khách hàng"><svg class="ic"><use href="#i-truck"/></svg></a></div>
       <label class="search-wrap"><svg class="ic"><use href="#i-search"/></svg><input id="q" placeholder="Tìm khách hoặc nội dung" aria-label="Tìm cuộc trò chuyện" autocomplete="off"></label>
-      <label class="staff-wrap"><span>Nhân viên đang đăng nhập</span><input id="who" placeholder="Nhập tài khoản nhân viên" aria-label="Tài khoản nhân viên" autocomplete="off"></label></div>
+      <nav class="topnav"><a href="/admin" aria-current="page">Hội thoại</a><a href="/appointments.html">Lịch hẹn</a></nav>
+      <div class="whoami"><span id="whoami">Đang tải…</span><button id="logout" class="linkbtn">Đăng xuất</button></div></div>
     <div class="list-intro"><div><h2>Hội thoại</h2><p>Theo dõi và hỗ trợ khách hàng</p></div><span class="live-pill"><i></i> Đang đồng bộ</span></div><div class="tabs" role="tablist" id="tabs">
       <button class="tab" role="tab" data-s="ALL">Tất cả <span class="n">0</span></button>
       <button class="tab" role="tab" data-s="OPEN">Chờ nhận <span class="n">0</span></button>
       <button class="tab" role="tab" data-s="CLAIMED">Đang xử lý <span class="n">0</span></button>
       <button class="tab" role="tab" data-s="RESOLVED">Đã xong <span class="n">0</span></button>
+      <button class="tab" role="tab" data-s="BOT">Bot <span class="n">0</span></button>
     </div>
     <ul class="list" id="list"></ul>
   </aside>
@@ -74,62 +80,68 @@
 </div>
 <script src="/common.js"></script>
 <script>
-const S = ["OPEN", "CLAIMED", "RESOLVED"];
+// Dữ liệu từ GET /admin/conversations: mọi phiên chat, trạng thái = ticket mới nhất (BOT nếu chưa từng chuyển người).
 const REASON = { NEGOTIATION: "Xin giảm giá", HUMAN_REQUEST: "Muốn gặp người", COMPLAINT: "Khiếu nại", COMPLEXITY_HIGH: "Câu hỏi phức tạp",
   OUTPUT_GUARD: "Cần kiểm duyệt", DEAL_CHANGE: "Đổi điều khoản", APPOINTMENT_APPROVAL: "Duyệt lịch hẹn", OTHER: "Khác" };
-const STAT = { OPEN: "Chờ nhân viên tiếp nhận", CLAIMED: "Đang hỗ trợ", RESOLVED: "Đã hoàn tất" };
-const EMPTY = { OPEN: "Chưa có khách nào đang chờ. Khi trợ lý chuyển cuộc trò chuyện, khách sẽ hiện ở đây.",
-  CLAIMED: "Bạn chưa nhận cuộc trò chuyện nào.", RESOLVED: "Chưa có cuộc trò chuyện nào đã xong." };
-let tab = "ALL", data = { OPEN: [], CLAIMED: [], RESOLVED: [] }, sel = null, listSig = "", msgSig = "", online = true;
-const shell = $("#shell"), log = $("#log"), box = $("#in"), send = $("#send"), who = $("#who");
-$("#q").oninput = () => { listSig = ""; drawList(); };
-who.value = localStorage.getItem("staff") || ""; who.onchange = () => localStorage.setItem("staff", who.value.trim());
+const STAT = { BOT: "Trợ lý AI đang trả lời", OPEN: "Chờ nhân viên tiếp nhận", CLAIMED: "Đang hỗ trợ", RESOLVED: "Đã hoàn tất" };
+const EMPTY = { ALL: "Chưa có cuộc trò chuyện nào. Khi khách nhắn tin ở trang khách hàng, hội thoại sẽ hiện ở đây.",
+  BOT: "Không có cuộc trò chuyện nào do trợ lý tự xử lý.", OPEN: "Chưa có khách nào đang chờ. Khi trợ lý chuyển cuộc trò chuyện, khách sẽ hiện ở đây.",
+  CLAIMED: "Chưa có cuộc trò chuyện nào đang được nhân viên xử lý.", RESOLVED: "Chưa có cuộc trò chuyện nào đã xong." };
+const ROLE = { user: "Khách", ai: "Trợ lý", staff: "NV", system: "Hệ thống" };
+let tab = "ALL", items = [], counts = {}, sel = null, listSig = "", msgSig = "", online = true, searchTimer = null, hashDone = false;
+const shell = $("#shell"), log = $("#log"), box = $("#in"), send = $("#send");
+const ROLE_NAME = { manager: "Quản lý", sales_admin: "Nhân viên kinh doanh", technician: "Kỹ thuật" };
+let role = "manager"; $("#logout").onclick = logout;
+$("#q").oninput = () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { listSig = ""; loadLists(); }, 300); };
 
-const name = t => "Khách " + t.session_id.slice(0, 6);
+const name = t => t.customer_name || (t.customer_phone ? t.customer_phone : "Khách " + t.session_id.slice(0, 6));
 const hue = s => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return `hsl(${h} 55% 36%)`; };
-const initials = t => t.session_id.slice(0, 2).toUpperCase();
-const preview = t => (t.summary || "").split("\n").pop().replace(/^\[[^\]]*\]\s*/, "") || "Chưa có tóm tắt";
-function sla(t, s) {
-  if (s !== "OPEN" || !t.sla_due_at) return null;
+const initials = t => (t.customer_name ? t.customer_name.trim().split(/\s+/).slice(-1)[0][0] + "" : t.session_id.slice(0, 2)).toUpperCase();
+const preview = t => t.last_message ? (ROLE[t.last_message.role] || "") + ": " + t.last_message.content.replace(/\s+/g, " ") : "Chưa có tin nhắn";
+const tagOf = t => t.status === "BOT" ? "Trợ lý AI" : (REASON[t.reason] || t.reason || "Khác");
+function sla(t) {
+  if (t.status !== "OPEN" || !t.sla_due_at) return null;
   const m = Math.round((new Date(t.sla_due_at) - Date.now()) / 60000);
   return m >= 0 ? { x: `Còn ${m} phút`, c: m <= 2 ? "soon" : "" } : { x: `Quá ${-m} phút`, c: "late" };
 }
 function toast(msg) { $(".toast")?.remove(); const t = el("div", "toast", msg); t.setAttribute("role", "status"); document.body.append(t); setTimeout(() => t.remove(), 4000); }
-const find = id => { for (const s of S) { const t = data[s].find(x => x.id === id); if (t) return { t, s }; } return null; };
+const find = id => items.find(x => x.session_id === id) || null;
 
 function drawList() {
   document.querySelectorAll(".tab").forEach(b => {
     b.setAttribute("aria-selected", b.dataset.s === tab);
-    const count = b.dataset.s === "ALL" ? S.reduce((n, s) => n + data[s].length, 0) : data[b.dataset.s].length;
-    $(".n", b).textContent = count;
+    $(".n", b).textContent = counts[b.dataset.s] ?? 0;
   });
-  $('.tab[data-s="OPEN"]').classList.toggle("hot", data.OPEN.length > 0);
-  const q = $("#q").value.trim().toLowerCase();
-  const source = tab === "ALL" ? S.flatMap(s => data[s].map(t => ({...t, _status: s}))) : data[tab].map(t => ({...t, _status: tab}));
-  const rows = source.filter(t => !q || (name(t) + " " + t.session_id + " " + (t.summary || "") + " " + (REASON[t.reason] || "")).toLowerCase().includes(q)).map(t => ({ t, sl: sla(t, t._status) }));
-  const sig = tab + sel + q + JSON.stringify(rows.map(r => [r.t.id, r.t.summary, r.sl && r.sl.x]));
+  $('.tab[data-s="OPEN"]').classList.toggle("hot", (counts.OPEN || 0) > 0);
+  const rows = items.filter(t => tab === "ALL" || t.status === tab).map(t => ({ t, sl: sla(t) }));
+  const sig = tab + sel + JSON.stringify(rows.map(r => [r.t.session_id, r.t.status, r.t.last_message_at, r.t.message_count, r.t.customer_name, r.sl && r.sl.x]));
   if (sig === listSig) return; listSig = sig;  // chỉ vẽ lại khi có thay đổi, tránh mất focus bàn phím
   const ul = $("#list"); ul.replaceChildren();
-  if (!rows.length) { ul.append(el("li", "none", q ? "Không có cuộc trò chuyện nào khớp từ khóa." : EMPTY[tab])); return; }
+  if (!rows.length) { ul.append(el("li", "none", $("#q").value.trim() ? "Không có cuộc trò chuyện nào khớp từ khóa." : EMPTY[tab])); return; }
   for (const { t, sl } of rows) {
-    const li = el("li"), b = el("button", "it" + (t.id === sel ? " on" : "")), av = el("div", "av", initials(t)), tx = el("div", "tx");
+    const li = el("li"), b = el("button", "it" + (t.session_id === sel ? " on" : "")), av = el("div", "av", initials(t)), tx = el("div", "tx");
     av.style.background = hue(t.session_id);
     const r1 = el("div", "row1", ""); r1.append(el("b", "", name(t)));
-    if (sl) r1.append(el("span", "tag " + sl.c, sl.x));
-    const r2 = el("div", "row1"); r2.style.marginTop = "3px"; r2.append(el("span", "tag", REASON[t.reason] || t.reason));
-    tx.append(r1, r2, el("div", "pv", preview(t))); b.append(av, tx); b.onclick = () => pick(t.id); li.append(b); ul.append(li);
+    r1.append(sl ? el("span", "tag " + sl.c, sl.x) : el("span", "tag", hm(t.last_message_at)));
+    const r2 = el("div", "row1"); r2.style.marginTop = "3px";
+    r2.append(el("span", "tag", tagOf(t)));
+    if (tab === "ALL") r2.append(el("span", "tag", STAT[t.status]));
+    tx.append(r1, r2, el("div", "pv", preview(t))); b.append(av, tx); b.onclick = () => pick(t.session_id); li.append(b); ul.append(li);
   }
 }
 function drawHead() {
-  const f = sel && find(sel); $("#empty").hidden = !!f; $("#thread").hidden = !f; shell.classList.toggle("sel", !!f);
-  if (!f) return;
-  const { t, s } = f, a = $("#tav"); a.textContent = initials(t); a.style.background = hue(t.session_id);
-  $("#tname").textContent = name(t); $("#treason").textContent = REASON[t.reason] || t.reason; $("#tstat").textContent = STAT[s];
-  $("#tsum").textContent = t.summary || "Chưa có tóm tắt.";
+  const t = sel && find(sel); $("#empty").hidden = !!t; $("#thread").hidden = !t; shell.classList.toggle("sel", !!t);
+  if (!t) return;
+  const s = t.status, a = $("#tav"); a.textContent = initials(t); a.style.background = hue(t.session_id);
+  $("#tname").textContent = name(t); $("#treason").textContent = tagOf(t);
+  $("#tstat").textContent = STAT[s] + (t.assigned ? " · " + t.assigned : "") + (t.customer_phone && t.customer_name ? " · " + t.customer_phone : "");
+  $("#tsum").textContent = t.summary || "Chưa có tóm tắt (trợ lý chưa chuyển cuộc trò chuyện này cho nhân viên).";
   const b = $("#act"); b.hidden = s === "RESOLVED"; b.className = "btn" + (s === "CLAIMED" ? " ghost" : ""); b.replaceChildren();
-  if (s === "CLAIMED") b.append(icon("check")); b.append(document.createTextNode(s === "OPEN" ? "Nhận hỗ trợ" : "Kết thúc"));
+  if (s === "CLAIMED") b.append(icon("check")); b.append(document.createTextNode(s === "OPEN" ? "Nhận hỗ trợ" : s === "BOT" ? "Vào chat" : "Kết thúc"));
   box.disabled = s !== "CLAIMED"; $("#hint").hidden = s === "CLAIMED";
-  $("#hint").textContent = s === "OPEN" ? "Nhận hỗ trợ để nhắn cho khách. Trợ lý đang im lặng trong cuộc trò chuyện này." : "Cuộc trò chuyện đã kết thúc, trợ lý đã tiếp quản lại.";
+  $("#hint").textContent = s === "OPEN" ? "Nhận hỗ trợ để nhắn cho khách. Trợ lý đang im lặng trong cuộc trò chuyện này."
+    : s === "BOT" ? "Trợ lý AI đang tự trả lời. Bạn chỉ xem; bấm Vào chat nếu muốn nhắn trực tiếp cho khách (trợ lý sẽ im cho tới khi bạn kết thúc)."
+    : "Cuộc trò chuyện đã kết thúc, trợ lý đã tiếp quản lại.";
   box.placeholder = s === "CLAIMED" ? "Nhập phản hồi cho khách" : "Chưa thể nhắn"; fit();
 }
 function drawMsgs(rows, force) {
@@ -148,32 +160,38 @@ function drawMsgs(rows, force) {
 }
 async function loadLists() {
   try {
-    const r = await Promise.all(S.map(s => api("/admin/tasks?status=" + s))); S.forEach((s, i) => data[s] = r[i]);
-    data.RESOLVED.reverse(); if (!online) { online = true; toast("Đã kết nối lại"); } drawList(); drawHead();
+    const d = await api("/admin/conversations?status=ALL&q=" + encodeURIComponent($("#q").value.trim()));
+    items = d.items; counts = d.counts; role = d.role;
+    $("#whoami").textContent = (d.username || "Chưa bật đăng nhập") + " · " + (ROLE_NAME[d.role] || d.role);
+    $('.tab[data-s="BOT"]').hidden = role !== "manager"; if (role !== "manager" && tab === "BOT") tab = "ALL";
+    if (!hashDone) { hashDone = true; const h = decodeURIComponent(location.hash.slice(1)); if (h && find(h)) { tab = "ALL"; pick(h); } }
+    if (!online) { online = true; toast("Đã kết nối lại"); } drawList(); drawHead();
   } catch { if (online) { online = false; toast("Mất kết nối tới máy chủ. Đang thử lại."); } }
 }
 async function loadMsgs(force) {
   if (!sel) return;
-  try { drawMsgs(await api(`/admin/tasks/${sel}/messages`), force); } catch {}
+  try { drawMsgs(await api(`/admin/conversations/${encodeURIComponent(sel)}/messages`), force); } catch {}
 }
 function pick(id) { sel = id; msgSig = ""; listSig = ""; log.replaceChildren(); drawHead(); drawList(); loadMsgs(true); }
 async function act(path, opt) {
   try { await api(path, opt); return true; }
   catch (e) {
-    toast(e.status === 409 ? "Trạng thái cuộc trò chuyện đã thay đổi. Đã tải lại danh sách." : e.status === 404 && /manager/.test(e.message) ? "Không tìm thấy tài khoản nhân viên này. Nhập đúng tên đăng nhập hoặc để trống." : "Không thực hiện được: " + e.message);
+    toast(e.status === 403 ? "Bạn không có quyền xem cuộc trò chuyện này." : e.status === 409 ? "Trạng thái cuộc trò chuyện đã thay đổi. Đã tải lại danh sách." : e.status === 404 && /manager/.test(e.message) ? "Không tìm thấy tài khoản nhân viên này. Nhập đúng tên đăng nhập hoặc để trống." : "Không thực hiện được: " + e.message);
     await loadLists(); return false;
   }
 }
 $("#tabs").onclick = e => { const b = e.target.closest(".tab"); if (b) { tab = b.dataset.s; drawList(); } };
 $("#back").onclick = () => { sel = null; listSig = ""; drawHead(); drawList(); };
 $("#act").onclick = async () => {
-  const f = find(sel); if (!f) return; const m = who.value.trim();
-  if (f.s === "OPEN") { if (await act(`/admin/tasks/${sel}/claim` + (m ? "?manager=" + encodeURIComponent(m) : ""), { method: "POST" })) { tab = "CLAIMED"; await loadLists(); loadMsgs(true); box.focus(); } }
-  else if (confirm("Kết thúc hỗ trợ? Trợ lý tự động sẽ tiếp tục trả lời khách.")) { if (await act(`/admin/tasks/${sel}/resolve`, { method: "POST" })) { tab = "RESOLVED"; await loadLists(); loadMsgs(true); } }
+  const t = find(sel); if (!t) return;
+  if (t.status === "BOT") { if (await act(`/admin/conversations/${encodeURIComponent(t.session_id)}/takeover`, { method: "POST" })) { tab = "CLAIMED"; await loadLists(); loadMsgs(true); box.focus(); } return; }
+  if (!t.ticket_id) return;
+  if (t.status === "OPEN") { if (await act(`/admin/tasks/${t.ticket_id}/claim`, { method: "POST" })) { tab = "CLAIMED"; await loadLists(); loadMsgs(true); box.focus(); } }
+  else if (confirm("Kết thúc hỗ trợ? Trợ lý tự động sẽ tiếp tục trả lời khách.")) { if (await act(`/admin/tasks/${t.ticket_id}/resolve`, { method: "POST" })) { tab = "RESOLVED"; await loadLists(); loadMsgs(true); } }
 };
 async function reply() {
-  const text = box.value.trim(); if (!text || box.disabled) return;
-  if (await act(`/admin/tasks/${sel}/reply`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: text }) })) { box.value = ""; fit(); loadMsgs(true); }
+  const t = find(sel), text = box.value.trim(); if (!t || !t.ticket_id || !text || box.disabled) return;
+  if (await act(`/admin/tasks/${t.ticket_id}/reply`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: text }) })) { box.value = ""; fit(); loadMsgs(true); }
 }
 function fit() { box.style.height = "auto"; box.style.height = Math.min(box.scrollHeight, 120) + "px"; send.disabled = box.disabled || !box.value.trim(); }
 box.oninput = fit; send.onclick = reply;

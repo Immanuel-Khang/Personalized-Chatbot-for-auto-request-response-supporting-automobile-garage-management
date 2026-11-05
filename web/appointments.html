@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Garage One — Lịch hẹn</title>
+<link rel="stylesheet" href="/theme.css">
+<style>
+body{min-height:100dvh}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:12px}
+.top h1{font-size:20px;font-weight:700;margin:0;flex:1;min-width:160px}
+.topnav{display:flex;gap:6px}.topnav a{padding:8px 16px;border-radius:10px;font-size:13px;font-weight:700;color:var(--mute);background:#fff}
+.topnav a[aria-current=page]{background:#e8f1ff;color:var(--blue-d)}
+.whoami{display:flex;gap:10px;align-items:center;font-size:12px;color:var(--mute)}.linkbtn{color:var(--blue-d);font-weight:700;font-size:12px}
+.bar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.tabs{display:flex;gap:4px;background:#fff;border-radius:12px;padding:4px;flex-wrap:wrap}
+.tab{padding:8px 12px;border-radius:9px;font-size:13px;font-weight:600;color:var(--mute);display:flex;gap:6px;align-items:center}
+.tab[aria-selected=true]{background:#e8f1ff;color:var(--blue-d)}
+.tab .n{background:#eef2f7;color:var(--ink);border-radius:99px;padding:0 7px;font-size:12px}
+.tab.hot .n{background:var(--warn-bg);color:var(--warn)}
+.bar input{flex:1;min-width:200px;border:1px solid var(--line);border-radius:10px;padding:9px 12px;background:#fff}
+.note{font-size:12px;color:var(--mute);margin:0 0 10px}
+.live{font-size:12px;color:#1a8a4a;font-weight:600}
+.cards{display:grid;gap:10px}
+.card{background:#fff;border-radius:14px;padding:14px 16px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1.2fr) minmax(0,1.2fr) auto;gap:12px 16px;align-items:center;transition:background .6s}
+.card.flash{background:#fff7dd}
+.card b{font-weight:700}.sub{font-size:13px;color:var(--mute);margin-top:2px;overflow-wrap:anywhere}
+.when{font-weight:700}
+.st{display:inline-block;font-size:12px;font-weight:700;padding:2px 10px;border-radius:99px}
+.st.PENDING_APPROVAL{background:var(--warn-bg);color:var(--warn)}
+.st.CONFIRMED{background:#e1f4e8;color:#0b5a2e}.st.DONE{background:#e8f1ff;color:var(--blue-d)}
+.st.CANCELLED,.st.REJECTED{background:var(--red-bg);color:var(--red)}
+.none{padding:40px 20px;text-align:center;color:var(--mute);background:#fff;border-radius:14px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1b2733;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;max-width:90vw;z-index:9}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+@media(max-width:760px){.card{grid-template-columns:1fr}.card .acts{justify-self:start}}
+</style></head><body>
+<div class="wrap">
+  <div class="top">
+    <h1>Lịch hẹn <span class="live" id="live">● tự cập nhật</span></h1>
+    <nav class="topnav"><a href="/admin">Hội thoại</a><a href="/appointments.html" aria-current="page">Lịch hẹn</a></nav>
+    <div class="whoami"><span id="whoami"></span><button id="logout" class="linkbtn">Đăng xuất</button></div>
+  </div>
+  <p class="note">Lịch do trợ lý AI tự đặt, đổi và hủy cùng khách. Bấm “Xác nhận” khi đồng ý lịch (khách được báo trong chat). Muốn thay đổi: bấm “Nhắn khách”, trao đổi trong chat; khi khách chốt với trợ lý, danh sách này tự cập nhật.</p>
+  <div class="bar">
+    <div class="tabs" id="tabs" role="tablist">
+      <button class="tab" role="tab" data-s="ALL">Tất cả <span class="n">0</span></button>
+      <button class="tab" role="tab" data-s="PENDING_APPROVAL">Chờ xác nhận <span class="n">0</span></button>
+      <button class="tab" role="tab" data-s="CONFIRMED">Đã xác nhận <span class="n">0</span></button>
+      <button class="tab" role="tab" data-s="DONE">Hoàn tất <span class="n">0</span></button>
+      <button class="tab" role="tab" data-s="CANCELLED">Đã hủy <span class="n">0</span></button>
+    </div>
+    <input id="q" placeholder="Tìm tên, SĐT, xe, mã lịch" aria-label="Tìm lịch hẹn" autocomplete="off">
+  </div>
+  <div class="cards" id="list"></div>
+</div>
+<script src="/common.js"></script>
+<script>
+const STATUS = { PENDING_APPROVAL: "Chờ xác nhận", CONFIRMED: "Đã xác nhận", DONE: "Hoàn tất", CANCELLED: "Đã hủy", REJECTED: "Bị từ chối" };
+const SERVICE = { MAINTENANCE: "Bảo dưỡng", REPAIR: "Sửa chữa", SHOWROOM_VISIT: "Xem xe tại showroom" };
+const CHAT = { BOT: "Trợ lý AI đang xử lý", OPEN: "Khách đang chờ nhân viên", CLAIMED: "Nhân viên đang chat", RESOLVED: "Trợ lý AI (nhân viên đã xong)" };
+const ROLE_NAME = { manager: "Quản lý", sales_admin: "Nhân viên kinh doanh", technician: "Kỹ thuật" };
+let tab = "ALL", items = [], counts = {}, sig = "", seen = new Map(), firstLoad = true, online = true, timer = null;
+$("#logout").onclick = logout;
+const dmy = iso => iso ? iso.split("-").reverse().join("/") : null;
+function toast(msg) { $(".toast")?.remove(); const t = el("div", "toast", msg); t.setAttribute("role", "status"); document.body.append(t); setTimeout(() => t.remove(), 4000); }
+
+function draw() {
+  document.querySelectorAll(".tab").forEach(b => { b.setAttribute("aria-selected", b.dataset.s === tab); $(".n", b).textContent = counts[b.dataset.s] ?? 0; });
+  $('.tab[data-s="PENDING_APPROVAL"]').classList.toggle("hot", (counts.PENDING_APPROVAL || 0) > 0);
+  const rows = items.filter(a => tab === "ALL" || (tab === "CANCELLED" ? ["CANCELLED", "REJECTED"].includes(a.status) : a.status === tab));
+  const s = tab + JSON.stringify(rows.map(a => [a.id, a.updated_at, a.status, a.conversation_status]));
+  if (s === sig) return; sig = s;
+  const ul = $("#list"); ul.replaceChildren();
+  if (!rows.length) { ul.append(el("div", "none", $("#q").value.trim() ? "Không có lịch hẹn nào khớp từ khóa." : "Chưa có lịch hẹn nào. Khi khách đặt lịch qua chat, lịch sẽ hiện ở đây.")); return; }
+  for (const a of rows) {
+    const card = el("div", "card"); if (!firstLoad && seen.get(a.id) !== a.updated_at) { card.classList.add("flash"); setTimeout(() => card.classList.remove("flash"), 2500); }
+    const c1 = el("div"); c1.append(el("b", "", a.customer_name || "Khách chưa cho tên"), el("div", "sub", a.phone + " · Lịch #" + a.id));
+    const c2 = el("div"); c2.append(el("div", "when", (dmy(a.appointment_date) || "Chưa có ngày") + " · " + (a.start_time || "chưa chọn giờ")),
+      el("div", "sub", (SERVICE[a.service_type] || a.service_type) + (a.vehicle ? " · " + a.vehicle : "") + (a.detail ? " · " + a.detail : "")));
+    const c3 = el("div"); c3.append(el("span", "st " + a.status, STATUS[a.status] || a.status), el("div", "sub", "Chat: " + (CHAT[a.conversation_status] || "—") + " · cập nhật " + hm(a.updated_at)));
+    card.append(c1, c2, c3);
+    const acts = el("div", "acts");
+    if (a.status === "PENDING_APPROVAL") { const ok = el("button", "btn", "Xác nhận"); ok.onclick = () => confirmAppt(a, ok); acts.append(ok); }
+    if (a.session_id) { const b = el("button", "btn ghost", a.conversation_status === "CLAIMED" ? "Mở chat" : "Nhắn khách"); b.onclick = () => chat(a, b); acts.append(b); }
+    if (acts.children.length) card.append(acts);
+    ul.append(card);
+  }
+}
+async function confirmAppt(a, b) {
+  let time = null;
+  if (!a.appointment_date) { toast("Lịch chưa có ngày. Hãy bấm “Nhắn khách” để chốt ngày với khách trước."); return; }
+  if (!a.start_time) {
+    time = (prompt("Khách chưa chọn giờ. Nhập giờ hẹn (HH:MM, ví dụ 09:30):") || "").trim();
+    if (!time) return;
+    if (!/^([01]?\d|2[0-3]):[0-5]\d$/.test(time)) { toast("Giờ không hợp lệ. Nhập dạng HH:MM, ví dụ 09:30."); return; }
+  }
+  if (!confirm(`Xác nhận lịch #${a.id} ngày ${dmy(a.appointment_date)} lúc ${a.start_time || time}? Khách sẽ được báo trong chat.`)) return;
+  b.disabled = true;
+  try { await api(`/admin/appointments/${a.id}/confirm`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(time ? { start_time: time } : {}) }); toast("Đã xác nhận lịch #" + a.id); sig = ""; load(); }
+  catch (e) { toast(e.message); b.disabled = false; load(); }
+}
+async function chat(a, b) {
+  b.disabled = true;
+  try { await api(`/admin/conversations/${encodeURIComponent(a.session_id)}/takeover`, { method: "POST" }); location.href = "/admin#" + encodeURIComponent(a.session_id); }
+  catch (e) { toast(e.status === 409 ? "Nhân viên khác đang xử lý cuộc trò chuyện này." : "Không mở được chat: " + e.message); b.disabled = false; }
+}
+async function load() {
+  try {
+    const d = await api("/admin/appointments?status=ALL&q=" + encodeURIComponent($("#q").value.trim()));
+    items = d.items; counts = d.counts; $("#whoami").textContent = (d.username || "Chưa bật đăng nhập") + " · " + (ROLE_NAME[d.role] || d.role);
+    if (!online) { online = true; $("#live").textContent = "● tự cập nhật"; }
+    draw(); seen = new Map(items.map(a => [a.id, a.updated_at])); firstLoad = false;
+  } catch { if (online) { online = false; $("#live").textContent = "● mất kết nối, đang thử lại"; } }
+}
+$("#tabs").onclick = e => { const b = e.target.closest(".tab"); if (b) { tab = b.dataset.s; sig = ""; draw(); } };
+let st = null; $("#q").oninput = () => { clearTimeout(st); st = setTimeout(() => { sig = ""; load(); }, 300); };
+load(); setInterval(() => !document.hidden && load(), 4000);
+</script></body></html>
