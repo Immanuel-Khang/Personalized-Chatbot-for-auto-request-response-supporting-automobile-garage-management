@@ -5,13 +5,15 @@ quy đổi; note chỉ chứa xe và yêu cầu riêng của khách. Đổi lị
 PENDING_APPROVAL để nhân viên duyệt lại. Hủy: CANCELLED, trả slot đã giữ. Mọi thao tác chỉ chạm lịch của đúng phiên chat (session_id).
 TODO[BOOKING]: quy đổi thời gian -> appointment_slots, giữ chỗ trong transaction (booked_count).
 """
-from datetime import date, time, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from app.contracts.schemas import AppointmentInfo, BookingResult, ServiceType
-from app.db.models import Appointment, AppointmentSlot
+from app.config import settings
+from app.db.models import Appointment, AppointmentSlot, Showroom
 from app.db.session import SessionLocal
 from app.identity import attach_phone, get_or_create_session, normalize_phone
 
@@ -19,6 +21,8 @@ VEHICLE_PREFIX = "Xe: "
 DETAIL_PREFIX = "Hạng mục: "
 CHANGEABLE = ("PENDING_APPROVAL", "CONFIRMED")
 LOCAL_TZ = timezone(timedelta(hours=7))
+DEFAULT_SHOWROOM = "Garage One"
+SLOT_MINUTES = 60
 
 
 def _note_value(note: str | None, prefix: str) -> str | None:
@@ -112,3 +116,48 @@ class DbBookingService:
             row.status = "CANCELLED"
             db.commit()
             return BookingResult(ok=True, appointment_id=row.id, status=row.status, message="Lịch hẹn đã được hủy.")
+
+
+def _showroom(db: Session) -> Showroom:
+    row = db.scalars(select(Showroom).where(Showroom.is_active).order_by(Showroom.id)).first()
+    if row is None:  # chưa khai báo showroom: tạo mặc định để gán được khung giờ
+        row = Showroom(name=DEFAULT_SHOWROOM)
+        db.add(row)
+        db.flush()
+    return row
+
+
+def confirm_appointment(appointment_id: int, start_time: time | None = None) -> BookingResult:
+    """Nhân viên xác nhận lịch PENDING_APPROVAL: gán khung giờ (tạo nếu chưa có) và tăng booked_count trong transaction.
+    Cố ý nằm ngoài BookingService của agent: chatbot không tự xác nhận được. start_time chỉ dùng khi khách chưa nêu giờ."""
+    with SessionLocal() as db:
+        row = db.scalars(select(Appointment).where(Appointment.id == appointment_id).with_for_update()).one_or_none()
+        if row is None:
+            return BookingResult(ok=False, status="NOT_FOUND", message="Không tìm thấy lịch hẹn này.")
+        if row.status != "PENDING_APPROVAL":
+            return BookingResult(ok=False, appointment_id=row.id, status=row.status,
+                                 message="Lịch hẹn này không còn ở trạng thái chờ xác nhận.")
+        if row.appointment_date is None:
+            return BookingResult(ok=False, appointment_id=row.id, status=row.status,
+                                 message="Lịch hẹn chưa có ngày, hãy nhắn khách để chốt ngày trước.")
+        when = row.start_time or start_time
+        if when is None:
+            return BookingResult(ok=False, appointment_id=row.id, status="NEEDS_TIME",
+                                 message="Khách chưa chọn giờ, hãy nhập giờ hẹn.")
+        starts = datetime.combine(row.appointment_date, when, tzinfo=LOCAL_TZ)
+        slot_type = "SHOWROOM_VISIT" if row.service_type == "SHOWROOM_VISIT" else "SERVICE_BAY"
+        showroom = _showroom(db)
+        db.execute(pg_insert(AppointmentSlot).values(
+            showroom_id=showroom.id, slot_type=slot_type, starts_at=starts,
+            ends_at=starts + timedelta(minutes=SLOT_MINUTES), capacity=settings.slot_capacity, booked_count=0,
+        ).on_conflict_do_nothing(index_elements=["showroom_id", "slot_type", "starts_at"]))
+        slot = db.scalars(select(AppointmentSlot).where(
+            AppointmentSlot.showroom_id == showroom.id, AppointmentSlot.slot_type == slot_type,
+            AppointmentSlot.starts_at == starts).with_for_update()).one()
+        if slot.booked_count >= slot.capacity:
+            return BookingResult(ok=False, appointment_id=row.id, status="SLOT_FULL",
+                                 message=f"Khung giờ này đã đủ chỗ ({slot.booked_count}/{slot.capacity}).")
+        slot.booked_count += 1
+        row.slot_id, row.start_time, row.status = slot.id, when, "CONFIRMED"
+        db.commit()
+        return BookingResult(ok=True, appointment_id=row.id, status="CONFIRMED", message="Đã xác nhận lịch hẹn.")
