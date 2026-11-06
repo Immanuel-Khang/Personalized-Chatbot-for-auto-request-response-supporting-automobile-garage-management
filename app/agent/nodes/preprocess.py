@@ -12,9 +12,11 @@ Preprocessing has no side effects other than writing the debug trace.
 import json
 import logging
 import re
+import unicodedata
 import uuid
 from pathlib import Path
 
+from app.agent.date_extraction import sync_date_fact
 from app.agent.llm import generate_structured
 from app.agent.nodes.input import AVAILABLE_ACTIONS, build_context
 from app.agent.state import AgentState
@@ -100,7 +102,7 @@ ConversationInterpretation. Các node sau chỉ đọc kết quả của bạn, 
    (evidence là cụm từ đó); "ký hợp đồng" -> CONTRACT_SIGN. Bot vừa hỏi ngày giờ ký hợp đồng (pending của workflow
    appointment) mà khách trả lời thời gian -> APPOINTMENT book_appointment ANSWER_TO_QUESTION với slot appointment_when,
    KHÔNG phải CONTRACT. KHÔNG tạo appointment_when khi khách chưa nói thời gian. Xưởng không có dịch vụ lái thử: KHÔNG ghi service_type cho "lái thử". Khách nêu thời gian hẹn dù chưa có giờ cụ thể ("chiều thứ 2
-   tuần sau", "sáng mai") -> vẫn ghi appointment_when đúng như khách nói; nhân viên sẽ chốt giờ, đó KHÔNG
+   tuần sau", "sáng mai") -> vẫn ghi appointment_when đúng như khách nói; workflow sẽ tự hỏi giờ, đó KHÔNG
    phải điểm mơ hồ. Khách sửa tên/SĐT/địa chỉ -> slot_update CORRECT cho đúng key đó.
    appointment_when: tin nhắn mới có ngày/giờ hẹn ("đến vào ngày mai lúc 8 giờ", "đổi sang thứ 6", "sáng thứ 6 tuần
    này tôi qua ký") -> BẮT BUỘC có slot_update appointment_when. value là TOÀN BỘ thời gian hẹn hiện tại theo lời
@@ -142,7 +144,8 @@ def _context_prompt(state: AgentState) -> str:
     context = build_context(state, CANONICAL_SLOTS)
     dynamic = context.model_dump(mode="json", exclude_none=True,
                                  include={"pending_interactions", "active_workflow", "shown_products"})
-    dynamic["known_facts"] = {key: fact.value for key, fact in context.known_facts.items()}
+    # appointment_date is derived in code from appointment_when; the model only sees the customer's words.
+    dynamic["known_facts"] = {key: fact.value for key, fact in context.known_facts.items() if key != "appointment_date"}
     dynamic = {key: value for key, value in dynamic.items() if value}
     return f"{SYSTEM_PROMPT}\n\nCONVERSATION STATE JSON:\n{json.dumps(dynamic, ensure_ascii=False, default=str)}"
 
@@ -157,7 +160,8 @@ def _neutral_interpretation(text: str, reason: str) -> ConversationInterpretatio
 
 
 def _normalise(value: str) -> str:
-    return " ".join(value.casefold().split())
+    # NFC: the model may return Vietnamese accents in another Unicode form than the customer typed.
+    return " ".join(unicodedata.normalize("NFC", value).casefold().split())
 
 
 def _evidence_is_current(update: SlotUpdate, text: str) -> bool:
@@ -285,6 +289,8 @@ def _apply_interpretation(state: AgentState, interpretation: ConversationInterpr
         match = next(((m, kind) for pattern, kind in _SERVICE_PHRASES if (m := pattern.search(text))), None)
         if match:
             facts["service_type"] = KnownFact(key="service_type", value=match[1].value, source=FactSource.USER_EXPLICIT)
+    if any(update.key == "appointment_when" for update in applied.slot_updates):
+        sync_date_fact(facts)  # the customer's words -> a calendar date, computed in code
     return {"conversation_interpretation": applied, "known_facts": facts, "rejected_slots": rejected}
 
 

@@ -168,7 +168,14 @@ def generate_with_tools(system_prompt: str, user_message: str, tools: list[dict]
                 )
                 messages.append(tool_message)
 
-        # Exceeded max turns
+        # Out of tool rounds: one last call with tools disabled, so the model answers from the results it has
+        # instead of the turn ending without a reply.
+        response = llm.bind_tools(tools, tool_choice="none").invoke(messages)
+        content = response.content
+        final_text = content if isinstance(content, str) else "".join(
+            part.get("text", "") if isinstance(part, dict) else str(part) for part in content)
+        if final_text.strip():
+            return {"final_response": final_text, "tool_calls": tool_calls_made, "error": None}
         return {
             "error": f"Exceeded max_turns ({max_turns})",
             "final_response": None,

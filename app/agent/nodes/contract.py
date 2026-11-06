@@ -7,7 +7,9 @@ contract goes to staff. Once complete, the signing date is booked by the appoint
 the car model in the appointment note), so the contract agent never asks for a date itself."""
 import json
 import uuid
+from datetime import date
 
+from app.agent.date_extraction import RESOLVED, sync_date_fact
 from app.agent.llm import generate
 from app.agent.nodes.appointment import appointment
 from app.agent.nodes.compose import STYLE_RULES
@@ -114,6 +116,11 @@ def contract(state: AgentState) -> dict:
     # an older booking time is not the signing date.
     signing_time = next((u.value for u in (interpretation.slot_updates if interpretation else [])
                          if u.key == "appointment_when" and u.value), None)
+    if not signing_time:
+        facts.pop("appointment_when", None)
+    signing_day = sync_date_fact(facts) or {}
+    if signing_day.get("status") == RESOLVED:
+        signing_time = f"{signing_time} (ngày {date.fromisoformat(signing_day['date']):%d/%m/%Y})"
     ask = (f"Khách đã nêu thời gian ký: {signing_time}. Tóm tắt hợp đồng ngắn gọn; KHÔNG hỏi ngày giờ ký, KHÔNG hỏi "
            "xác nhận (bước xác nhận lịch ký nằm ở phần sau)." if signing_time else
            "Đã đủ tất cả thông tin. Hãy tóm tắt hợp đồng và hỏi khách muốn hẹn ngày giờ nào đến ký.")
@@ -126,8 +133,6 @@ def contract(state: AgentState) -> dict:
     # The signing date is the appointment agent's job: CONTRACT_SIGN, vehicle from car_model.
     facts["service_type"] = KnownFact(key="service_type", value=ServiceType.CONTRACT_SIGN.value,
                                       source=FactSource.APPLICATION_VERIFIED)
-    if not signing_time:
-        facts.pop("appointment_when", None)
     offer = PendingInteraction(
         interaction_id=f"appointment_{uuid.uuid4().hex[:8]}", kind=InteractionKind.QUESTION, text=reply,
         status=InteractionStatus.OPEN, metadata={"workflow": "appointment", "missing_slots": ["ngày giờ ký hợp đồng"]})

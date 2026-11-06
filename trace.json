@@ -1,15 +1,15 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách cung cấp thông tin để làm hợp đồng: tên Dương Định Khang, số điện thoại, địa chỉ Hà Đông Hà Nội và xác nhận mức giá theo như đã báo.",
+      "message_summary": "Khách đề nghị xem các mẫu xe tải mui bạt.",
       "tasks": [
         {
           "task_id": "t1",
-          "domain": "CONTRACT",
-          "action": "start_contract",
-          "text": "[REDACTED]",
-          "relationship": "ANSWER_TO_QUESTION",
-          "referenced_interaction_id": "contract_7578ce54",
+          "domain": "SALES",
+          "action": "SALES show_catalog",
+          "text": "Cho tôi xem các mẫu xe tải mui bạt",
+          "relationship": "NEW_REQUEST",
+          "referenced_interaction_id": null,
           "requires_clarification": false,
           "entity_id": null,
           "entity_type": null,
@@ -30,15 +30,7 @@
       "accepts_offer": null,
       "uncertain": false
     },
-    "known_facts": {
-      "car_model": {
-        "key": "car_model",
-        "value": "ISUZU Forward FRR90NE5 Chassis",
-        "source": "INFERRED",
-        "updated_at_message_id": null,
-        "confidence": null
-      }
-    },
+    "known_facts": {},
     "rejected_slots": [],
     "trace": [
       "preprocess"

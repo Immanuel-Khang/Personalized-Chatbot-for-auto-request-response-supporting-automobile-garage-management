@@ -253,7 +253,9 @@ LƯU Ý: Nếu khách đang tiếp tục trao đổi về các mẫu xe đã gi�
     )
 
     if result.get("error"):
-        reply = f"Xin lỗi, có lỗi khi xử lý: {result['error']}"
+        # Internal errors never reach the customer.
+        reply = ("Xin lỗi, mình chưa tra cứu được thông tin xe lúc này. Bạn cho mình biết nhu cầu (tải trọng, "
+                 "loại thùng, ngân sách) để mình tư vấn nhé.")
     else:
         reply = result.get("final_response", "Xin lỗi, mình chưa thể tư vấn được ạ.")
 

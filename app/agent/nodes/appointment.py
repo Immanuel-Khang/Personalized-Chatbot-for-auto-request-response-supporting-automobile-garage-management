@@ -9,8 +9,9 @@ import json
 import logging
 import re
 import uuid
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import date, time
 
+from app.agent.date_extraction import OUT_OF_RANGE, RESOLVED, local_today, sync_date_fact
 from app.agent.llm import generate_with_tools
 from app.agent.nodes.compose import STYLE_RULES
 from app.agent.state import AgentState, answer, fact_value, open_pending
@@ -42,14 +43,11 @@ QUY TẮC:
 5. Trạng thái: dùng "status_label"; thời gian: dùng "when_label". Lịch chưa có start_time thì giờ chính xác do nhân
    viên chốt khi xác nhận.
 6. Khách chỉ cập nhật tên/SĐT: ghi nhận thông tin liên hệ mới, không gọi công cụ.
-7. Chỉ dùng thời gian khách NÓI RÕ (trong "ngày giờ hẹn" của thông tin đã biết hoặc trong tin nhắn). Khách chưa
-   nêu ngày nào thì KHÔNG tự chọn ngày (kể cả "hôm nay"), KHÔNG gọi công cụ ghi; hỏi khách muốn hẹn ngày nào.
-   Có ngày rồi thì gọi công cụ ngay. appointment_date LẤY TỪ BẢNG LỊCH, không tự tính: "hôm nay"/"ngày mai" là dòng
-   có nhãn đó; "thứ X tuần sau" là thứ X có nhãn (tuần sau); "thứ X tuần này" là thứ X có nhãn (tuần này); chỉ
-   "thứ X" là thứ X đầu tiên sau hôm nay trong bảng; "ngày 14", "14/11" là dòng có ngày đó.
+7. Ngày hẹn do hệ thống xác định từ lời khách ("Ngày hẹn đã xác định"); KHÔNG tự tính hay tự chọn ngày. Khách
+   đã nêu thời gian thì gọi công cụ ngay; công cụ báo MISSING ngày hẹn thì hỏi khách ngày cụ thể theo "message".
    start_time (HH:MM, 24 giờ) chỉ khi khách nêu giờ ("8h", "14 giờ 30"); "8 giờ tối" = 20:00, "2 giờ chiều" = 14:00.
-   Chỉ có ngày hoặc buổi (sáng/chiều) thì bỏ trống start_time và KHÔNG hỏi thêm giờ. Công cụ báo INVALID_DATE thì
-   tra bảng lại; NEEDS_AM_PM thì hỏi đúng một câu: giờ đó buổi sáng hay chiều/tối.
+   Khách chưa nêu giờ cụ thể (chỉ có ngày hoặc buổi sáng/chiều) thì bỏ trống start_time, KHÔNG tự chọn giờ; công
+   cụ báo MISSING giờ hẹn thì hỏi khách giờ cụ thể (gộp với ngày nếu cũng thiếu). NEEDS_AM_PM thì hỏi đúng một câu: giờ đó buổi sáng hay chiều/tối.
 8. Tra cứu lịch hẹn hoặc sau khi thao tác thành công: trả lời đúng việc đó rồi dừng, KHÔNG hỏi thêm thông tin
    (loại xe, biển số, tải trọng...) hay đề nghị việc khác.
 9. Lịch "ký hợp đồng mua xe" (CONTRACT_SIGN): hợp đồng đã đủ thông tin, chỉ cần ngày giờ ký; KHÔNG hỏi lại thông tin
@@ -58,19 +56,19 @@ QUY TẮC:
    "bạn xác nhận ngày ... nhé" hay nhắc lại lịch cũ trước khi gọi công cụ.
 11. "Yêu cầu" là đặt lịch mới -> create_appointment, kể cả khi khách đã có lịch khác; KHÔNG hỏi có muốn đổi lịch cũ
    không. Chỉ đổi/hủy khi yêu cầu là đổi/hủy lịch.
-12. KHÔNG nhắc tới "bảng lịch", "proposal", mã/id lịch hẹn hay tên công cụ với khách.
+12. KHÔNG nhắc tới "proposal", mã/id lịch hẹn hay tên công cụ với khách.
 """
 
-_WHEN = {"appointment_date": {"type": "string", "description": "Ngày hẹn YYYY-MM-DD, quy đổi từ lời khách"},
-         "start_time": {"type": "string", "description": "Giờ bắt đầu HH:MM; bỏ trống nếu khách chưa nêu giờ cụ thể"}}
+# The date is not a tool argument: code resolves it from the customer's words (date_extraction).
+_WHEN = {"start_time": {"type": "string", "description": "Giờ bắt đầu HH:MM; bỏ trống nếu khách chưa nêu giờ cụ thể"}}
 _ID = {"appointment_id": {"type": "integer", "description": "id lịch hẹn lấy từ get_appointment_details"}}
 TOOLS = [
     {"name": "get_appointment_details", "description": "Xem các lịch hẹn của khách (mới nhất trước).",
      "input_schema": {"type": "object", "properties": {}, "required": []}},
     {"name": "create_appointment", "description": "Đặt lịch hẹn mới từ thông tin đặt lịch đã biết.",
-     "input_schema": {"type": "object", "required": ["appointment_date"], "properties": _WHEN}},
+     "input_schema": {"type": "object", "required": [], "properties": _WHEN}},
     {"name": "reschedule_appointment", "description": "Đổi lịch hẹn sang ngày giờ mới.",
-     "input_schema": {"type": "object", "required": ["appointment_id", "appointment_date"],
+     "input_schema": {"type": "object", "required": ["appointment_id"],
                       "properties": {**_ID, **_WHEN}}},
     {"name": "cancel_appointment", "description": "Hủy lịch hẹn.",
      "input_schema": {"type": "object", "required": ["appointment_id"], "properties": _ID}},
@@ -82,11 +80,8 @@ LABELS = {ServiceType.MAINTENANCE.value: "bảo dưỡng", ServiceType.REPAIR.va
           ServiceType.SHOWROOM_VISIT.value: "xem xe tại showroom", ServiceType.CONTRACT_SIGN.value: "ký hợp đồng mua xe"}
 STATUS_LABELS = {"PENDING_APPROVAL": "đang chờ nhân viên xác nhận", "CONFIRMED": "đã được xác nhận",
                  "CANCELLED": "đã hủy", "REJECTED": "không được duyệt", "DONE": "đã hoàn thành"}
-BOOKING_KEYS = {"service_type", "appointment_when", "service_detail"}
-LOCAL_TZ = timezone(timedelta(hours=7))
+BOOKING_KEYS = {"service_type", "appointment_when", "appointment_date", "service_detail"}
 WEEKDAYS = ("Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật")
-MAX_DAYS_AHEAD = 180
-CALENDAR_DAYS = 21  # this week and the next two, so "thứ 7 tuần sau" is always a row to read, not a sum
 # Day period words; "tối đa" (at most) is not "tối" (evening).
 PERIOD = re.compile(r"(?<!\w)(sáng|trưa|chiều|tối(?!\s+đa)|đêm)(?!\w)", re.IGNORECASE)
 MAX_ASKS = 3  # turns asking the same thing (missing info / confirmation) before staff take over
@@ -128,25 +123,6 @@ def _new_time_this_turn(state: AgentState) -> bool:
     return bool(interpretation and any(u.key == "appointment_when" for u in interpretation.slot_updates))
 
 
-def _today() -> date:
-    return datetime.now(LOCAL_TZ).date()
-
-
-def _calendar(today: date) -> str:
-    """Dated rows from today to the end of next week, labelled, so the LLM reads a date instead of counting days."""
-    monday = today - timedelta(days=today.weekday())
-    end = monday + timedelta(days=CALENDAR_DAYS - 1)
-    near = {0: "hôm nay", 1: "ngày mai", 2: "ngày kia"}
-    weeks = {0: "tuần này", 1: "tuần sau", 2: "2 tuần nữa"}
-    rows = []
-    for offset in range((end - today).days + 1):
-        day = today + timedelta(days=offset)
-        labels = [near[offset]] if offset in near else []
-        labels.append(weeks[(day - monday).days // 7])
-        rows.append(f"- {WEEKDAYS[day.weekday()]} {day:%d/%m/%Y} = {day.isoformat()} ({', '.join(labels)})")
-    return "\n".join(rows)
-
-
 def _ambiguous_hour(start: time, stated: str) -> bool:
     """A 1-11 o'clock hour said without sáng/chiều/tối could be morning or evening; so could a PM hour the LLM
     made from "8 giờ" (20:00) on its own."""
@@ -156,45 +132,18 @@ def _ambiguous_hour(start: time, stated: str) -> bool:
     return 1 <= start.hour <= 11 or (start.hour >= 13 and str(start.hour) not in said and str(start.hour - 12) in said)
 
 
-_RELATIVE = ((re.compile(r"(?<!\w)hôm\s+nay(?!\w)"), 0), (re.compile(r"(?<!\w)(?:ngày\s+)?mai(?!\w)"), 1),
-             (re.compile(r"(?<!\w)ngày\s+(?:kia|mốt)(?!\w)"), 2))
-_WEEKDAY_WORDS = {"2": 0, "hai": 0, "3": 1, "ba": 1, "4": 2, "tư": 2, "5": 3, "năm": 3, "6": 4, "sáu": 4,
-                  "7": 5, "bảy": 5}
-_WEEKDAY = re.compile(r"(?<!\w)(?:thứ\s+(2|3|4|5|6|7|hai|ba|tư|năm|sáu|bảy)|(chủ\s+nhật))(?!\w)")
-_WEEK = re.compile(r"(?<!\w)tuần\s+(này|sau|tới)(?!\w)")
+def _said_hour(start: time, stated: str) -> bool:
+    """The hour appears in the customer's words: "14h30" for 14:30, or "2 giờ chiều" for 14:00."""
+    said = {int(n) for n in re.findall(r"\d{1,2}", stated)}
+    return start.hour in said or (start.hour % 12 or 12) in said
 
 
-def _date_mismatch(day: date, stated: str, today: date) -> str | None:
-    """The LLM picks the date; this only rejects one that contradicts the customer's own words
-    ("ngày mai", "thứ 7", "tuần sau"), so a miscount goes back to it instead of into the booking."""
-    text = stated.casefold()
-    for pattern, offset in _RELATIVE:
-        if pattern.search(text):
-            expected = today + timedelta(days=offset)
-            return None if day == expected else f"khách nói '{pattern.search(text).group(0)}' = {expected:%d/%m/%Y}"
-    if (m := _WEEKDAY.search(text)) and day.weekday() != (6 if m.group(2) else _WEEKDAY_WORDS[m.group(1)]):
-        return f"ngày {day:%d/%m/%Y} là {WEEKDAYS[day.weekday()]}, không phải '{m.group(0)}'"
-    if m := _WEEK.search(text):
-        week = (day - (today - timedelta(days=today.weekday()))).days // 7
-        if week != (0 if m.group(1) == "này" else 1):
-            return f"ngày {day:%d/%m/%Y} không thuộc '{m.group(0)}'; dùng dòng có nhãn ({m.group(0)})"
-    return None
-
-
-def _parse_when(raw_date, raw_time) -> tuple[date, time | None] | str:
-    """Validate the date/time the LLM deduced; an error string goes back to it as the tool result."""
-    try:
-        day = date.fromisoformat(str(raw_date or ""))
-    except ValueError:
-        return "appointment_date phải có dạng YYYY-MM-DD"
-    if day < _today():
-        return f"ngày {day.isoformat()} đã qua"
-    if day > _today() + timedelta(days=MAX_DAYS_AHEAD):
-        return f"ngày {day.isoformat()} quá xa (tối đa {MAX_DAYS_AHEAD} ngày)"
+def _parse_time(raw_time) -> time | None | str:
+    """Validate the hour the LLM read; an error string goes back to it as the tool result."""
     if not raw_time:
-        return day, None
+        return None
     try:
-        return day, time.fromisoformat(str(raw_time)).replace(second=0, microsecond=0)
+        return time.fromisoformat(str(raw_time)).replace(second=0, microsecond=0)
     except ValueError:
         return "start_time phải có dạng HH:MM"
 
@@ -253,21 +202,33 @@ def appointment(state: AgentState) -> dict:
         return {"status": "NEEDS_CONFIRMATION", "proposal": proposal["text"]}
 
     def when(tool_args: dict) -> tuple[str, str | None] | dict:
-        parsed = _parse_when(tool_args.get("appointment_date"), tool_args.get("start_time"))
+        # The date comes from the customer's words (date_extraction), never from the LLM's own count.
+        resolved = sync_date_fact(facts) or {}
+        day_ok = resolved.get("status") == RESOLVED and date.fromisoformat(resolved["date"]) >= local_today()
+        parsed = _parse_time(tool_args.get("start_time"))
         if isinstance(parsed, str):
-            return {"status": "INVALID_DATE", "message": parsed}
+            return {"status": "INVALID_TIME", "message": parsed}
         # "8 giờ" alone: ask sáng or tối once instead of booking 08:00 (or 20:00) on a guess.
         # The current message counts too: a reply "Buổi sáng" may come with the previous turn's task text.
         stated = (f"{fact_value(facts, 'appointment_when') or ''} {state.get('task_text') or ''} "
                   f"{state.get('user_text', '')}")
-        if mismatch := _date_mismatch(parsed[0], str(fact_value(facts, "appointment_when") or ""), _today()):
-            return {"status": "INVALID_DATE", "message": mismatch}
-        already_confirmed = approved is not None and approved.get("args", {}).get("time") == parsed[1].strftime(
-            "%H:%M") if parsed[1] else False
-        if parsed[1] and not already_confirmed and _ambiguous_hour(parsed[1], stated):
-            hour = parsed[1].hour % 12 or 12
+        if parsed and not _said_hour(parsed, stated):
+            parsed = None  # an hour the customer never said is the LLM's guess
+        # The customer gives the exact hour too, so staff do not have to call back for it.
+        gaps = ([] if day_ok else ["ngày hẹn cụ thể"]) + ([] if parsed else ["giờ hẹn cụ thể"])
+        if gaps:
+            missing[:] = gaps
+            reason = ("ngày khách nói nằm ngoài khoảng nhận lịch (từ hôm nay đến hết tháng sau)"
+                      if resolved.get("status") == OUT_OF_RANGE else
+                      "chưa xác định được ngày cụ thể từ lời khách (VD: thứ 7 tuần này, ngày 15/12)" if not day_ok
+                      else "khách chưa nêu giờ cụ thể (VD: 9 giờ sáng, 14h30)")
+            return {"status": "MISSING", "missing": missing, "message": reason}
+        already_confirmed = approved is not None and approved.get("args", {}).get("time") == parsed.strftime(
+            "%H:%M") if parsed else False
+        if parsed and not already_confirmed and _ambiguous_hour(parsed, stated):
+            hour = parsed.hour % 12 or 12
             return {"status": "NEEDS_AM_PM", "message": f"{hour} giờ sáng hay {hour} giờ chiều/tối?"}
-        return parsed[0].isoformat(), parsed[1].strftime("%H:%M") if parsed[1] else None
+        return resolved["date"], parsed.strftime("%H:%M") if parsed else None
 
     def run_args(a: dict) -> tuple[date, time | None]:
         return date.fromisoformat(a["date"]), time.fromisoformat(a["time"]) if a["time"] else None
@@ -303,7 +264,7 @@ def appointment(state: AgentState) -> dict:
         if name == "cancel_appointment":
             return confirm_or_run(name, {"appointment_id": appointment_id}, same_id, info,
                                   lambda a: booking.cancel_appointment(session_id, a["appointment_id"]))
-        if not tool_args.get("appointment_date"):
+        if not fact_value(facts, "appointment_when"):
             missing[:] = ["thời gian mới"]
             return {"status": "MISSING", "missing": missing}
         if isinstance(deduced := when(tool_args), dict):
@@ -339,9 +300,11 @@ def appointment(state: AgentState) -> dict:
     if vehicle:
         known["xe"] = vehicle
     waiting_for = f"{confirmation.text} (thao tác: {confirmation.metadata.get('action')})" if confirmation else "không"
-    today = _today()
-    # The calendar is always given, so "ngày mai" is read from a row; rule 7 still forbids picking a day unasked.
-    context = (f"Hôm nay: {WEEKDAYS[today.weekday()]} {today:%d/%m/%Y}\nBẢNG LỊCH:\n{_calendar(today)}\n"
+    today = local_today()
+    resolved = sync_date_fact(facts) or {}
+    booked_day = (_fmt(resolved["date"], None) if resolved.get("status") == RESOLVED
+                  else "chưa xác định, cần hỏi khách ngày cụ thể" if resolved else "khách chưa nêu")
+    context = (f"Hôm nay: {WEEKDAYS[today.weekday()]} {today:%d/%m/%Y}\nNgày hẹn đã xác định: {booked_day}\n"
                f"Tin nhắn của khách: {state.get('user_text', '')}\n"
                f"Yêu cầu: {state.get('task_text') or state.get('user_text', '')}\n"
                f"Thông tin đặt lịch đã biết: {json.dumps(known, ensure_ascii=False)}\n"
