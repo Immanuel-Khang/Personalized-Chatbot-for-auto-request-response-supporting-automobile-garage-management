@@ -4,11 +4,20 @@
   const area = $('#message-area'), form = $('#message-form'), input = $('#message-input');
   if (!area || !form || !input) return;
   const SESSION_KEY = 'garage_one_session_v1';
-  let sessionId = localStorage.getItem(SESSION_KEY);
-  if (!sessionId || !/^[A-Za-z0-9_-]{8,64}$/.test(sessionId)) {
-    sessionId = (crypto.randomUUID ? crypto.randomUUID() : `go_${Date.now()}_${Math.random().toString(36).slice(2)}`);
-    localStorage.setItem(SESSION_KEY, sessionId);
+  const randomId = () => (crypto.randomUUID ? crypto.randomUUID() : `go_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+  const validId = v => /^[A-Za-z0-9_-]{8,64}$/.test(v || '');
+  // /?s=khach1 -> phiên riêng của tab này (id cố định khach_test_khach1, tải lại vẫn giữ). Dùng để mở nhiều "khách" cùng lúc
+  // khi thử admin/đặt lịch trùng. Không có ?s= thì giữ hành vi cũ: một phiên cho cả trình duyệt (localStorage).
+  const tabName = (new URLSearchParams(location.search).get('s') || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40);
+  let sessionId;
+  if (tabName) {
+    sessionId = `khach_test_${tabName}`;
+    document.title = `Garage One · khách ${tabName}`;
+  } else {
+    sessionId = localStorage.getItem(SESSION_KEY);
+    if (!validId(sessionId)) { sessionId = randomId(); localStorage.setItem(SESSION_KEY, sessionId); }
   }
+  const newTabUrl = () => `/?s=${Math.random().toString(36).slice(2, 8)}`;
   let lastId = 0, sending = false, pollTimer = null;
   const seenIds = new Set();
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -66,7 +75,8 @@
   input.addEventListener('input',()=>{input.style.height='auto';input.style.height=Math.min(input.scrollHeight,120)+'px';});
   input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit();}});
   document.querySelectorAll('[data-message]').forEach(button=>button.addEventListener('click',()=>{input.value=button.dataset.message||'';input.focus({preventScroll:true});input.dispatchEvent(new Event('input'));form.requestSubmit();}));
-  $('#new-chat')?.addEventListener('click',()=>{if(confirm('Tạo cuộc trò chuyện mới? Lịch sử hiện tại vẫn được lưu trên máy chủ.')){localStorage.removeItem(SESSION_KEY);location.reload();}});
+  $('#new-chat')?.addEventListener('click',()=>{if(confirm('Tạo cuộc trò chuyện mới? Lịch sử hiện tại vẫn được lưu trên máy chủ.')){if(tabName){location.href=newTabUrl();}else{localStorage.removeItem(SESSION_KEY);location.reload();}}});
+  $('#new-client-tab')?.addEventListener('click',()=>window.open(newTabUrl(),'_blank'));
   $('#dismiss-banner')?.addEventListener('click',()=>$('.conversation-banner')?.remove());
   $('#info-toggle')?.addEventListener('click',()=>$('#details-panel')?.classList.toggle('show'));
   $('#close-details')?.addEventListener('click',()=>$('#details-panel')?.classList.remove('show'));

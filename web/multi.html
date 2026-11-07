@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Garage One — Thử nhiều khách cùng lúc</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif;background:#0f1b2a;color:#e8eef6;display:flex;flex-direction:column;height:100dvh}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 14px;background:#16263a}
+.bar b{font-size:15px}.bar a,.bar button{background:#2b6cff;color:#fff;border:0;border-radius:8px;padding:7px 12px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none}
+.bar a.ghost,.bar button.ghost{background:#2a3d57}.bar span{font-size:12px;color:#9fb0c4}
+.grid{flex:1;min-height:0;display:grid;gap:8px;padding:8px;grid-template-columns:repeat(var(--cols,2),minmax(0,1fr))}
+.cell{display:flex;flex-direction:column;min-height:0;background:#16263a;border-radius:10px;overflow:hidden}
+.cell header{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;font-size:12px;color:#9fb0c4}
+.cell header button{background:none;border:0;color:#ff8a8a;cursor:pointer;font-size:12px}
+iframe{flex:1;border:0;background:#fff;min-height:0}
+</style></head><body>
+<div class="bar"><b>Thử nhiều khách cùng lúc</b>
+  <button id="add">+ Thêm khách</button><button class="ghost" id="cols">Số cột: 2</button>
+  <a class="ghost" href="/admin" target="_blank">Mở Admin</a><a class="ghost" href="/appointments.html" target="_blank">Mở Lịch hẹn</a>
+  <span>Mỗi ô là một phiên chat riêng (khach_test_A, B...). Gõ đặt lịch cùng một giờ ở nhiều ô để xem báo đầy/trùng.</span></div>
+<div class="grid" id="grid"></div>
+<script>
+const grid=document.getElementById('grid');let cols=2;
+const names=new URLSearchParams(location.search).get('n');
+let count=Math.max(1,Math.min(6,Number(names)||2));
+const label=i=>String.fromCharCode(65+i);
+function cell(i){const c=document.createElement('div');c.className='cell';c.innerHTML=`<header><span>Khách ${label(i)} · khach_test_${label(i)}</span><button>Đóng</button></header><iframe src="/?s=${label(i)}" title="Khách ${label(i)}"></iframe>`;c.querySelector('button').onclick=()=>c.remove();return c;}
+let next=0;for(let i=0;i<count;i++)grid.append(cell(next++));
+document.getElementById('add').onclick=()=>{if(next<26)grid.append(cell(next++));};
+document.getElementById('cols').onclick=e=>{cols=cols%3+1;grid.style.setProperty('--cols',cols);e.target.textContent='Số cột: '+cols;};
+</script></body></html>
