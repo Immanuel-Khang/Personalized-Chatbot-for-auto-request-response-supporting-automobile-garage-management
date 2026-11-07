@@ -181,9 +181,11 @@ class EntityReference(BaseModel):
     """A reference such as 'xe số 1', 'mẫu thứ ba', 'nó' in the current message."""
     mention: str = Field(description="Verbatim reference text from the current message")
     position: Optional[int] = Field(
-        default=None, description="1-based position in shown_products; -1 means the last one")
-    entity_id: Optional[int] = Field(default=None, description="product id from shown_products, never invented")
-    ambiguous: bool = Field(default=False, description="True when the reference cannot be resolved uniquely")
+        default=None, description="1-based position in the car list the customer counts; -1 means the last one")
+    car_model: Optional[str] = Field(
+        default=None,
+        description="The car the reference points at, taken from the car list by counting; None when the "
+                    "reference cannot be resolved to a single car")
 
 
 class TaskInterpretation(BaseModel):
@@ -197,10 +199,10 @@ class TaskInterpretation(BaseModel):
         default=None, description="ID of the pending interaction this task responds to")
     requires_clarification: bool = Field(
         default=False, description="True when task cannot proceed without clarification")
-    entity_id: Optional[int] = Field(
-        default=None, description="Resolved catalog/entity identifier for this task")
-    entity_type: Optional[str] = Field(
-        default=None, description="Resolved entity type, e.g. PRODUCT")
+    car_model: Optional[str] = Field(
+        default=None,
+        description="Tên mẫu xe mà task này nói tới, lấy từ danh sách xe đã giới thiệu theo thứ tự khách đếm "
+                    "('mẫu số 2' -> tên xe thứ 2 trong danh sách); None nếu task không nói về xe nào")
     inquiry_only: bool = Field(
         default=False, description="Asks about a service/procedure without asking to start that workflow")
 
@@ -214,6 +216,10 @@ class ConversationInterpretation(BaseModel):
         default_factory=list, description="Proposed fact/slot changes with explicit operations")
     references: list[EntityReference] = Field(
         default_factory=list, description="References to previously shown products")
+    presented_cars: list[str] = Field(
+        default_factory=list,
+        description="The cars of a LIST the bot's latest message presented, as their names, in the order the "
+                    "customer counts them; empty when that message presented no list")
     signals: PolicySignals = Field(default_factory=PolicySignals)
     # Interpretation signals consumed by application policy; these are not duplicated task state.
     complexity: str = Field(default="LOW", description="LOW or HIGH complexity of this turn")
@@ -264,10 +270,9 @@ class ConversationContext(BaseModel):
         default_factory=list, description="Open questions/offers awaiting response")
     active_workflow: Optional[ActiveWorkflow] = Field(
         default=None, description="Currently active workflow if any")
-    selected_entities: list[dict] = Field(
-        default_factory=list, description="Resolved entities (products, bookings) from prior turns")
-    shown_products: list[dict] = Field(
-        default_factory=list, description="Most recent product list shown by the bot, with 1-based positions")
+    car_list: list[str] = Field(
+        default_factory=list,
+        description="Các xe bot đã giới thiệu, theo thứ tự khách đếm ('mẫu số 1', 'mẫu số 2')")
     canonical_slots: dict[str, str] = Field(
         default_factory=dict, description="The only slot keys allowed in slot_updates")
     available_actions: list[dict] = Field(

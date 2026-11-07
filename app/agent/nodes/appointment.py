@@ -89,16 +89,14 @@ FAILED = BookingResult(ok=False, status="ERROR", message="Hệ thống chưa th�
 
 
 def _booking_detail(state: AgentState, facts: dict) -> tuple[str | None, str | None]:
-    """(vehicle, work item) for staff: the product an appointment task referenced, else car_model, else the product
-    the customer was last talking about in sales; plus service_detail."""
+    """(vehicle, work item) for staff: the car an appointment task pointed at, else car_model; plus
+    service_detail."""
     interpretation = state.get("conversation_interpretation")
-    shown = {item.get("entity_id"): item.get("name") for item in state.get("selected_entities") or []
-             if isinstance(item, dict) and item.get("entity_type") == "PRODUCT"}
     if fact_value(facts, "service_type") == ServiceType.CONTRACT_SIGN.value and fact_value(facts, "car_model"):
         return fact_value(facts, "car_model"), fact_value(facts, "service_detail")
-    vehicle = next((shown[t.entity_id] for t in (interpretation.tasks if interpretation else [])
-                    if t.domain.value == "APPOINTMENT" and shown.get(t.entity_id)), None)
-    vehicle = vehicle or fact_value(facts, "car_model") or (state.get("focused_product") or {}).get("name")
+    vehicle = next((t.car_model for t in (interpretation.tasks if interpretation else [])
+                    if t.domain.value == "APPOINTMENT" and t.car_model), None)
+    vehicle = vehicle or fact_value(facts, "car_model")
     return vehicle, fact_value(facts, "service_detail")
 
 

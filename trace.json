@@ -1,23 +1,23 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách đề nghị xem các mẫu xe tải mui bạt.",
+      "message_summary": "Khách nói cảm ơn sau khi bot nhắc cung cấp họ tên để hoàn tất đặt lịch xem xe.",
       "tasks": [
         {
           "task_id": "t1",
-          "domain": "SALES",
-          "action": "SALES show_catalog",
-          "text": "Cho tôi xem các mẫu xe tải mui bạt",
-          "relationship": "NEW_REQUEST",
-          "referenced_interaction_id": null,
+          "domain": "OTHER",
+          "action": "general_conversation",
+          "text": "Cảm ơn",
+          "relationship": "CONTINUE_TASK",
+          "referenced_interaction_id": "appointment_5fc560d2",
           "requires_clarification": false,
-          "entity_id": null,
-          "entity_type": null,
+          "car_model": null,
           "inquiry_only": false
         }
       ],
       "slot_updates": [],
       "references": [],
+      "presented_cars": [],
       "signals": {
         "wants_human": false,
         "complaint": false,
@@ -30,7 +30,61 @@
       "accepts_offer": null,
       "uncertain": false
     },
-    "known_facts": {},
+    "known_facts": {
+      "customer_name": "[REDACTED]",
+      "budget_vnd": {
+        "key": "budget_vnd",
+        "value": 500000000,
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "car_list": {
+        "key": "car_list",
+        "value": [
+          "HYUNDAI New Mighty N250L",
+          "KIA Frontier K250 Chassis",
+          "HYUNDAI New Mighty N250"
+        ],
+        "source": "INFERRED",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "car_model": {
+        "key": "car_model",
+        "value": "KIA Frontier K250 Chassis",
+        "source": "INFERRED",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "service_type": {
+        "key": "service_type",
+        "value": "SHOWROOM_VISIT",
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "appointment_when": {
+        "key": "appointment_when",
+        "value": "Thứ 5 tuần sau",
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "appointment_date": {
+        "key": "appointment_date",
+        "value": {
+          "text": "Thứ 5 tuần sau",
+          "reference": "2026-11-07",
+          "status": "RESOLVED",
+          "date": "2026-11-12"
+        },
+        "source": "APPLICATION_VERIFIED",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "customer_phone": "[REDACTED]"
+    },
     "rejected_slots": [],
     "trace": [
       "preprocess"

@@ -4,7 +4,7 @@ Checkpoints may return pydantic models or plain dicts; every later node relies o
 models. ``build_context`` assembles exactly what preprocessing sends to the LLM.
 """
 from app.agent.memory import windowed_history
-from app.agent.state import AgentState
+from app.agent.state import AgentState, fact_value
 from app.contracts.schemas import (
     ActiveWorkflow,
     ConversationContext,
@@ -19,6 +19,9 @@ AVAILABLE_ACTIONS = [
     {"action": "product_detail", "domain": "SALES", "description": "Show a previously displayed product"},
     {"action": "product_specs", "domain": "SALES",
      "description": "Specs of a catalog vehicle (engine, transmission, seats, fuel, price)"},
+    {"action": "purchase_interest", "domain": "SALES",
+     "description": "Customer says they want to buy a vehicle ('tôi muốn mua xe này') without asking to make the "
+                    "contract or giving contract details; the bot asks what they want next"},
     {"action": "book_appointment", "domain": "APPOINTMENT",
      "description": "Book service or showroom visit",
      "required_fields": ["service_type", "appointment_when", "customer_phone"]},
@@ -30,7 +33,8 @@ AVAILABLE_ACTIONS = [
     {"action": "answer_knowledge", "domain": "KNOWLEDGE", "description": "General technical/repair/safety questions, not specs of a catalog model"},
     {"action": "maintenance_schedule", "domain": "MAINTENANCE", "description": "Maintenance milestones and costs"},
     {"action": "show_service_history", "domain": "AFTER_SALES", "description": "Show the customer's service history"},
-    {"action": "start_contract", "domain": "CONTRACT", "description": "Begin purchase contract workflow",
+    {"action": "start_contract", "domain": "CONTRACT",
+     "description": "Customer explicitly asks to make/sign the contract, or gives contract details (address, agreed price)",
      "required_fields": ["customer_name", "customer_phone", "customer_address", "car_model", "decided_price"]},
     {"action": "request_discount", "domain": "DISCOUNT", "description": "Customer bargains; manager must approve"},
     {"action": "general_conversation", "domain": "OTHER",
@@ -64,7 +68,7 @@ def build_context(state: AgentState, canonical_slots: dict[str, str]) -> Convers
         known_facts=state.get("known_facts") or {},
         pending_interactions=state.get("pending_interactions") or [],
         active_workflow=state.get("active_workflow"),
-        shown_products=state.get("selected_entities") or [],
+        car_list=fact_value(state.get("known_facts"), "car_list") or [],
         canonical_slots=canonical_slots,
         available_actions=AVAILABLE_ACTIONS,
     )

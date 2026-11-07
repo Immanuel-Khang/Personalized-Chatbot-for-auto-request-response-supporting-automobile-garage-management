@@ -44,14 +44,10 @@ QUY TẮC:
 
 
 def _chosen_vehicle(state: AgentState) -> str | None:
-    """The product the customer picked: one referenced this turn, else the one sales last focused on."""
+    """The car the customer picked this turn, as the preprocessing resolved it from the list they count."""
     interpretation = state.get("conversation_interpretation")
-    shown = {item.get("entity_id"): item.get("name") for item in state.get("selected_entities") or []
-             if isinstance(item, dict) and item.get("entity_type") == "PRODUCT"}
-    referenced = {shown[t.entity_id] for t in (interpretation.tasks if interpretation else []) if shown.get(t.entity_id)}
-    if len(referenced) == 1:
-        return referenced.pop()
-    return (state.get("focused_product") or {}).get("name")
+    referenced = {t.car_model for t in (interpretation.tasks if interpretation else []) if t.car_model}
+    return referenced.pop() if len(referenced) == 1 else None
 
 
 def _asks(pending: list[PendingInteraction], missing: list[str]) -> int:

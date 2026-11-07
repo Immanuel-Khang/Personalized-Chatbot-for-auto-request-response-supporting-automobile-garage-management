@@ -19,8 +19,9 @@ from pathlib import Path
 from app.agent.date_extraction import sync_date_fact
 from app.agent.llm import generate_structured
 from app.agent.nodes.input import AVAILABLE_ACTIONS, build_context
-from app.agent.state import AgentState
+from app.agent.state import AgentState, fact_value
 from app.identity import normalize_phone, is_full_name
+from app.services import get_services
 from app.contracts.schemas import (
     ConversationInterpretation,
     FactSource,
@@ -92,6 +93,11 @@ ConversationInterpretation. Các node sau chỉ đọc kết quả của bạn, 
    yêu cầu MỚI; không lặp lại task của các lượt trước. Xem xe tại showroom là APPOINTMENT.
    Hỏi thông số/giá của một mẫu xe trong catalog ("động cơ của FUSO Canter FI170 là gì", "xe số 2 hộp số mấy
    cấp") là SALES product_specs, KHÔNG phải KNOWLEDGE; KNOWLEDGE chỉ cho câu hỏi kỹ thuật chung, sửa chữa, an toàn.
+   Khách chỉ nói muốn mua xe ("tôi muốn mua xe này", "mình lấy xe này", "chốt mẫu này") mà chưa yêu cầu làm/ký hợp đồng
+   và chưa đưa thông tin hợp đồng (địa chỉ, giá chốt) là SALES purchase_interest, KHÔNG phải CONTRACT start_contract;
+   đặt car_model nếu "xe này" là xe khách vừa nói tới trong danh sách xe. CONTRACT start_contract chỉ khi khách nói rõ muốn
+   làm/ký hợp đồng,
+   đồng ý bot đề nghị làm hợp đồng, hoặc đang cung cấp thông tin hợp đồng cho workflow hợp đồng đang mở.
    Mặc cả, xin giảm giá, xin quà là DISCOUNT. Khách chỉ HỎI xưởng có làm dịch vụ X không, hoặc hỏi
    thủ tục/giấy tờ, mà chưa yêu cầu đặt lịch/làm hợp đồng: inquiry_only=true.
 3. Slot: chỉ dùng key trong canonical_slots. Chỉ tạo slot_update khi khách nói rõ trong tin nhắn
@@ -112,12 +118,22 @@ ConversationInterpretation. Các node sau chỉ đọc kết quả của bạn, 
    Tên khách (customer_name): chỉ khi khách tự giới thiệu hoặc trả lời câu hỏi tên. Ghi dạng chuẩn có dấu, viết hoa
    chữ cái đầu; khách chỉ nói tên gọi ("Khang", "anh Khang") thì ghi đúng phần đó, KHÔNG tự thêm họ. Xưng hô,
    lời chào, tên xe, địa danh không phải tên. evidence là cụm khách gõ nguyên văn.
-4. Tham chiếu: "xe số 1", "mẫu thứ ba", "nó", "xe đó" -> thêm vào references với position theo
-   shown_products (1-based, -1 = cuối) và entity_id lấy từ shown_products; gán entity_id cho task
-   liên quan. Không có shown_products phù hợp hoặc nhiều khả năng -> ambiguous=true, không đoán.
-5. Mơ hồ: thiếu thông tin mà workflow sẽ tự hỏi (SĐT, ngày giờ) không phải là mơ hồ. Không hiểu tin nhắn
+4. presented_cars = các xe KHÁCH ĐANG THẤY, điền TRƯỚC khi xử lý tham chiếu. Đọc tin nhắn GẦN NHẤT của bot (không
+   phải tin của khách). Nếu nó đưa ra xe, ghi TÊN TỪNG XE theo đúng thứ tự khách đếm "mẫu số N", mỗi tên một phần tử,
+   theo thứ tự xuất hiện của các dòng/mục; dòng ghi hai xe ("FUSO FI170 và FI170L") là hai phần tử liên tiếp. Xe chỉ nhắc
+   trong câu dẫn ("Ngoài X, các mẫu khác gồm:") không phải một mục của danh sách thì KHÔNG ghi. Ví dụ bot viết
+   "Ngoài ISUZU A, gồm: - FUSO B và FUSO C - THACO D" -> ["FUSO B", "FUSO C", "THACO D"]. Tin gần nhất của bot không
+   đưa xe nào -> để trống (danh sách cũ được giữ nguyên).
+5. Tham chiếu: "xe số 1", "mẫu thứ ba", "nó", "xe đó" -> thêm vào references với position theo danh sách xe
+   (1-based, -1 = cuối) và car_model là TÊN XE mà khách đang chỉ, lấy BẰNG CÁCH ĐẾM trong danh sách xe mà bạn vừa ghi
+   ở presented_cars (đó là danh sách khách đang thấy; nếu tin nhắn gần nhất của bot không đưa xe nào thì dùng car_list
+   trong CONVERSATION STATE). Ví dụ khách nói "xe số 2" và danh sách là ["FUSO B", "FUSO C"] -> car_model "FUSO C".
+   Gán car_model cho task liên quan theo cách task đó nói về xe (task nói "xe số 2" thì lấy đúng xe đó; task nói về
+   xe khác thì lấy xe khác). Nếu danh sách không có xe đó, hoặc không xác định được duy nhất -> car_model=null,
+   KHÔNG đoán.
+6. Mơ hồ: thiếu thông tin mà workflow sẽ tự hỏi (SĐT, ngày giờ) không phải là mơ hồ. Không hiểu tin nhắn
    hoặc có điểm mơ hồ chặn task hiện tại: uncertain=true và một task general_conversation requires_clarification=true.
-6. signals: wants_human (khách muốn gặp nhân viên/người thật), complaint (phàn nàn, bức xúc),
+7. signals: wants_human (khách muốn gặp nhân viên/người thật), complaint (phàn nàn, bức xúc),
    safety_risk (xe có dấu hiệu nguy hiểm: mất phanh, cháy, khói, mất lái...), discount_request,
    deal_change (khách muốn sửa điều khoản hợp đồng, thương lượng lại giá, hoặc hỏi phí/chi phí phát sinh
    của hợp đồng; KHÔNG bật khi khách chỉ trả lời giá chốt bot hỏi hay khi chữ "giá/phí" nằm trong tên riêng).
@@ -143,9 +159,10 @@ def _context_prompt(state: AgentState) -> str:
     # and empty parts are left out.
     context = build_context(state, CANONICAL_SLOTS)
     dynamic = context.model_dump(mode="json", exclude_none=True,
-                                 include={"pending_interactions", "active_workflow", "shown_products"})
+                                 include={"pending_interactions", "active_workflow", "car_list"})
     # appointment_date is derived in code from appointment_when; the model only sees the customer's words.
-    dynamic["known_facts"] = {key: fact.value for key, fact in context.known_facts.items() if key != "appointment_date"}
+    dynamic["known_facts"] = {key: fact.value for key, fact in context.known_facts.items()
+                              if key != "appointment_date"}
     dynamic = {key: value for key, value in dynamic.items() if value}
     return f"{SYSTEM_PROMPT}\n\nCONVERSATION STATE JSON:\n{json.dumps(dynamic, ensure_ascii=False, default=str)}"
 
@@ -190,6 +207,14 @@ def _canonical_value(key: str, value):
     if key == "customer_phone":
         # Store the customer's own format; normalize_phone is only the validity check.
         return " ".join(str(value).split()) if normalize_phone(str(value)) else None
+    if key == "car_model":
+        # A typed name that matches exactly one catalog vehicle becomes that vehicle's catalog name.
+        try:
+            found = get_services().product.find_model(str(value), limit=2)
+        except Exception:
+            logger.exception("Catalog lookup for car_model failed")
+            found = []
+        return found[0].name if len(found) == 1 else value
     return value
 
 
@@ -239,42 +264,59 @@ def _validated_updates(state: AgentState, interpretation: ConversationInterpreta
     return updates
 
 
-def _resolve_references(state: AgentState, interpretation: ConversationInterpretation) -> ConversationInterpretation:
-    """Ground references and task entity ids in the products the bot actually showed."""
-    shown = [item for item in state.get("selected_entities") or [] if item.get("entity_type") == "PRODUCT"]
-    ids = {item["entity_id"] for item in shown}
-    references = []
-    for ref in interpretation.references:
-        entity_id, ambiguous = ref.entity_id, ref.ambiguous
-        if ref.position is not None:
-            index = len(shown) - 1 if ref.position == -1 else ref.position - 1
-            positional = shown[index]["entity_id"] if 0 <= index < len(shown) else None
-            if positional is None or (entity_id is not None and entity_id != positional):
-                entity_id, ambiguous = None, True
-            else:
-                entity_id = positional
-        elif entity_id not in ids:
-            entity_id, ambiguous = None, True
-        references.append(ref.model_copy(update={"entity_id": entity_id, "ambiguous": ambiguous}))
+def _car_list(state: AgentState) -> list[str]:
+    """The cars the customer counts ('mẫu số 1', 'mẫu số 2'), as the last bot message presented them."""
+    value = fact_value(state.get("known_facts"), "car_list")
+    return [str(item) for item in value] if isinstance(value, list) else []
 
-    resolved = [ref.entity_id for ref in references if ref.entity_id is not None]
-    tasks = []
-    for task in interpretation.tasks:
-        entity_id = task.entity_id if task.entity_id in ids else None
-        if entity_id is None and len(resolved) == 1 and task.domain in (Intent.SALES, Intent.APPOINTMENT,
-                                                                         Intent.CONTRACT, Intent.DISCOUNT):
-            entity_id = resolved[0]
-        tasks.append(task.model_copy(update={"entity_id": entity_id,
-                                             "entity_type": "PRODUCT" if entity_id is not None else None}))
+
+def _resolve_references(state: AgentState, interpretation: ConversationInterpretation) -> ConversationInterpretation:
+    """Ground the references the model resolved in the car's own list.
+
+    The model does the counting ("xe số 2" -> the second car it was given); the code only checks that the
+    answer is really one of the cars the customer can count, so a hallucinated name never reaches a specialist.
+    The list the bot just presented counts too: "xe số 2" said right after a new list refers to that list."""
+    cars = _car_list(state)
+    listed = interpretation.presented_cars
+    known = list(dict.fromkeys([*listed, *cars]))
+    references = [ref.model_copy(update={"car_model": ref.car_model if ref.car_model in known else None})
+                  for ref in interpretation.references]
+    tasks = [task.model_copy(update={"car_model": task.car_model if task.car_model in known else None})
+             for task in interpretation.tasks]
     return interpretation.model_copy(update={"references": references, "tasks": tasks})
+
+
+_CAR_CHOICE_ACTIONS = {"purchase_interest", "start_contract"}
+
+
+def _sync_car_model(state: AgentState, interpretation: ConversationInterpretation, facts: dict) -> None:
+    """Keep car_model on the car the customer is buying. A purchase/contract/showroom task that points at a car
+    ("mua mẫu số 2", "xe này") sets it; a different car than before also drops the price agreed for the
+    old one. Spec questions never touch it (it is also the vehicle used for maintenance answers)."""
+    showroom = fact_value(facts, "service_type") in (ServiceType.SHOWROOM_VISIT.value, ServiceType.CONTRACT_SIGN.value)
+    chosen = {task.car_model for task in interpretation.tasks if task.car_model and (
+        task.action in _CAR_CHOICE_ACTIONS or (task.action == "book_appointment" and showroom))}
+    if len(chosen) == 1 and not any(u.key == "car_model" for u in interpretation.slot_updates):
+        name = chosen.pop()
+        facts["car_model"] = KnownFact(key="car_model", value=name, source=FactSource.INFERRED)
+    before = fact_value(state.get("known_facts"), "car_model")
+    after = fact_value(facts, "car_model")
+    if before and after and before != after:
+        facts.pop("decided_price", None)
 
 
 def _apply_interpretation(state: AgentState, interpretation: ConversationInterpretation) -> dict:
     """Validate the model output, then write accepted slot updates into known_facts."""
     rejected: list[str] = []
+    # The cars the bot's last message listed replace the list the customer counts. The model names them;
+    # the code keeps the previous list when it names none, so a chatty reply never wipes the count.
+    facts = dict(state.get("known_facts") or {})
+    if interpretation.presented_cars:
+        facts["car_list"] = KnownFact(key="car_list", value=list(interpretation.presented_cars),
+                                      source=FactSource.INFERRED)
+    state = {**state, "known_facts": facts}
     applied = _resolve_references(state, interpretation)
     applied = applied.model_copy(update={"slot_updates": _validated_updates(state, applied, rejected)})
-    facts = dict(state.get("known_facts") or {})
     for update in applied.slot_updates:
         if update.operation == SlotOperation.CLEAR:
             facts.pop(update.key, None)
@@ -284,6 +326,7 @@ def _apply_interpretation(state: AgentState, interpretation: ConversationInterpr
                                       updated_at_message_id=update.source_message_id)
 
     booking = any(task.domain == Intent.APPOINTMENT and task.action == "book_appointment" for task in applied.tasks)
+    _sync_car_model(state, applied, facts)
     if booking and "service_type" not in facts:
         text = state.get("user_text", "")
         match = next(((m, kind) for pattern, kind in _SERVICE_PHRASES if (m := pattern.search(text))), None)
