@@ -38,7 +38,11 @@ class Settings:
     admin_max_login_attempts: int = int(os.getenv("ADMIN_MAX_LOGIN_ATTEMPTS", "3"))  # sai liên tiếp quá số này -> khóa
     admin_lock_minutes: int = int(os.getenv("ADMIN_LOCK_MINUTES", "15"))
     # Sức chứa mặc định của một khung giờ khi nhân viên xác nhận lịch (số xe/khách làm cùng lúc).
+    # Giá trị MẶC ĐỊNH; admin chỉnh lúc chạy ở trang Lịch hẹn (bảng app_settings), giá trị đã chỉnh thắng biến môi trường.
     slot_capacity: int = int(os.getenv("SLOT_CAPACITY", "2"))
+    slot_minutes: int = int(os.getenv("SLOT_MINUTES", "60"))  # độ dài một khung giờ = khoảng cách giữa hai khung liên tiếp
+    work_start: str = os.getenv("WORK_START", "08:00")  # gốc của lưới khung giờ + giới hạn giờ gợi ý
+    work_end: str = os.getenv("WORK_END", "17:00")
     hotline: str = os.getenv("HOTLINE", "0900 000 000")
     handover_timeout_minutes: float = float(os.getenv("HANDOVER_TIMEOUT_MINUTES", "10"))
     # LLM context: older messages are folded into a running summary; the last N go verbatim (see agent/memory.py).

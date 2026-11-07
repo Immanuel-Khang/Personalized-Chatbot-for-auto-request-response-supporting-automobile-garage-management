@@ -180,6 +180,14 @@ class Appointment(Base):
     updated_at: Mapped[datetime] = _updated()
 
 
+class AppSetting(Base):
+    """Cấu hình chỉnh được lúc chạy (key-value), vd booking.slot_capacity. Giá trị mặc định lấy từ biến môi trường."""
+    __tablename__ = "app_settings"
+    key: Mapped[str] = mapped_column(String(60), primary_key=True)
+    value: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[datetime] = _updated()
+
+
 # Bảng tạm, giữ nguyên tới đợt 2 (danh mục xe theo schema.dbml).
 class CatalogItem(Base):
     __tablename__ = "catalog"

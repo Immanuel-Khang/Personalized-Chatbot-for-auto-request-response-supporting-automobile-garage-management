@@ -51,6 +51,9 @@ QUY TẮC:
    (loại xe, biển số, tải trọng...) hay đề nghị việc khác.
 9. Lịch "ký hợp đồng mua xe" (CONTRACT_SIGN): hợp đồng đã đủ thông tin, chỉ cần ngày giờ ký; KHÔNG hỏi lại thông tin
    hợp đồng (tên, địa chỉ, dòng xe, giá).
+10. Công cụ trả ok=false với status=SLOT_FULL hoặc DUPLICATE (ngoại lệ của quy tắc 2): báo đúng "message" (giữ nguyên số liệu),
+   nếu có "alternatives" thì gợi ý các giờ đó và hỏi khách muốn giờ nào. KHÔNG nói đã đặt, KHÔNG tự chọn giờ thay khách,
+   KHÔNG gợi ý hotline. Khách chọn giờ khác thì gọi lại công cụ với giờ đó.
 """
 
 _WHEN = {"appointment_date": {"type": "string", "description": "Ngày hẹn YYYY-MM-DD, quy đổi từ lời khách"},
@@ -159,6 +162,22 @@ def _summary(action: str, args: dict, info: dict | None) -> str:
     return f"hủy {current}"
 
 
+def _slot_problem(booking, session_id: str, service_type: str, day: str, at: str | None, phone: str | None = None,
+                  exclude_id: int | None = None) -> dict | None:
+    """Khung giờ đã đủ chỗ hoặc khách đã có lịch cùng khung giờ -> kết quả ok=False (kèm giờ còn trống) để báo khách TRƯỚC khi đề
+    xuất. Lỗi kiểm tra không chặn đặt lịch: BookingService kiểm tra lại lúc ghi."""
+    check = getattr(booking, "check_slot", None)
+    if check is None:
+        return None
+    try:
+        result = check(session_id, service_type, date.fromisoformat(day), time.fromisoformat(at) if at else None,
+                       exclude_id=exclude_id, phone=phone)
+    except Exception:
+        logger.exception("Slot check failed")
+        return None
+    return result.model_dump() if isinstance(result, BookingResult) and not result.ok else None
+
+
 def appointment(state: AgentState) -> dict:
     facts = dict(state.get("known_facts") or {})
     session_id = state.get("session_id", "")
@@ -215,6 +234,8 @@ def appointment(state: AgentState) -> dict:
         args = {"service_type": str(fact_value(facts, "service_type")), "when": str(fact_value(facts, "appointment_when")),
                 "date": deduced[0], "time": deduced[1], "name": name, "phone": phone, "vehicle": vehicle,
                 "detail": detail}
+        if blocked := _slot_problem(booking, session_id, args["service_type"], deduced[0], deduced[1], phone):
+            return blocked
         # On "ok" the confirmed date runs even if the LLM re-deduces it differently; the facts must be unchanged.
         matches = approved is not None and all(approved.get("args", {}).get(k) == args[k]
                                                for k in ("service_type", "when", "name", "phone"))
@@ -238,6 +259,9 @@ def appointment(state: AgentState) -> dict:
         if isinstance(deduced := when(tool_args), dict):
             return deduced
         args = {"appointment_id": appointment_id, "date": deduced[0], "time": deduced[1]}
+        if blocked := _slot_problem(booking, session_id, info["service_type"], deduced[0], deduced[1],
+                                    exclude_id=appointment_id):
+            return blocked
         # "Ok" to the proposal keeps the proposed time; a time stated now is a new proposal.
         confirmed = (approved or {}).get("args", {})
         matches = same_id and (not _new_time_this_turn(state)
@@ -289,6 +313,8 @@ def _fallback(results: list[tuple[str, dict]], proposal: dict, missing: list[str
         return f"Dạ bạn xác nhận giúp mình: bạn muốn {proposal['text']} phải không ạ?"
     if missing:
         return f"Dạ bạn cho mình xin {missing[0]} nhé."
+    if results and results[-1][1].get("status") in ("SLOT_FULL", "DUPLICATE"):
+        return f"{results[-1][1].get('message', '')} Bạn chọn giúp mình một giờ khác nhé.".strip()
     if results and (message := results[-1][1].get("message")):
         return message if results[-1][1].get("ok") else f"{message} Bạn có thể gọi hotline {settings.hotline}."
     return "Dạ mình chưa tìm thấy lịch hẹn nào của bạn ạ."

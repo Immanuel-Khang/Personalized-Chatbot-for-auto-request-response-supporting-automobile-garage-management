@@ -74,8 +74,9 @@ class KnowledgeChunk(BaseModel):
 class BookingResult(BaseModel):
     ok: bool
     appointment_id: int | None = None
-    status: str = ""  # CONFIRMED | PENDING_APPROVAL | REJECTED | CANCELLED | NOT_FOUND
+    status: str = ""  # CONFIRMED | PENDING_APPROVAL | REJECTED | CANCELLED | NOT_FOUND | SLOT_FULL | DUPLICATE
     message: str = ""
+    alternatives: list[str] = []  # giờ còn trống cùng ngày (HH:MM) khi SLOT_FULL
 
 
 class AppointmentInfo(BaseModel):

@@ -85,10 +85,13 @@ def test_confirm_assigns_slot_and_notifies_customer(client, db_session, auth_on)
     assert client.post("/admin/appointments/999999/confirm", headers=h).status_code == 404
 
 
-def test_confirm_full_slot_and_reschedule_releases(client, db_session, auth_on):
+def test_confirm_full_slot_and_reschedule_releases(client, db_session, auth_on, monkeypatch):
     _manager(db_session)
     h = _token(client)
+    # Đặt khi sức chứa còn 2 (đặt lịch chặn vượt sức chứa), rồi siết còn 1 để kiểm tra bước xác nhận của nhân viên.
+    monkeypatch.setattr("app.services.booking.settings", replace(auth_on, slot_capacity=2))
     first, second = _book("sess-full-000001"), _book("sess-full-000002", phone="0912345602")
+    monkeypatch.setattr("app.services.booking.settings", auth_on)
     assert client.post(f"/admin/appointments/{first}/confirm", headers=h).status_code == 200
     full = client.post(f"/admin/appointments/{second}/confirm", headers=h)
     assert full.status_code == 409 and "đủ chỗ" in full.json()["detail"]
