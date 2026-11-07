@@ -25,7 +25,8 @@ NGUYÊN TẮC HOẠT ĐỘNG:
 
 QUY TẮC BẮT BUỘC:
 1. Khi nêu giá, PHẢI dùng đúng số liệu từ tool, KHÔNG bịa giá
-2. Kèm ngày hiệu lực giá khi báo giá, viết "giá áp dụng từ ngày ..." (không ghi chữ price_as_of)
+2. Chỉ báo giá chi tiết khi khách hỏi muốn xem giá chi tiết kèm theo "giá có hiệu lực từ ngày...". 
+   Còn khi giới thiệu chỉ đưa khoảng giá ví dụ: "Tầm tài chính của xe này trong khoảng..." và so sánh chung nhất giữa các mẫu xe được đưa ra
 3. KHÔNG hứa giảm giá, quà tặng hay cam kết nào
 4. Chỉ tư vấn xe; KHÔNG hỏi về ngày giờ hay số điện thoại đặt lịch
 5. Chỉ dùng thông tin khách được cung cấp trong dữ liệu đã biết
@@ -51,9 +52,17 @@ SAU KHI CÓ KẾT QUẢ:
 - Nếu mẫu xe MỚI chưa từng giới thiệu trong lịch sử chat: Giới thiệu ngắn gọn các mẫu tìm được kèm giá niêm yết, ngày áp dụng giá và ưu điểm phù hợp.
 - Nếu mẫu xe ĐÃ ĐƯỢC GIỚI THIỆU ở các tin nhắn trước: TUYỆT ĐỐI KHÔNG giới thiệu hay liệt kê lại thông số kỹ thuật, giá niêm yết, động cơ, hộp số... từ đầu. Chỉ trả lời trực tiếp câu hỏi hoặc phân tích điểm khác biệt cho chi tiết mới mà khách vừa cung cấp.
 - Làm rõ ưu điểm phù hợp với nhu cầu khách
-- Hỏi thêm thông tin chỉ khi thực sự cần thiết để tư vấn tốt hơn
+- Hỏi thêm thông tin về xe nếu khách muốn biết thêm chi tiết về mẫu xe
+- Khi không biết khách hàng muốn dịch vụ nào tiếp theo đặt một câu hỏi như: "Bạn muốn tìm hiểu tiếp về mẫu xe, đặt lịch đến xem trực tiếp hoặc làm hợp đồng để mình có thể hỗ trợ ?"
 """ + STYLE_RULES
 
+
+PURCHASE_INTEREST_NOTE = """
+Khách vừa bày tỏ muốn mua xe nhưng CHƯA yêu cầu làm hợp đồng. Trả lời ngắn (2-3 câu): ghi nhận tên mẫu xe khách đang quan
+tâm (nếu đã biết), rồi hỏi MỘT câu xem khách muốn gì tiếp theo, nêu rõ hai hướng: (1) tìm hiểu thêm về xe (thông số, giá,
+so sánh) hoặc (2) đặt lịch đến showroom để xem xe và ký hợp đồng. KHÔNG xin tên, SĐT, địa chỉ, giá hay ngày giờ; KHÔNG
+liệt kê lại thông số xe; KHÔNG tự bắt đầu làm hợp đồng.
+"""
 
 PRODUCT_SEARCH_TOOLS = [
     {
@@ -226,13 +235,25 @@ def sales(state: AgentState) -> dict:
     """Sales agent that uses LLM tool calling to search products."""
     user_message = state.get("task_text") or state.get("user_text", "")
     known_facts_text = _format_known_facts(state)
-    # Product ids resolved by preprocessing against the products the bot actually showed.
+    # The car the customer pointed at, resolved by preprocessing from the list they count ("xe số 2").
     interpretation = state.get("conversation_interpretation")
     task_ids = set(state.get("task_ids") or [])
-    entity_ids = sorted({task.entity_id for task in (interpretation.tasks if interpretation else [])
-                         if task.task_id in task_ids and task.entity_id is not None})
-    referenced = (f"\nKhách đang nói về sản phẩm ID {', '.join(map(str, entity_ids))}: gọi get_product_details "
-                  "với ID này và chỉ trả lời về đúng xe đó, không liệt kê lại danh sách.\n") if entity_ids else ""
+    car_models = [task.car_model for task in (interpretation.tasks if interpretation else [])
+                  if task.task_id in task_ids and task.car_model]
+    if len(set(car_models)) == 1:
+        car = car_models[0]
+        referenced = (f"\nKhách đang nói về mẫu xe \"{car}\". Gọi find_by_model_name với model_name=\"{car}\" để lấy "
+                      f"thông tin của đúng mẫu này và chỉ trả lời về xe đó, không liệt kê lại danh sách.\n")
+    elif len(set(car_models)) > 1:
+        referenced = ("\nKhách nói về nhiều mẫu xe: " + ", ".join(f'"{m}"' for m in dict.fromkeys(car_models))
+                      + ". Trả lời về từng mẫu, không liệt kê lại danh sách.\n")
+    else:
+        referenced = ""
+
+    purchase_interest = any(task.action == "purchase_interest" for task in (interpretation.tasks if interpretation else [])
+                            if task.task_id in task_ids)
+    if purchase_interest:
+        referenced += PURCHASE_INTEREST_NOTE
 
     context = f"""Tin nhắn của khách: {user_message}
 
@@ -253,7 +274,9 @@ LƯU Ý: Nếu khách đang tiếp tục trao đổi về các mẫu xe đã gi�
     )
 
     if result.get("error"):
-        reply = f"Xin lỗi, có lỗi khi xử lý: {result['error']}"
+        # Internal errors never reach the customer.
+        reply = ("Xin lỗi, mình chưa tra cứu được thông tin xe lúc này. Bạn cho mình biết nhu cầu (tải trọng, "
+                 "loại thùng, ngân sách) để mình tư vấn nhé.")
     else:
         reply = result.get("final_response", "Xin lỗi, mình chưa thể tư vấn được ạ.")
 
@@ -272,31 +295,10 @@ LƯU Ý: Nếu khách đang tiếp tục trao đổi về các mẫu xe đã gi�
         "answers": [answer(state, "sales", reply)]
     }
 
-    # Track which products were shown
+    # The cars the bot offered, so the customer can count them next turn ("xe số 2"). Preprocessing then
+    # narrows this to the cars the bot's reply actually presented.
     if products_found:
-        # Positional references ("xe số 1") refer to the latest list shown, so this turn's
-        # products replace earlier ones, in display order; non-product entities are kept.
-        selected_entities = [item for item in state.get("selected_entities", []) or []
-                             if isinstance(item, dict) and item.get("entity_type") != "PRODUCT"]
-        seen: set[int] = set()
-        for p_dict in products_found:
-            if p_dict["id"] not in seen:
-                seen.add(p_dict["id"])
-                selected_entities.append({
-                    "entity_type": "PRODUCT",
-                    "entity_id": p_dict["id"],
-                    "name": p_dict["name"]
-                })
-        update["selected_entities"] = selected_entities
-        # One product in focus -> booking can name it: the one the customer referenced, else the only returned
-        # product whose full name the reply mentions ("FI170" search also returns "FI170L"). A list leaves no focus.
-        named = [e["entity_id"] for e in selected_entities
-                 if e.get("entity_type") == "PRODUCT" and e["name"].casefold() in (reply or "").casefold()]
-        focus = entity_ids[0] if len(entity_ids) == 1 else (named[0] if len(named) == 1 else None)
-        update["focused_product"] = next(({"entity_id": e["entity_id"], "name": e["name"]} for e in selected_entities
-                                          if e.get("entity_type") == "PRODUCT" and e["entity_id"] == focus), None)
-
-        # Track allowed amounts for pricing
+        found = list({p["id"]: p for p in products_found}.values())
         update["allowed_amounts"] = [fmt_vnd(p_dict["list_price_vnd"]) for p_dict in products_found]
 
     return update

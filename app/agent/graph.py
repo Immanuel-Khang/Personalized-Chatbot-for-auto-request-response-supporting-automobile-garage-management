@@ -30,6 +30,7 @@ from app.agent.nodes.respond import respond
 from app.agent.nodes.router import READ_ONLY, WRITERS, dispatch, router
 from app.agent.nodes.sales import sales
 from app.agent.nodes.validation import validation
+from app.agent.path_trace import traced
 from app.agent.state import AgentState
 from app.contracts import schemas
 from app.config import settings
@@ -47,7 +48,7 @@ def build_graph():
         ("validation", validation), ("compose", compose), ("output_guard", output_guard),
         ("human_handover", human_handover), ("respond", respond),
     ]:
-        g.add_node(name, fn)
+        g.add_node(name, traced(name, fn))  # debug trace of each node's input/output -> path_trace.json
 
     g.add_edge(START, "input")
     g.add_edge("input", "preprocess")
@@ -72,8 +73,8 @@ def build_graph():
 # Pydantic models/enums kept in AgentState; LangGraph only deserializes allowlisted types from a checkpoint.
 CHECKPOINT_TYPES = [("app.contracts.schemas", name) for name in (
     "ActiveWorkflow", "ConversationInterpretation", "EntityReference", "FactSource", "Intent", "InteractionKind",
-    "InteractionStatus", "KnownFact", "PendingInteraction", "PolicySignals", "SlotOperation", "SlotUpdate",
-    "TaskInterpretation", "TaskRelationship", "WorkflowStatus")]
+    "InteractionStatus", "KnownFact", "PendingInteraction", "PolicySignals", "SlotOperation",
+    "SlotUpdate", "TaskInterpretation", "TaskRelationship", "WorkflowStatus")]
 assert all(hasattr(schemas, name) for _, name in CHECKPOINT_TYPES)
 
 

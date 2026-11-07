@@ -52,12 +52,9 @@ class AgentState(TypedDict, total=False):
     conversation_interpretation: ConversationInterpretation | None
     pending_interactions: list[PendingInteraction]
     known_facts: dict[str, KnownFact]
+    active_workflow: ActiveWorkflow | None
     # Current turn only: canonical slots the customer gave but that failed validation (e.g. a malformed phone).
     rejected_slots: list[str]
-    active_workflow: ActiveWorkflow | None
-    selected_entities: list[dict]
-    # The one product the customer is currently talking about ({entity_id, name}); set by sales, used by booking.
-    focused_product: dict | None
 
 
 # "Chào Khang," / "Xin chào bạn!" ở đầu câu trả lời

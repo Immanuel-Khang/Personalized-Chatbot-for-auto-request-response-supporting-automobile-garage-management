@@ -54,7 +54,21 @@ def _past(history: list[dict] | None) -> list:
 def _messages(system: str, user: str, history: list[dict] | None) -> list:
     """[system, tóm tắt lượt cũ, *cửa sổ tin gần nhất (cũ → mới), tin hiện tại]."""
     from langchain_core.messages import HumanMessage, SystemMessage
-    return [SystemMessage(content=system), *_past(history), HumanMessage(content=user)]
+    messages = [SystemMessage(content=system), *_past(history), HumanMessage(content=user)]
+    _log_llm_call(system, user, history)
+    return messages
+
+
+def _log_llm_call(system: str, user: str, history: list[dict] | None) -> None:
+    """Log LLM call details to path_trace for debugging."""
+    try:
+        import os
+        if os.getenv("PATH_TRACE", "on").strip().casefold() in {"0", "off", "false", "no"}:
+            return
+        from app.agent.path_trace import log_llm_input
+        log_llm_input(system, user, history)
+    except Exception:
+        pass  # path_trace is debug-only; never break the LLM call
 
 
 def generate(system: str, user: str, history: list[dict] | None = None) -> str | None:
@@ -78,6 +92,7 @@ def generate_structured(system: str, user: str, output_schema: type[T],
     """Gọi LLM với structured output (Pydantic model). Trả None nếu không có LLM."""
     llm = _get_llm()
     if llm is None:
+        print("There is no LLM!!!!")
         return None
     try:
         structured_llm = llm.with_structured_output(output_schema, method="function_calling")
@@ -168,7 +183,14 @@ def generate_with_tools(system_prompt: str, user_message: str, tools: list[dict]
                 )
                 messages.append(tool_message)
 
-        # Exceeded max turns
+        # Out of tool rounds: one last call with tools disabled, so the model answers from the results it has
+        # instead of the turn ending without a reply.
+        response = llm.bind_tools(tools, tool_choice="none").invoke(messages)
+        content = response.content
+        final_text = content if isinstance(content, str) else "".join(
+            part.get("text", "") if isinstance(part, dict) else str(part) for part in content)
+        if final_text.strip():
+            return {"final_response": final_text, "tool_calls": tool_calls_made, "error": None}
         return {
             "error": f"Exceeded max_turns ({max_turns})",
             "final_response": None,

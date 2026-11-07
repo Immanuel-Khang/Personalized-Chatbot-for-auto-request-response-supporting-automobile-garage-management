@@ -8,3 +8,4 @@ data/.rag_cache/
 .claude/
 CLAUDE.md
 trace.*.json
+path_trace.json

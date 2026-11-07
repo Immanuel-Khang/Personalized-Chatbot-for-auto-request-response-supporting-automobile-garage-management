@@ -13,7 +13,7 @@ class Settings:
     llm_provider: str = os.getenv("LLM_PROVIDER", "openai")  # none | openai
     llm_api_key: str = os.getenv("LLM_API_KEY", "")
     openai_api_key: str = os.getenv("OPENAI_API_KEY", os.getenv("OPEN_AI_KEY", ""))
-    openai_model: str = os.getenv("OPENAI_MODEL", "gpt-5_4-nano")
+    openai_model: str = os.getenv("OPENAI_MODEL", "gpt-6-luna")
     openai_temperature: float = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
     max_react_iterations: int = int(os.getenv("MAX_REACT_ITERATIONS", "3"))
     # --- RAG (xem app/rag/factory.py) ---
