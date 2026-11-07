@@ -2,10 +2,10 @@
 Vai manager xem được mọi cuộc chat (kể cả bot tự xử lý); vai khác chỉ thấy chat đã có ticket chuyển người.
 Luồng chuyển giao: OPEN (bot im lặng) -> claim (HUMAN_ACTIVE, báo khách) -> reply -> resolve (trả về bot, báo khách).
 Nhân viên cũng có thể chủ động tiếp nhận một chat bot đang xử lý (takeover), vd từ trang Lịch hẹn.
-Lịch hẹn do bot tự đặt/đổi/hủy. Nhân viên chỉ XÁC NHẬN (gán khung giờ, báo khách); muốn đổi thì nhắn khách trong chat.
+Lịch hẹn do bot tự đặt/đổi/hủy. Nhân viên XÁC NHẬN (gán khung giờ, báo khách), sau khi làm xong đánh dấu HOÀN THÀNH; muốn đổi thì nhắn khách trong chat.
 Đăng nhập sai liên tiếp ADMIN_MAX_LOGIN_ATTEMPTS lần thì khóa tài khoản ADMIN_LOCK_MINUTES phút."""
 import math
-from datetime import datetime, time, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -17,7 +17,11 @@ from app.contracts.schemas import ConversationMode
 from app.conversation import _locks, post_system
 from app.db.models import Appointment, ChatSession, Customer, HandoverTicket, Manager, Message
 from app.db.session import SessionLocal
-from app.services.booking import DETAIL_PREFIX, VEHICLE_PREFIX, _note_value, confirm_appointment
+from app.services.booking import (DETAIL_PREFIX, VEHICLE_PREFIX, _note_value, complete_appointment, confirm_appointment,
+                                  default_booking_config,
+                                  get_booking_config, set_booking_config, slot_overview)
+from app.services.slots import (MAX_CAPACITY, MAX_SLOT_MINUTES, MIN_CAPACITY, MIN_SLOT_MINUTES, BookingConfig, parse_hhmm,
+                                validate)
 from app.services.handover import open_ticket
 
 router = APIRouter(prefix="/admin")
@@ -321,7 +325,8 @@ def list_appointments(status: str = "ALL", q: str = "", limit: int = Query(300, 
         return {"counts": counts, "items": items[:limit], "username": user.username, "role": user.role}
 
 
-SERVICE_LABEL = {"MAINTENANCE": "Bảo dưỡng", "REPAIR": "Sửa chữa", "SHOWROOM_VISIT": "Xem xe tại showroom"}
+SERVICE_LABEL = {"MAINTENANCE": "Bảo dưỡng", "REPAIR": "Sửa chữa", "SHOWROOM_VISIT": "Xem xe tại showroom",
+                 "CONTRACT_SIGN": "Ký hợp đồng"}
 
 
 class ConfirmBody(BaseModel):
@@ -348,3 +353,70 @@ def confirm_appt(appointment_id: int, body: ConfirmBody | None = None, user: Adm
                         f"{appt.start_time:%H:%M} ngày {appt.appointment_date:%d/%m/%Y} đã được nhân viên xác nhận. Hẹn gặp bạn!")
             db.commit()
     return {"ok": True, "status": "CONFIRMED"}
+
+
+@router.post("/appointments/{appointment_id}/complete")
+def complete_appt(appointment_id: int, user: AdminUser = Depends(admin_user)):
+    """Chuyển lịch CONFIRMED sang DONE (đã làm xong), trả chỗ trong khung giờ và báo khách trong chat. Bot không có quyền này."""
+    result = complete_appointment(appointment_id)
+    if not result.ok:
+        raise HTTPException(404 if result.status == "NOT_FOUND" else 409, result.message)
+    with SessionLocal() as db:
+        appt = db.get(Appointment, appointment_id)
+        if appt is not None and appt.session_id:
+            when = f" ngày {appt.appointment_date:%d/%m/%Y}" if appt.appointment_date else ""
+            post_system(db, appt.session_id, f"Lịch hẹn #{appt.id} ({SERVICE_LABEL.get(appt.service_type, appt.service_type)}){when} "
+                                             "đã hoàn thành. Cảm ơn bạn đã sử dụng dịch vụ của Garage One!")
+            db.commit()
+    return {"ok": True, "status": "DONE"}
+
+
+# ---- Cấu hình khung giờ đặt lịch -------------------------------------------------------------------------
+class BookingSettingsBody(BaseModel):
+    slot_capacity: int | None = None  # số lịch tối đa trong một khung giờ
+    slot_minutes: int | None = None   # độ dài khung giờ = khoảng cách giữa hai khung liên tiếp (phút)
+    work_start: str | None = None     # "HH:MM", gốc của lưới khung giờ
+    work_end: str | None = None
+
+
+def _cfg_dict(cfg: BookingConfig) -> dict:
+    return {"slot_capacity": cfg.slot_capacity, "slot_minutes": cfg.slot_minutes,
+            "work_start": f"{cfg.work_start:%H:%M}", "work_end": f"{cfg.work_end:%H:%M}"}
+
+
+@router.get("/settings/booking")
+def get_booking_settings(user: AdminUser = Depends(admin_user)):
+    """Cấu hình hiện hành (giá trị admin đã chỉnh, nếu chưa thì mặc định từ biến môi trường). Mọi vai đều xem được."""
+    return {**_cfg_dict(get_booking_config()), "defaults": _cfg_dict(default_booking_config()), "can_edit": user.is_manager,
+            "limits": {"capacity": [MIN_CAPACITY, MAX_CAPACITY], "slot_minutes": [MIN_SLOT_MINUTES, MAX_SLOT_MINUTES]}}
+
+
+@router.put("/settings/booking")
+def put_booking_settings(body: BookingSettingsBody, user: AdminUser = Depends(admin_user)):
+    """Đổi sức chứa / độ dài khung giờ / giờ làm việc. Chỉ quản lý. Có hiệu lực cho lần đặt và xác nhận kế tiếp, lịch đã có giữ nguyên."""
+    if not user.is_manager:
+        raise HTTPException(403, "Chỉ quản lý được đổi cấu hình khung giờ")
+    cur = get_booking_config()
+    try:
+        new = BookingConfig(
+            slot_capacity=cur.slot_capacity if body.slot_capacity is None else body.slot_capacity,
+            slot_minutes=cur.slot_minutes if body.slot_minutes is None else body.slot_minutes,
+            work_start=cur.work_start if body.work_start is None else parse_hhmm(body.work_start),
+            work_end=cur.work_end if body.work_end is None else parse_hhmm(body.work_end))
+    except ValueError:
+        raise HTTPException(422, "Giờ không hợp lệ, dùng định dạng HH:MM")
+    if error := validate(new.slot_capacity, new.slot_minutes, new.work_start, new.work_end):
+        raise HTTPException(422, error)
+    return {**_cfg_dict(set_booking_config(new)), "can_edit": True}
+
+
+@router.get("/slots")
+def list_slots(day: str | None = Query(None, alias="date"), service: str = "SERVICE_BAY", user: AdminUser = Depends(admin_user)):
+    """Tải từng khung giờ trong một ngày: đã xác nhận / đang chờ / còn trống. service: SERVICE_BAY | SHOWROOM_VISIT."""
+    if service not in ("SERVICE_BAY", "SHOWROOM_VISIT"):
+        raise HTTPException(422, "service phải là SERVICE_BAY hoặc SHOWROOM_VISIT")
+    try:
+        target = date.fromisoformat(day) if day else datetime.now(timezone(timedelta(hours=7))).date()
+    except ValueError:
+        raise HTTPException(422, "date phải có dạng YYYY-MM-DD")
+    return slot_overview(target, service)

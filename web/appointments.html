@@ -32,6 +32,17 @@ body{min-height:100dvh}
 .none{padding:40px 20px;text-align:center;color:var(--mute);background:#fff;border-radius:14px}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1b2733;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;max-width:90vw;z-index:9}
 .acts{display:flex;gap:8px;flex-wrap:wrap}
+.cfg{background:#fff;border-radius:14px;padding:12px 16px;margin-bottom:12px}
+.cfg summary{cursor:pointer;font-weight:700}
+.cfg-form{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-top:12px}
+.cfg-form label,.cfg-day label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--mute);font-weight:600}
+.cfg input,.cfg select{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff;font:inherit;color:var(--ink)}
+.cfg input:disabled{background:#f3f6fa}
+.cfg-day{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-top:14px}
+.wins{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;margin-top:10px}
+.win{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#f8fafc}
+.win.part{background:#fff7dd;border-color:#f0d58a}.win.full{background:var(--red-bg);border-color:#f3b5b5}
+.win b{font-size:13px}.win .sub{font-size:12px}
 @media(max-width:760px){.card{grid-template-columns:1fr}.card .acts{justify-self:start}}
 </style></head><body>
 <div class="wrap">
@@ -40,7 +51,24 @@ body{min-height:100dvh}
     <nav class="topnav"><a href="/admin">Hội thoại</a><a href="/appointments.html" aria-current="page">Lịch hẹn</a></nav>
     <div class="whoami"><span id="whoami"></span><button id="logout" class="linkbtn">Đăng xuất</button></div>
   </div>
-  <p class="note">Lịch do trợ lý AI tự đặt, đổi và hủy cùng khách. Bấm “Xác nhận” khi đồng ý lịch (khách được báo trong chat). Muốn thay đổi: bấm “Nhắn khách”, trao đổi trong chat; khi khách chốt với trợ lý, danh sách này tự cập nhật.</p>
+  <p class="note">Lịch do trợ lý AI tự đặt, đổi và hủy cùng khách. Bấm “Xác nhận” khi đồng ý lịch, và “Hoàn thành” khi xe đã làm xong (khách được báo trong chat). Muốn thay đổi: bấm “Nhắn khách”, trao đổi trong chat; khi khách chốt với trợ lý, danh sách này tự cập nhật.</p>
+  <details class="cfg" id="cfg" open>
+    <summary>Khung giờ &amp; sức chứa</summary>
+    <div class="cfg-form">
+      <label>Số lịch tối đa / khung giờ<input id="c-cap" type="number" min="1" max="50" style="width:150px"></label>
+      <label>Độ dài mỗi khung giờ (phút)<input id="c-min" type="number" min="10" max="480" step="5" style="width:170px"></label>
+      <label>Giờ mở cửa<input id="c-ws" type="time"></label>
+      <label>Giờ đóng cửa<input id="c-we" type="time"></label>
+      <button class="btn" id="c-save">Lưu cấu hình</button>
+    </div>
+    <p class="note" id="c-note" style="margin-top:8px"></p>
+    <div class="cfg-day">
+      <label>Xem tải theo ngày<input id="c-day" type="date"></label>
+      <label>Loại<select id="c-type"><option value="SERVICE_BAY">Bảo dưỡng / sửa chữa</option><option value="SHOWROOM_VISIT">Xem xe showroom</option></select></label>
+    </div>
+    <div class="wins" id="wins"></div>
+    <p class="note" id="c-uns" style="margin-top:8px" hidden></p>
+  </details>
   <div class="bar">
     <div class="tabs" id="tabs" role="tablist">
       <button class="tab" role="tab" data-s="ALL">Tất cả <span class="n">0</span></button>
@@ -56,7 +84,7 @@ body{min-height:100dvh}
 <script src="/common.js"></script>
 <script>
 const STATUS = { PENDING_APPROVAL: "Chờ xác nhận", CONFIRMED: "Đã xác nhận", DONE: "Hoàn tất", CANCELLED: "Đã hủy", REJECTED: "Bị từ chối" };
-const SERVICE = { MAINTENANCE: "Bảo dưỡng", REPAIR: "Sửa chữa", SHOWROOM_VISIT: "Xem xe tại showroom" };
+const SERVICE = { MAINTENANCE: "Bảo dưỡng", REPAIR: "Sửa chữa", SHOWROOM_VISIT: "Xem xe tại showroom", CONTRACT_SIGN: "Ký hợp đồng" };
 const CHAT = { BOT: "Trợ lý AI đang xử lý", OPEN: "Khách đang chờ nhân viên", CLAIMED: "Nhân viên đang chat", RESOLVED: "Trợ lý AI (nhân viên đã xong)" };
 const ROLE_NAME = { manager: "Quản lý", sales_admin: "Nhân viên kinh doanh", technician: "Kỹ thuật" };
 let tab = "ALL", items = [], counts = {}, sig = "", seen = new Map(), firstLoad = true, online = true, timer = null;
@@ -81,6 +109,7 @@ function draw() {
     card.append(c1, c2, c3);
     const acts = el("div", "acts");
     if (a.status === "PENDING_APPROVAL") { const ok = el("button", "btn", "Xác nhận"); ok.onclick = () => confirmAppt(a, ok); acts.append(ok); }
+    if (a.status === "CONFIRMED") { const d = el("button", "btn", "Hoàn thành"); d.onclick = () => completeAppt(a, d); acts.append(d); }
     if (a.session_id) { const b = el("button", "btn ghost", a.conversation_status === "CLAIMED" ? "Mở chat" : "Nhắn khách"); b.onclick = () => chat(a, b); acts.append(b); }
     if (acts.children.length) card.append(acts);
     ul.append(card);
@@ -99,6 +128,12 @@ async function confirmAppt(a, b) {
   try { await api(`/admin/appointments/${a.id}/confirm`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(time ? { start_time: time } : {}) }); toast("Đã xác nhận lịch #" + a.id); sig = ""; load(); }
   catch (e) { toast(e.message); b.disabled = false; load(); }
 }
+async function completeAppt(a, b) {
+  if (!confirm(`Đánh dấu lịch #${a.id} đã hoàn thành? Khách sẽ được báo trong chat và lịch không đổi/hủy được nữa.`)) return;
+  b.disabled = true;
+  try { await api(`/admin/appointments/${a.id}/complete`, { method: "POST" }); toast("Đã hoàn thành lịch #" + a.id); sig = ""; cfgSig = ""; load(); loadWins(); }
+  catch (e) { toast(e.message); b.disabled = false; load(); }
+}
 async function chat(a, b) {
   b.disabled = true;
   try { await api(`/admin/conversations/${encodeURIComponent(a.session_id)}/takeover`, { method: "POST" }); location.href = "/admin#" + encodeURIComponent(a.session_id); }
@@ -115,4 +150,41 @@ async function load() {
 $("#tabs").onclick = e => { const b = e.target.closest(".tab"); if (b) { tab = b.dataset.s; sig = ""; draw(); } };
 let st = null; $("#q").oninput = () => { clearTimeout(st); st = setTimeout(() => { sig = ""; load(); }, 300); };
 load(); setInterval(() => !document.hidden && load(), 4000);
+
+// ---- Khung giờ & sức chứa: chỉnh cấu hình (chỉ quản lý) + xem tải từng khung giờ trong ngày
+const localToday = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+let cfgSig = "";
+async function loadCfg() {
+  try {
+    const c = await api("/admin/settings/booking");
+    $("#c-cap").value = c.slot_capacity; $("#c-min").value = c.slot_minutes; $("#c-ws").value = c.work_start; $("#c-we").value = c.work_end;
+    for (const id of ["c-cap", "c-min", "c-ws", "c-we", "c-save"]) $("#" + id).disabled = !c.can_edit;
+    $("#c-note").textContent = (c.can_edit ? "" : "Chỉ quản lý được đổi. ") + `Mặc định từ máy chủ: ${c.defaults.slot_capacity} lịch/khung, ${c.defaults.slot_minutes} phút. ` +
+      "Khung giờ tính từ giờ mở cửa, cách nhau đúng độ dài khung giờ. Thay đổi áp dụng cho lần đặt/xác nhận tiếp theo; lịch đã có giữ nguyên.";
+  } catch {}
+}
+$("#c-save").onclick = async () => {
+  try {
+    await api("/admin/settings/booking", { method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slot_capacity: Number($("#c-cap").value), slot_minutes: Number($("#c-min").value), work_start: $("#c-ws").value, work_end: $("#c-we").value }) });
+    toast("Đã lưu cấu hình khung giờ"); cfgSig = ""; await loadCfg(); loadWins();
+  } catch (e) { toast(e.message); }
+};
+async function loadWins() {
+  const day = $("#c-day").value; if (!day) return;
+  try {
+    const d = await api(`/admin/slots?date=${day}&service=${$("#c-type").value}`);
+    const sig = JSON.stringify(d); if (sig === cfgSig) return; cfgSig = sig;
+    const box = $("#wins"); box.replaceChildren();
+    for (const w of d.windows) {
+      const used = w.confirmed + w.pending, c = el("div", "win" + (w.free === 0 ? " full" : used ? " part" : ""));
+      c.append(el("b", "", w.label + "  ·  " + used + "/" + w.capacity),
+        el("div", "sub", `${w.confirmed} đã xác nhận, ${w.pending} chờ` + (w.appointment_ids.length ? " · " + w.appointment_ids.map(i => "#" + i).join(" ") : "")));
+      box.append(c);
+    }
+    const u = $("#c-uns"); u.hidden = !d.unscheduled; u.textContent = `${d.unscheduled} lịch ngày này chưa có giờ cụ thể (chưa chiếm chỗ cho tới khi chốt giờ).`;
+  } catch {}
+}
+$("#c-day").value = localToday(); $("#c-day").onchange = $("#c-type").onchange = () => { cfgSig = ""; loadWins(); };
+loadCfg(); loadWins(); setInterval(() => !document.hidden && loadWins(), 4000);
 </script></body></html>
