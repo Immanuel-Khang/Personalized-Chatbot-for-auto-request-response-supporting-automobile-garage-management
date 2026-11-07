@@ -2,7 +2,7 @@
 
 An AI-powered multi-agent chatbot system designed to automate customer support and operational workflows for automobile garages. It handles car sales inquiries, technical maintenance Q&A (via Hybrid RAG), multi-step appointment scheduling, policy enforcement, and seamless human handover. Staff get a web admin to read conversations, take over chats, and confirm appointments.
 
-  ---
+---
 
 ## 🚀 How to run it
 
@@ -16,7 +16,7 @@ Create your `.env` file from the provided example:
 ```bash
 cp .env.example .env
 ```
-*(Optional)* If you want to use OpenAI models, open `.env` and fill in your `OPENAI_API_KEY`.  
+*(Optional)* If you want to use OpenAI models, open `.env` and fill in your `OPENAI_API_KEY`.
 > **Tip:** You can run completely offline without an API key by setting `LLM_PROVIDER=none` and `EMBEDDING_PROVIDER=none`.
 
 Set `ADMIN_SECRET` to a long random string (it signs admin login tokens). It is required in production:
@@ -41,8 +41,8 @@ Once started, access the services:
 - **Client:** http://localhost:8000/
 - **Admin:** http://localhost:8000/admin
 - **Appointments (admin):** http://localhost:8000/appointments.html
-- **Interactive API Docs (Swagger)**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- **PostgreSQL Database**: `localhost:5432` (`garage` / `garage`)
+- **Interactive API Docs (Swagger):** http://localhost:8000/docs
+- **PostgreSQL Database:** `localhost:5432` (`garage` / `garage`)
 
 #### Production Mode (Background daemon)
 Runs Uvicorn with multiple workers in detached mode:
@@ -106,13 +106,34 @@ Account commands (run inside the `web` container, or locally with the database u
 
 ---
 
+## 🧰 Testing multiple customers & booking slots
+
+### Multiple customer tabs (one chat session per tab)
+- `http://localhost:8000/?s=A`, `/?s=B`, ... each `s` value is a separate customer (id `khach_test_A`, ...). Reloading a tab keeps its session.
+- `http://localhost:8000/multi.html` shows several customers side by side on one page ("+ Add customer" button). Open `/admin` in another tab to monitor them.
+- The "+" button in the chat header and the car icon in `/admin` both open a new customer tab. Without `?s=`, there is one session per browser.
+
+### Slots & capacity
+On `/appointments.html` → "Slots & capacity" (only `manager` can edit):
+- Set the *max bookings per slot*, *slot length (minutes)*, and opening/closing hours. Slots start from opening time, e.g. 08:00 + 90 min = 08:00-09:30, 09:30-11:00, ...
+- `PENDING_APPROVAL` and `CONFIRMED` bookings both hold a slot. If a slot is full, the bot says so and suggests free times; if the customer already has a booking in that slot, it reports a conflict. Checks run on booking, rescheduling, and staff confirmation.
+- Defaults come from `SLOT_CAPACITY`, `SLOT_MINUTES`, `WORK_START`, `WORK_END`. Values set on the admin page (`app_settings` table) take precedence and apply only to future bookings and confirmations.
+- API: `GET|PUT /admin/settings/booking`, `GET /admin/slots?date=YYYY-MM-DD`.
+
+---
+
 ## 🧪 Tests
 
 Tests need Postgres (they use a separate `garage_test` database, wiped on every run):
 ```bash
-LLM_PROVIDER=none EMBEDDING_PROVIDER=none pytest tests/test_admin_security.py   # admin login lock + appointment confirmation
-LLM_PROVIDER=none python -m eval.run_eval                                        # agent trajectory eval
-python -m eval.run_rag_eval                                                      # retrieval quality
+# Admin login lock, booking confirmation, slots / full capacity / conflicts
+LLM_PROVIDER=none EMBEDDING_PROVIDER=none pytest tests/test_admin_security.py tests/test_booking_slots.py
+
+# Agent trajectory eval
+LLM_PROVIDER=none python -m eval.run_eval
+
+# Retrieval quality
+python -m eval.run_rag_eval
 ```
 Some older tests are out of date; see **Known issues** in [GUIDE.md](GUIDE.md).
 
