@@ -20,12 +20,13 @@ Cập nhật BẢN TÓM TẮT CŨ bằng các TIN NHẮN MỚI; giữ mọi thô
 Giữ: nhu cầu và tiêu chí của khách (loại xe, tải trọng, ngân sách, mục đích), các mẫu xe bot đã giới thiệu
 và khách quan tâm, thông tin khách cung cấp (tên, SĐT, địa chỉ, xe đang dùng, số km), lịch hẹn/hợp đồng đã đề
 xuất hoặc đã xác nhận (chỉ ghi "đã đặt" khi bot báo thành công), câu hỏi còn bỏ ngỏ, các yêu cầu đã bị hủy
-hoặc thay đổi. Bỏ lời chào, xã giao và nội dung bot trả lời dài dòng.
+hoặc thay đổi; những gì "Nhân viên" đã trả lời/hứa/chốt với khách (giá, giảm giá, lịch, hướng xử lý). Bỏ lời chào, xã giao và nội dung bot trả lời dài dòng.
 Viết tiếng Việt, gạch đầu dòng ngắn, tối đa 12 dòng, không bịa thông tin. Chỉ trả về bản tóm tắt."""
 
 
 def _render(messages: list[dict]) -> str:
-    return "\n".join(f"{'Khách' if m['role'] == 'user' else 'Bot'}: {m['content']}" for m in messages)
+    who = {"user": "Khách", "staff": "Nhân viên"}
+    return "\n".join(f"{who.get(m['role'], 'Bot')}: {m['content']}" for m in messages)
 
 
 def summarize(previous: str | None, messages: list[dict]) -> str | None:

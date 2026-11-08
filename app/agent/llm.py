@@ -44,11 +44,18 @@ def _get_llm():
 
 
 def _past(history: list[dict] | None) -> list:
-    """history: [{role: summary|user|ai, content}] (agent/memory.py), không chứa tin hiện tại."""
+    """history: [{role: summary|user|ai|staff, content}] (agent/memory.py), không chứa tin hiện tại."""
     from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
     roles = {"user": HumanMessage, "ai": AIMessage}
-    return [SystemMessage(content="TÓM TẮT CÁC LƯỢT TRƯỚC:\n" + m["content"]) if m["role"] == "summary"
-            else roles.get(m["role"], AIMessage)(content=m["content"]) for m in history or []]
+
+    def one(m: dict):
+        if m["role"] == "summary":
+            return SystemMessage(content="TÓM TẮT CÁC LƯỢT TRƯỚC:\n" + m["content"])
+        if m["role"] == "staff":  # nhân viên thật đã nhắn khách: là ngữ cảnh, không phải lời của bot
+            return SystemMessage(content="[Nhân viên gara đã nhắn khách, hãy tôn trọng những gì nhân viên đã nói/hứa] "
+                                         + m["content"])
+        return roles.get(m["role"], AIMessage)(content=m["content"])
+    return [one(m) for m in history or []]
 
 
 def _messages(system: str, user: str, history: list[dict] | None) -> list:

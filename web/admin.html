@@ -42,6 +42,30 @@
 .sum p{margin-top:6px;white-space:pre-wrap;overflow-wrap:anywhere}
 .hint{background:var(--warn-bg);color:var(--warn);font-size:13px;padding:8px 16px}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1b2733;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;max-width:90vw;z-index:9}
+
+.acts{display:flex;align-items:center;gap:10px;background:#eaf2ff;border-top:1px solid #cfe0ff;color:var(--blue-d);font-size:13px;padding:9px 16px}
+.acts span{flex:1}.acts button{background:var(--blue);color:#fff;border-radius:8px;padding:6px 12px;font-weight:700;font-size:12px}
+dialog.ad{margin:auto;border:0;border-radius:16px;padding:0;width:min(640px,94vw);max-height:90dvh;box-shadow:0 24px 64px #14284a40;color:var(--ink)}
+dialog.ad::backdrop{background:#0e1a2b66}
+.ad form{display:flex;flex-direction:column;max-height:90dvh}
+.ad header{padding:16px 20px 10px}.ad header h2{font-size:17px;font-weight:700}.ad header p{color:var(--mute);font-size:13px;margin-top:4px}
+.ad .cards{overflow-y:auto;padding:4px 20px 12px;display:flex;flex-direction:column;gap:10px}
+.ad .card{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff}
+.ad .card.off{opacity:.55}.ad .card.done{border-color:#9ad5b6;background:#f2fbf6}.ad .card.err{border-color:#f0b4ac}
+.ad .ch{display:flex;gap:10px;align-items:flex-start}.ad .ch input{margin-top:3px;width:16px;height:16px}
+.ad .ch b{display:block;font-size:14px}.ad .ev{color:var(--mute);font-size:12px;margin-top:2px;font-style:italic;overflow-wrap:anywhere}
+.ad .tagk{display:inline-block;font-size:11px;font-weight:700;color:var(--blue-d);background:#eaf2ff;border-radius:99px;padding:1px 8px;margin-bottom:3px}
+.ad .fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.ad .fields label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--mute)}
+.ad .fields .wide{grid-column:1/-1}
+.ad .fields input,.ad .fields select,.ad .fields textarea{border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:13px;color:var(--ink);background:#fff;font-family:inherit}
+.ad .warn{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:6px 10px;font-size:12px;margin-top:8px}
+.ad .msg{border-radius:8px;padding:6px 10px;font-size:12px;margin-top:8px}.ad .msg.ok{background:#e2f6ea;color:#17613f}.ad .msg.bad{background:var(--red-bg);color:var(--red)}
+.ad .cx{margin-top:8px;display:flex;justify-content:flex-end}.ad .cx button{font-size:12px;color:var(--mute);text-decoration:underline}
+.ad footer{display:flex;gap:8px;justify-content:flex-end;padding:12px 20px;border-top:1px solid var(--line);flex-wrap:wrap}
+.ad footer button{padding:9px 14px;border-radius:10px;font-weight:700;font-size:13px}
+.ad .primary{background:var(--blue);color:#fff}.ad .primary:disabled{opacity:.5}.ad .ghost2{background:#eef2f7;color:var(--ink)}
+@media(max-width:560px){.ad .fields{grid-template-columns:1fr}}
 @media(max-width:760px){.shell{grid-template-columns:1fr}.main{display:none}.shell.sel .side{display:none}.shell.sel .main{display:flex}.back{display:grid}}
 </style><link rel="stylesheet" href="/admin-polish.css"></head><body class="admin-page">
 <div class="shell" id="shell">
@@ -71,6 +95,7 @@
       <details class="sum"><summary>Tóm tắt từ trợ lý</summary><p id="tsum"></p></details>
       <div class="log" id="log" role="log"></div>
       <div class="hint" id="hint" hidden>Nhận hỗ trợ để nhắn cho khách.</div>
+      <div class="acts" id="acts" hidden><span id="actsn"></span><button type="button" id="actsb">Xem và duyệt</button></div>
       <div class="composer">
         <textarea id="in" rows="1" placeholder="Nhập phản hồi cho khách" aria-label="Phản hồi cho khách" disabled></textarea>
         <button class="sendb" id="send" aria-label="Gửi phản hồi" disabled><svg class="ic"><use href="#i-send"/></svg></button>
@@ -137,11 +162,12 @@ function drawHead() {
   $("#tstat").textContent = STAT[s] + (t.assigned ? " · " + t.assigned : "") + (t.customer_phone && t.customer_name ? " · " + t.customer_phone : "");
   $("#tsum").textContent = t.summary || "Chưa có tóm tắt (trợ lý chưa chuyển cuộc trò chuyện này cho nhân viên).";
   const b = $("#act"); b.hidden = false; b.className = "btn" + (s === "CLAIMED" ? " ghost" : ""); b.replaceChildren();
-  if (s === "CLAIMED") b.append(icon("check")); b.append(document.createTextNode(s === "OPEN" ? "Nhận hỗ trợ" : (s === "BOT" || s === "RESOLVED") ? "Vào chat" : "Kết thúc"));
+  // BOT / RESOLVED: trợ lý đang trả lời, nhân viên có thể vào chat nhắn khách bất cứ lúc nào (tạo ticket mới).
+  if (s === "CLAIMED") b.append(icon("check")); b.append(document.createTextNode(s === "OPEN" ? "Nhận hỗ trợ" : s === "CLAIMED" ? "Kết thúc" : "Vào chat"));
   box.disabled = s !== "CLAIMED"; $("#hint").hidden = s === "CLAIMED";
   $("#hint").textContent = s === "OPEN" ? "Nhận hỗ trợ để nhắn cho khách. Trợ lý đang im lặng trong cuộc trò chuyện này."
     : s === "BOT" ? "Trợ lý AI đang tự trả lời. Bạn chỉ xem; bấm Vào chat nếu muốn nhắn trực tiếp cho khách (trợ lý sẽ im cho tới khi bạn kết thúc)."
-    : "Cuộc trò chuyện đã kết thúc, trợ lý đã tiếp quản lại. Bấm Vào chat nếu muốn nhắn trực tiếp cho khách lần nữa.";
+    : "Nhân viên đã kết thúc hỗ trợ, trợ lý đang tự trả lời. Bấm Vào chat nếu muốn nhắn trực tiếp cho khách lần nữa.";
   box.placeholder = s === "CLAIMED" ? "Nhập phản hồi cho khách" : "Chưa thể nhắn"; fit();
 }
 function drawMsgs(rows, force) {
@@ -172,7 +198,7 @@ async function loadMsgs(force) {
   if (!sel) return;
   try { drawMsgs(await api(`/admin/conversations/${encodeURIComponent(sel)}/messages`), force); } catch {}
 }
-function pick(id) { sel = id; msgSig = ""; listSig = ""; log.replaceChildren(); drawHead(); drawList(); loadMsgs(true); }
+function pick(id) { sel = id; msgSig = ""; listSig = ""; log.replaceChildren(); showBanner(null); drawHead(); drawList(); loadMsgs(true); refreshBanner(); }
 async function act(path, opt) {
   try { await api(path, opt); return true; }
   catch (e) {
@@ -187,14 +213,100 @@ $("#act").onclick = async () => {
   if (t.status === "BOT" || t.status === "RESOLVED") { if (await act(`/admin/conversations/${encodeURIComponent(t.session_id)}/takeover`, { method: "POST" })) { tab = "CLAIMED"; await loadLists(); loadMsgs(true); box.focus(); } return; }
   if (!t.ticket_id) return;
   if (t.status === "OPEN") { if (await act(`/admin/tasks/${t.ticket_id}/claim`, { method: "POST" })) { tab = "CLAIMED"; await loadLists(); loadMsgs(true); box.focus(); } }
-  else if (confirm("Kết thúc hỗ trợ? Trợ lý tự động sẽ tiếp tục trả lời khách.")) { if (await act(`/admin/tasks/${t.ticket_id}/resolve`, { method: "POST" })) { tab = "RESOLVED"; await loadLists(); loadMsgs(true); } }
+  else {
+    // Phân tích tin nhắn của nhân viên và cho duyệt cập nhật TRƯỚC khi trả phiên về bot, để bot nhận lại đúng dữ liệu.
+    try { const d = await loadActions(true); if (d.actions.length) await openActions(d, { finishing: true }); } catch (e) { toast("Không phân tích được tin nhắn: " + e.message); }
+    if (confirm("Kết thúc hỗ trợ? Trợ lý tự động sẽ tiếp tục trả lời khách.")) {
+      if (await act(`/admin/tasks/${t.ticket_id}/resolve`, { method: "POST" })) {
+        api(`/admin/tasks/${t.ticket_id}/actions/dismiss-all`, { method: "POST" }).catch(() => {});  // mục không duyệt thì bỏ, lần sau không hỏi lại
+        tab = "RESOLVED"; showBanner(null); await loadLists(); loadMsgs(true);
+      }
+    }
+  }
 };
 async function reply() {
   const t = find(sel), text = box.value.trim(); if (!t || !t.ticket_id || !text || box.disabled) return;
-  if (await act(`/admin/tasks/${t.ticket_id}/reply`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: text }) })) { box.value = ""; fit(); loadMsgs(true); }
+  if (await act(`/admin/tasks/${t.ticket_id}/reply`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: text }) })) { box.value = ""; fit(); loadMsgs(true); refreshBanner(); }
 }
 function fit() { box.style.height = "auto"; box.style.height = Math.min(box.scrollHeight, 120) + "px"; send.disabled = box.disabled || !box.value.trim(); }
 box.oninput = fit; send.onclick = reply;
 box.onkeydown = e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); reply(); } };
 setInterval(loadLists, 4000); setInterval(() => !document.hidden && loadMsgs(false), 3000); loadLists();
+
+// ---- Hộp thoại duyệt cập nhật từ tin nhắn nhân viên (bộ phân tích: app/services/staff_actions.py) ----
+const KIND = { BOOK_APPOINTMENT: "Đặt lịch hẹn", RESCHEDULE_APPOINTMENT: "Đổi lịch hẹn", CANCEL_APPOINTMENT: "Hủy lịch hẹn",
+  AGREED_PRICE: "Giá đã chốt", CUSTOMER_INFO: "Thông tin khách", HANDLING_NOTE: "Ghi chú xử lý" };
+const apptLabel = a => `#${a.id} · ${({ MAINTENANCE: "Bảo dưỡng", REPAIR: "Sửa chữa", SHOWROOM_VISIT: "Xem xe", CONTRACT_SIGN: "Ký hợp đồng" })[a.service_type] || a.service_type} · ${a.appointment_date || "?"} ${a.start_time || ""}`;
+function fieldsOf(type, ctx) {
+  const appt = ["appointment_id", "Lịch hẹn", "select", ctx.appointments.map(a => [a.id, apptLabel(a)])];
+  return { BOOK_APPOINTMENT: [["service_type", "Dịch vụ", "select", ctx.service_types.map(t => [t.value, t.label])], ["date", "Ngày", "date"], ["time", "Giờ (để trống nếu chưa chốt giờ)", "time"], ["phone", "Số điện thoại khách", "tel"], ["detail", "Hạng mục / ghi chú", "text", null, true]],
+    RESCHEDULE_APPOINTMENT: [[...appt], ["date", "Ngày mới", "date"], ["time", "Giờ mới", "time"], ["reason", "Lý do (báo khách)", "text", null, true]],
+    CANCEL_APPOINTMENT: [[...appt], ["reason", "Lý do (báo khách)", "text"]],
+    AGREED_PRICE: [["price_vnd", "Giá chốt (VNĐ)", "number"], ["car_model", "Xe", "text"]],
+    CUSTOMER_INFO: [["name", "Họ tên", "text"], ["phone", "Số điện thoại", "tel"], ["address", "Địa chỉ", "text", null, true]],
+    HANDLING_NOTE: [["note", "Nội dung ghi chú", "textarea", null, true]] }[type] || [];
+}
+function fieldEl(a, [key, label, kind, opts, wide]) {
+  const lab = el("label", wide ? "wide" : "", label); let inp;
+  if (kind === "select") { inp = el("select"); inp.append(new Option("— chọn —", "")); for (const [v, t] of opts) inp.append(new Option(t, v)); }
+  else if (kind === "textarea") { inp = el("textarea"); inp.rows = 2; } else { inp = el("input"); inp.type = kind; if (kind === "number") inp.min = 0; }
+  inp.value = a.params[key] ?? ""; inp.dataset.k = key; lab.append(inp); return lab;
+}
+const collect = card => { const p = {}; card.querySelectorAll("[data-k]").forEach(i => { if (i.value !== "") p[i.dataset.k] = i.type === "number" || i.dataset.k === "appointment_id" ? Number(i.value) : i.value; }); return p; };
+let dlgBusy = false;
+async function loadActions(scan) {
+  const t = find(sel); if (!t || !t.ticket_id) return { actions: [] };
+  return api(`/admin/tasks/${t.ticket_id}/actions` + (scan ? "/scan" : ""), scan ? { method: "POST" } : {});
+}
+const TOPIC = { SALES_NEGOTIATION: "Thương lượng", COMPLAINT: "Khiếu nại", GENERAL: "Khác" };
+function showBanner(d) {  // d = { actions, unscanned_staff } từ API; không gọi LLM, chỉ nhắc nhân viên bấm Xem và duyệt
+  const n = d ? d.actions.length : 0, fresh = d ? d.unscanned_staff : 0; $("#acts").hidden = !(n || fresh);
+  $("#actsn").textContent = n ? `Có ${n} cập nhật chờ duyệt. Bấm Xem và duyệt để đọc lại và tổng hợp theo ý định.`
+    : fresh ? "Bạn vừa nhắn khách. Bấm Xem và duyệt để tổng hợp các cập nhật (lịch hẹn, giá chốt, thông tin khách, ghi chú) cho trợ lý." : "";
+}
+async function refreshBanner() { const t = find(sel); if (!t || t.status !== "CLAIMED") return showBanner(null); try { showBanner(await loadActions(false)); } catch { showBanner(null); } }
+// Mở hộp thoại; trả về Promise<true> khi đóng xong (dùng cho luồng "Kết thúc": duyệt trước rồi mới trả phiên về bot).
+function openActions(data, { finishing = false } = {}) {
+  return new Promise(resolve => {
+    const dlg = el("dialog", "ad"), form = el("form"), cards = el("div", "cards"), foot = el("footer");
+    form.method = "dialog";
+    const head = el("header"); head.append(el("h2", "", finishing ? "Duyệt cập nhật trước khi trả cho trợ lý" : "Duyệt cập nhật từ tin nhắn của bạn"),
+      el("p", "", "Hệ thống đã đọc lại cả cuộc trò chuyện và tổng hợp mỗi ý định thành một mục. Chỉ những mục được chọn và duyệt mới được ghi; bạn có thể sửa trước khi duyệt."));
+    const rows = data.actions.map(a => {
+      const card = el("div", "card"), ch = el("div", "ch"), cb = el("input"), tx = el("div"), tg = el("span", "tagk", (KIND[a.type] || a.type) + (a.type === "HANDLING_NOTE" && TOPIC[a.params.topic] ? " · " + TOPIC[a.params.topic] : ""));
+      cb.type = "checkbox"; cb.checked = !(a.warnings || []).length; cb.onchange = () => { card.classList.toggle("off", !cb.checked); sync(); };
+      tx.append(tg, el("b", "", a.summary)); if (a.evidence) tx.append(el("div", "ev", "“" + a.evidence + "”")); ch.append(cb, tx); card.append(ch);
+      const fs = el("div", "fields"); fieldsOf(a.type, data).forEach(f => fs.append(fieldEl(a, f))); card.append(fs);
+      if ((a.warnings || []).length) card.append(el("div", "warn", "Cần kiểm tra: " + a.warnings.join("; ")));
+      const out = el("div"); card.append(out);
+      const cx = el("div", "cx"), skip = el("button", "", "Bỏ đề xuất này"); skip.type = "button";
+      skip.onclick = async () => { try { await api(`/admin/staff-actions/${a.id}/dismiss`, { method: "POST" }); card.remove(); rows.splice(rows.findIndex(r => r.a === a), 1); sync(); } catch (e) { toast("Không bỏ được: " + e.message); } };
+      cx.append(skip); card.append(cx); card.classList.toggle("off", !cb.checked); cards.append(card);
+      return { a, card, cb, out, done: false };
+    });
+    const ok = el("button", "primary"), later = el("button", "ghost2"); ok.type = later.type = "button";
+    later.textContent = finishing ? "Không duyệt, tiếp tục kết thúc" : "Để sau";
+    function sync() { const n = rows.filter(r => !r.done && r.cb.checked).length; ok.textContent = n ? `Duyệt ${n} mục đã chọn` : "Xong"; ok.disabled = dlgBusy; if (!rows.length) { foot.replaceChildren(ok); } }
+    ok.onclick = async () => {
+      const todo = rows.filter(r => !r.done && r.cb.checked); if (!todo.length) { dlg.close(); return; }
+      dlgBusy = true; ok.disabled = true; let fail = 0;
+      for (const r of todo) {
+        r.out.replaceChildren();
+        try {
+          const res = await api(`/admin/staff-actions/${r.a.id}/apply`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ params: collect(r.card) }) });
+          r.done = true; r.card.classList.add("done"); r.card.classList.remove("err"); r.out.append(el("div", "msg ok", res.message));
+          r.card.querySelectorAll("input,select,textarea,button").forEach(i => i.disabled = true);
+        } catch (e) { fail++; r.card.classList.add("err"); r.out.append(el("div", "msg bad", e.message)); }
+      }
+      dlgBusy = false; sync(); loadMsgs(true);
+      if (!fail) { setTimeout(() => dlg.close(), 900); } else { toast(`${fail} mục chưa áp dụng được, hãy sửa rồi duyệt lại.`); }
+    };
+    later.onclick = () => dlg.close();
+    foot.append(later, ok); form.append(head, cards, foot); dlg.append(form); document.body.append(dlg);
+    dlg.addEventListener("close", () => { dlg.remove(); resolve(true); refreshBanner(); });
+    sync(); dlg.showModal();
+  });
+}
+// Mở hộp thoại luôn quét lại: khách có thể vừa nhắn thêm SĐT/giờ/tên.
+$("#actsb").onclick = async () => { try { const d = await loadActions(true); if (d.actions.length) await openActions(d); else { showBanner(null); toast("Không có cập nhật nào cần duyệt từ cuộc trò chuyện này."); } } catch (e) { toast("Không tải được đề xuất: " + e.message); } };
 </script></body></html>

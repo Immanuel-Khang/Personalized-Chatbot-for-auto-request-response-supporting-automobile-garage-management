@@ -23,3 +23,21 @@ def run_turn(session_id: str, customer_id: int | None, text: str, negotiation_ac
         "validation_feedback": None, "validation_attempts": 0,
     })
     return get_graph().invoke(turn_input, config)
+
+
+def update_known_facts(session_id: str, values: dict) -> bool:
+    """Ghi fact đã được nhân viên duyệt vào checkpoint của phiên để bot dùng ở lượt sau (giá chốt, tên/SĐT/địa chỉ,
+    ghi chú). False nếu phiên chưa có checkpoint (chưa từng chạy lượt bot nào, nên chưa có state để cập nhật).
+    Gọi trong khóa phiên của conversation.py để không đè lên một lượt bot đang chạy."""
+    from app.contracts.schemas import FactSource, KnownFact
+
+    graph = get_graph()
+    config = cast(RunnableConfig, {"configurable": {"thread_id": session_id}})
+    snapshot = graph.get_state(config)
+    if not snapshot.values:
+        return False
+    facts = dict(snapshot.values.get("known_facts") or {})
+    for key, value in values.items():
+        facts[key] = KnownFact(key=key, value=value, source=FactSource.APPLICATION_VERIFIED)
+    graph.update_state(config, {"known_facts": facts}, as_node="respond")
+    return True

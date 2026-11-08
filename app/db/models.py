@@ -42,6 +42,9 @@ MESSAGE_ROLES = ("user", "ai", "tool", "staff", "system")
 HANDOVER_REASONS = ("NEGOTIATION", "HUMAN_REQUEST", "COMPLAINT", "COMPLEXITY_HIGH", "OUTPUT_GUARD",
                     "DEAL_CHANGE", "APPOINTMENT_APPROVAL", "OTHER")
 TICKET_STATUSES = ("OPEN", "CLAIMED", "RESOLVED")
+STAFF_ACTION_TYPES = ("BOOK_APPOINTMENT", "RESCHEDULE_APPOINTMENT", "CANCEL_APPOINTMENT", "AGREED_PRICE",
+                      "CUSTOMER_INFO", "HANDLING_NOTE")
+STAFF_ACTION_STATUSES = ("PROPOSED", "APPLIED", "DISMISSED")
 SLOT_TYPES = ("SERVICE_BAY", "SHOWROOM_VISIT")
 SERVICE_TYPES = ("MAINTENANCE", "REPAIR", "SHOWROOM_VISIT", "CONTRACT_SIGN")
 APPOINTMENT_STATUSES = ("PENDING_APPROVAL", "CONFIRMED", "REJECTED", "CANCELLED", "DONE")
@@ -116,8 +119,33 @@ class HandoverTicket(Base):
     summary: Mapped[str | None] = mapped_column(Text)
     sla_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # quá hạn mà chưa ai nhận -> báo hotline
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Tin staff có id <= giá trị này đã được bộ phân tích đọc (không phân tích lại, không đề xuất trùng).
+    actions_scanned_message_id: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = _created()
     updated_at: Mapped[datetime] = _updated()
+
+
+class StaffAction(Base):
+    """Hành động bộ phân tích đề xuất từ tin nhân viên nhắn khách; chỉ chạy sau khi nhân viên duyệt trong hộp thoại.
+    params: tham số đã chuẩn hóa (nhân viên sửa được trước khi duyệt); lúc duyệt params gửi lên thay bản đề xuất.
+    result: kết quả thực thi (tiếng Việt, hiện cho nhân viên)."""
+    __tablename__ = "staff_actions"
+    __table_args__ = (_in("action_type", STAFF_ACTION_TYPES), _in("status", STAFF_ACTION_STATUSES),
+                      Index(None, "ticket_id", "status"))
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ticket_id: Mapped[int] = mapped_column(ForeignKey("handover_tickets.id"))
+    session_id: Mapped[str] = mapped_column(ForeignKey("chat_sessions.id"), index=True)
+    source_message_id: Mapped[int | None] = mapped_column(ForeignKey("messages.id"))
+    action_type: Mapped[str] = mapped_column(String(30))
+    status: Mapped[str] = mapped_column(String(20), default="PROPOSED", server_default="PROPOSED")
+    params: Mapped[dict] = mapped_column(JSONB, default=dict)
+    summary: Mapped[str] = mapped_column(Text)
+    evidence: Mapped[str | None] = mapped_column(Text)  # câu của nhân viên làm căn cứ đề xuất
+    warnings: Mapped[list | None] = mapped_column(JSONB)
+    result: Mapped[str | None] = mapped_column(Text)
+    decided_by: Mapped[int | None] = mapped_column(ForeignKey("managers.id"))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = _created()
 
 
 class Showroom(Base):

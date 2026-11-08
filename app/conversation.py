@@ -73,10 +73,11 @@ def _fact(value) -> KnownFact | None:
 def _history(db: Session, session_id: str, current_id: int) -> list[dict]:
     """Tin user/ai của phiên trước tin hiện tại, theo id (thứ tự ghi DB, xác định). Gọi trong khóa phiên.
     Mọi tin ai đều thuộc lượt đã xong (lượt này chưa ghi trả lời), kể cả tin có id lớn hơn tin hiện tại khi khách
-    gửi dồn; tin user id >= current_id là tin hiện tại hoặc tin đang chờ khóa -> bỏ. Tin staff/system không vào LLM."""
+    gửi dồn; tin user id >= current_id là tin hiện tại hoặc tin đang chờ khóa -> bỏ. Tin staff (nhân viên nhắn khách
+    lúc tiếp nhận) vào LLM để bot nắm những gì đã trao đổi sau khi được trả phiên về; tin system (thông báo) thì không."""
     rows = (db.query(Message.role, Message.content)
             .filter(Message.session_id == session_id,
-                    (Message.role == "ai") | ((Message.role == "user") & (Message.id < current_id)))
+                    (Message.role == "ai") | (Message.role.in_(["user", "staff"]) & (Message.id < current_id)))
             .order_by(Message.id).all())
     return [{"role": role, "content": content} for role, content in rows]
 
