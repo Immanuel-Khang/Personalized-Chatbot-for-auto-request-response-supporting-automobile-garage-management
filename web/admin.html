@@ -136,12 +136,12 @@ function drawHead() {
   $("#tname").textContent = name(t); $("#treason").textContent = tagOf(t);
   $("#tstat").textContent = STAT[s] + (t.assigned ? " · " + t.assigned : "") + (t.customer_phone && t.customer_name ? " · " + t.customer_phone : "");
   $("#tsum").textContent = t.summary || "Chưa có tóm tắt (trợ lý chưa chuyển cuộc trò chuyện này cho nhân viên).";
-  const b = $("#act"); b.hidden = s === "RESOLVED"; b.className = "btn" + (s === "CLAIMED" ? " ghost" : ""); b.replaceChildren();
-  if (s === "CLAIMED") b.append(icon("check")); b.append(document.createTextNode(s === "OPEN" ? "Nhận hỗ trợ" : s === "BOT" ? "Vào chat" : "Kết thúc"));
+  const b = $("#act"); b.hidden = false; b.className = "btn" + (s === "CLAIMED" ? " ghost" : ""); b.replaceChildren();
+  if (s === "CLAIMED") b.append(icon("check")); b.append(document.createTextNode(s === "OPEN" ? "Nhận hỗ trợ" : (s === "BOT" || s === "RESOLVED") ? "Vào chat" : "Kết thúc"));
   box.disabled = s !== "CLAIMED"; $("#hint").hidden = s === "CLAIMED";
   $("#hint").textContent = s === "OPEN" ? "Nhận hỗ trợ để nhắn cho khách. Trợ lý đang im lặng trong cuộc trò chuyện này."
     : s === "BOT" ? "Trợ lý AI đang tự trả lời. Bạn chỉ xem; bấm Vào chat nếu muốn nhắn trực tiếp cho khách (trợ lý sẽ im cho tới khi bạn kết thúc)."
-    : "Cuộc trò chuyện đã kết thúc, trợ lý đã tiếp quản lại.";
+    : "Cuộc trò chuyện đã kết thúc, trợ lý đã tiếp quản lại. Bấm Vào chat nếu muốn nhắn trực tiếp cho khách lần nữa.";
   box.placeholder = s === "CLAIMED" ? "Nhập phản hồi cho khách" : "Chưa thể nhắn"; fit();
 }
 function drawMsgs(rows, force) {
@@ -184,7 +184,7 @@ $("#tabs").onclick = e => { const b = e.target.closest(".tab"); if (b) { tab = b
 $("#back").onclick = () => { sel = null; listSig = ""; drawHead(); drawList(); };
 $("#act").onclick = async () => {
   const t = find(sel); if (!t) return;
-  if (t.status === "BOT") { if (await act(`/admin/conversations/${encodeURIComponent(t.session_id)}/takeover`, { method: "POST" })) { tab = "CLAIMED"; await loadLists(); loadMsgs(true); box.focus(); } return; }
+  if (t.status === "BOT" || t.status === "RESOLVED") { if (await act(`/admin/conversations/${encodeURIComponent(t.session_id)}/takeover`, { method: "POST" })) { tab = "CLAIMED"; await loadLists(); loadMsgs(true); box.focus(); } return; }
   if (!t.ticket_id) return;
   if (t.status === "OPEN") { if (await act(`/admin/tasks/${t.ticket_id}/claim`, { method: "POST" })) { tab = "CLAIMED"; await loadLists(); loadMsgs(true); box.focus(); } }
   else if (confirm("Kết thúc hỗ trợ? Trợ lý tự động sẽ tiếp tục trả lời khách.")) { if (await act(`/admin/tasks/${t.ticket_id}/resolve`, { method: "POST" })) { tab = "RESOLVED"; await loadLists(); loadMsgs(true); } }
