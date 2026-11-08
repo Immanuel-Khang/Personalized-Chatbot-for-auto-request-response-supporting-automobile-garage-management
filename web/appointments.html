@@ -43,6 +43,14 @@ body{min-height:100dvh}
 .win{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#f8fafc}
 .win.part{background:#fff7dd;border-color:#f0d58a}.win.full{background:var(--red-bg);border-color:#f3b5b5}
 .win b{font-size:13px}.win .sub{font-size:12px}
+.btn.danger{background:var(--red-bg);color:var(--red)}.btn.danger:hover{background:#f9d4d0}
+dialog.dlg{margin:auto;border:0;border-radius:16px;padding:20px;width:min(380px,92vw);box-shadow:0 12px 40px #0b1f3355}
+dialog.dlg::backdrop{background:#0b1f33a0}
+.dlg h2{font-size:17px;margin:0 0 4px}.dlg form{display:flex;flex-direction:column;gap:12px}
+.dlg label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--mute);font-weight:600}
+.dlg input,.dlg textarea{border:1px solid var(--line);border-radius:10px;padding:9px 10px;font:inherit;color:var(--ink);background:#fff}
+.dlg textarea{resize:vertical;min-height:56px}.dlg .err{color:var(--red);font-size:13px;margin:0}
+.dlg .row{display:flex;gap:8px;justify-content:flex-end}
 @media(max-width:760px){.card{grid-template-columns:1fr}.card .acts{justify-self:start}}
 </style></head><body>
 <div class="wrap">
@@ -51,7 +59,7 @@ body{min-height:100dvh}
     <nav class="topnav"><a href="/admin">Hội thoại</a><a href="/appointments.html" aria-current="page">Lịch hẹn</a></nav>
     <div class="whoami"><span id="whoami"></span><button id="logout" class="linkbtn">Đăng xuất</button></div>
   </div>
-  <p class="note">Lịch do trợ lý AI tự đặt, đổi và hủy cùng khách. Bấm “Xác nhận” khi đồng ý lịch, và “Hoàn thành” khi xe đã làm xong (khách được báo trong chat). Muốn thay đổi: bấm “Nhắn khách”, trao đổi trong chat; khi khách chốt với trợ lý, danh sách này tự cập nhật.</p>
+  <p class="note">Lịch do trợ lý AI tự đặt, đổi và hủy cùng khách. Bấm “Xác nhận” khi đồng ý lịch, và “Hoàn thành” khi xe đã làm xong. Nhân viên cũng có thể “Đổi lịch” hoặc “Hủy lịch” trực tiếp: khách được báo ngay trong chat. Muốn trao đổi thêm với khách: bấm “Nhắn khách”.</p>
   <details class="cfg" id="cfg" open>
     <summary>Khung giờ &amp; sức chứa</summary>
     <div class="cfg-form">
@@ -81,6 +89,16 @@ body{min-height:100dvh}
   </div>
   <div class="cards" id="list"></div>
 </div>
+<dialog class="dlg" id="dlg"><form method="dialog" id="dlg-form" autocomplete="off">
+  <h2 id="dlg-title"></h2><p class="sub" id="dlg-sub"></p>
+  <div id="dlg-when" hidden>
+    <label>Ngày mới<input id="dlg-date" type="date"></label>
+    <label>Giờ mới (bỏ trống nếu chưa chọn giờ)<input id="dlg-time" type="time"></label>
+  </div>
+  <label>Lý do (gửi kèm thông báo cho khách, không bắt buộc)<textarea id="dlg-reason" maxlength="200"></textarea></label>
+  <p class="err" id="dlg-err" role="alert" hidden></p>
+  <div class="row"><button class="btn ghost" type="button" id="dlg-cancel">Đóng</button><button class="btn" id="dlg-ok" type="submit"></button></div>
+</form></dialog>
 <script src="/common.js"></script>
 <script>
 const STATUS = { PENDING_APPROVAL: "Chờ xác nhận", CONFIRMED: "Đã xác nhận", DONE: "Hoàn tất", CANCELLED: "Đã hủy", REJECTED: "Bị từ chối" };
@@ -110,6 +128,11 @@ function draw() {
     const acts = el("div", "acts");
     if (a.status === "PENDING_APPROVAL") { const ok = el("button", "btn", "Xác nhận"); ok.onclick = () => confirmAppt(a, ok); acts.append(ok); }
     if (a.status === "CONFIRMED") { const d = el("button", "btn", "Hoàn thành"); d.onclick = () => completeAppt(a, d); acts.append(d); }
+    if (a.status === "PENDING_APPROVAL" || a.status === "CONFIRMED") {
+      const ch = el("button", "btn ghost", "Đổi lịch"); ch.onclick = () => changeAppt(a);
+      const ca = el("button", "btn danger", "Hủy lịch"); ca.onclick = () => cancelAppt(a);
+      acts.append(ch, ca);
+    }
     if (a.session_id) { const b = el("button", "btn ghost", a.conversation_status === "CLAIMED" ? "Mở chat" : "Nhắn khách"); b.onclick = () => chat(a, b); acts.append(b); }
     if (acts.children.length) card.append(acts);
     ul.append(card);
@@ -133,6 +156,39 @@ async function completeAppt(a, b) {
   b.disabled = true;
   try { await api(`/admin/appointments/${a.id}/complete`, { method: "POST" }); toast("Đã hoàn thành lịch #" + a.id); sig = ""; cfgSig = ""; load(); loadWins(); }
   catch (e) { toast(e.message); b.disabled = false; load(); }
+}
+function askDialog({ title, sub, when, okText, danger, date, time }) {
+  const dlg = $("#dlg"); $("#dlg-title").textContent = title; $("#dlg-sub").textContent = sub; $("#dlg-ok").textContent = okText;
+  $("#dlg-ok").className = "btn" + (danger ? " danger" : ""); $("#dlg-when").hidden = !when; $("#dlg-err").hidden = true;
+  $("#dlg-date").value = date || ""; $("#dlg-time").value = time || ""; $("#dlg-reason").value = "";
+  return new Promise(resolve => {
+    const done = v => { dlg.close(); $("#dlg-form").onsubmit = $("#dlg-cancel").onclick = dlg.oncancel = null; resolve(v); };
+    $("#dlg-form").onsubmit = e => {
+      e.preventDefault();
+      if (when && !$("#dlg-date").value) { const m = $("#dlg-err"); m.textContent = "Chọn ngày mới."; m.hidden = false; return; }
+      done({ date: $("#dlg-date").value, time: $("#dlg-time").value, reason: $("#dlg-reason").value.trim() });
+    };
+    $("#dlg-cancel").onclick = () => done(null); dlg.oncancel = e => { e.preventDefault(); done(null); };
+    dlg.showModal();
+  });
+}
+async function changeAppt(a) {
+  const v = await askDialog({ title: `Đổi lịch #${a.id}`, okText: "Đổi lịch", when: true, date: a.appointment_date, time: a.start_time,
+    sub: `Hiện tại: ${dmy(a.appointment_date) || "chưa có ngày"} · ${a.start_time || "chưa chọn giờ"}. Khách sẽ được báo trong chat.` });
+  if (!v) return;
+  try {
+    const r = await api(`/admin/appointments/${a.id}/reschedule`, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ appointment_date: v.date, start_time: v.time || null, reason: v.reason || null }) });
+    toast(r.message || "Đã đổi lịch #" + a.id); sig = ""; cfgSig = ""; load(); loadWins();
+  } catch (e) { toast(e.message); load(); }
+}
+async function cancelAppt(a) {
+  const v = await askDialog({ title: `Hủy lịch #${a.id}`, okText: "Hủy lịch", danger: true, when: false,
+    sub: `${dmy(a.appointment_date) || "Chưa có ngày"} · ${a.start_time || "chưa chọn giờ"}. Khách sẽ được báo trong chat và chỗ trong khung giờ được trả lại.` });
+  if (!v) return;
+  try { await api(`/admin/appointments/${a.id}/cancel`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: v.reason || null }) });
+    toast("Đã hủy lịch #" + a.id); sig = ""; cfgSig = ""; load(); loadWins(); }
+  catch (e) { toast(e.message); load(); }
 }
 async function chat(a, b) {
   b.disabled = true;
