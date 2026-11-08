@@ -1,22 +1,21 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách hỏi tư vấn giờ nào hợp lý để đặt lịch bảo dưỡng, đang trả lời câu hỏi bot hỏi ngày và giờ hẹn.",
+      "message_summary": "Khách hỏi xe/sản phẩm nào đã được chọn để bảo dưỡng; trong yêu cầu đặt lịch bảo dưỡng hiện tại chưa nêu mẫu xe.",
       "tasks": [
         {
-          "task_id": "t1",
-          "domain": "APPOINTMENT",
-          "action": "book_appointment",
-          "text": "Theo bạn mấy giờ là hợp lý",
-          "relationship": "ANSWER_TO_QUESTION",
-          "referenced_interaction_id": "appointment_05fe8a16",
+          "task_id": "task_1",
+          "domain": "OTHER",
+          "action": "general_conversation",
+          "text": "Nhưng sản phẩm tôi muốn bảo dưỡng là gì",
+          "relationship": "CONTINUE_TASK",
+          "referenced_interaction_id": null,
           "requires_clarification": false,
-          "car_model": "FOTON Aumark-12T",
+          "car_model": null,
           "inquiry_only": false
         }
       ],
       "slot_updates": [],
-      "references": [],
       "presented_cars": [],
       "signals": {
         "wants_human": false,
@@ -34,23 +33,23 @@
       "car_list": {
         "key": "car_list",
         "value": [
-          "FOTON Aumark-12T",
-          "FUSO Canter FI170",
-          "JAC N800 Plus E5"
+          "THACO Linker T2-12 (WB 4500)",
+          "ISUZU Q-Series QLR77FE5 Chassis",
+          "THACO Linker T2-12 (WB 3800)"
         ],
-        "source": "INFERRED",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "car_model": {
-        "key": "car_model",
-        "value": "FOTON Aumark-12T",
         "source": "INFERRED",
         "updated_at_message_id": null,
         "confidence": null
       },
       "customer_name": "[REDACTED]",
       "customer_phone": "[REDACTED]",
+      "budget_vnd": {
+        "key": "budget_vnd",
+        "value": 600000000,
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
       "service_type": {
         "key": "service_type",
         "value": "MAINTENANCE",

@@ -5,7 +5,7 @@ slot extraction, reference resolution, ambiguity/conflict detection, structured
 output) and then *validates* the model output in application code:
 - slot keys must be canonical and backed by current-turn evidence;
 - a SET over an existing different value becomes a CORRECT (latest wins);
-- product references resolve only against products the bot actually showed.
+- a car reference must be one of the cars the bot listed (car_list).
 Downstream nodes read this result; none of them re-parse the Vietnamese text.
 Preprocessing has no side effects other than writing the debug trace.
 """
@@ -37,9 +37,6 @@ from app.contracts.schemas import (
 logger = logging.getLogger(__name__)
 
 _PHONE_RE = re.compile(r"(?<!\d)(?:\+84|0)\d{9}(?!\d)")
-# Evidence for appointment_when must name a time: a digit or a date/period word.
-_TIME_WORDS = re.compile(r"\d|(?<!\w)(?:mai|nay|kia|mốt|thứ|chủ\s+nhật|sáng|trưa|chiều|tối|đêm|tuần|tháng|ngày|giờ|"
-                         r"hôm|bữa|buổi)(?!\w)", re.IGNORECASE)
 
 CANONICAL_SLOTS = {
     "budget_vnd": "Ngân sách tối đa, số nguyên VND (500 triệu -> 500000000)",
@@ -58,87 +55,66 @@ CANONICAL_SLOTS = {
     "decided_price": "Giá chốt hợp đồng (VND)",
     "current_mileage_km": "Số km hiện tại của xe (số)",
 }
-# Explicit service phrases in the customer's own message; used when the model skipped service_type for an
-# APPOINTMENT task, so a later bare "đúng rồi" is never needed to supply it (it carries no evidence).
-_SERVICE_PHRASES = (
-    (re.compile(r"ký\s+hợp\s+đồng", re.IGNORECASE), ServiceType.CONTRACT_SIGN),
-    (re.compile(r"xem\s+xe|showroom", re.IGNORECASE), ServiceType.SHOWROOM_VISIT),
-    (re.compile(r"bảo\s+dưỡng", re.IGNORECASE), ServiceType.MAINTENANCE),
-    (re.compile(r"sửa", re.IGNORECASE), ServiceType.REPAIR),
-)
-_ALIASES = {"phone": "customer_phone", "when_text": "appointment_when", "budget": "budget_vnd", "name": "customer_name"}
 # Values that are usually paraphrased/normalised by the model (e.g. "500 triệu" -> 500000000).
 _NORMALISED_VALUE_KEYS = {"appointment_when", "service_type", "service_detail", "budget_vnd", "customer_name",
                           "decided_price", "payload_tons", "current_mileage_km", "intended_use"}
 
 INTERPRETATION_PROMPT = """\
-Bạn là Preprocessing Agent của trợ lý gara ô tô. Phân tích TIN NHẮN MỚI NHẤT của khách
-trong ngữ cảnh hội thoại (tóm tắt các lượt trước + các tin gần nhất) và CONVERSATION STATE, trả về đúng schema
-ConversationInterpretation. Các node sau chỉ đọc kết quả của bạn, không đọc lại câu chữ.
+Bạn là Preprocessing Agent của trợ lý gara ô tô. Phân tích TIN NHẮN MỚI NHẤT của khách trong ngữ cảnh hội thoại
+(tóm tắt + các tin gần nhất) và CONVERSATION STATE, trả về đúng schema ConversationInterpretation. Các node sau chỉ
+đọc kết quả của bạn, không đọc lại câu chữ.
 
-1. Ý định theo ngữ cảnh (relationship của từng task):
-   - Tin nhắn trả lời câu bot vừa hỏi (VD bot hỏi "cần xe để làm gì?", khách đáp "Chở hàng")
-     là ANSWER_TO_QUESTION của việc đang làm, KHÔNG phải câu hỏi mới. Đặt referenced_interaction_id nếu khớp một pending_interactions. Task trả lời mang domain/action
-     của việc đang làm (VD đang tư vấn xe -> SALES search_catalog), KHÔNG dùng OTHER.
-   - Đồng ý/từ chối gợi ý của bot: ACCEPT_OFFER / REJECT_OFFER (accepts_offer=true/false).
-   - Sửa thông tin đã nói ("Không, 700 triệu"): CORRECT_PREVIOUS_INFO và slot_update CORRECT.
-   - Nói tiếp workflow đang mở: CONTINUE_TASK. Bỏ việc cũ để làm việc khác: CHANGE_TOPIC.
-   - Hủy/không muốn tiếp tục việc đang làm: CANCEL_TASK.
-   - Lịch hẹn ĐÃ ĐẶT: "hủy lịch hẹn của tôi" -> APPOINTMENT cancel_appointment (NEW_REQUEST, không phải
-     CANCEL_TASK); "đổi lịch sang ngày mai" -> APPOINTMENT reschedule_appointment, kèm slot_update appointment_when;
-     "lịch hẹn của tôi lúc mấy giờ", "đã xác nhận chưa" -> APPOINTMENT appointment_details (inquiry_only=false).
-     Khách đồng ý câu bot hỏi xác nhận đổi/hủy -> ACCEPT_OFFER (accepts_offer=true), KHÔNG phải CANCEL_TASK.
-2. Tách task: mỗi yêu cầu riêng biệt là một task, đúng thứ tự xuất hiện. "Tìm xe số 1 và đặt
-   lịch xem xe" = task SALES product_detail + task APPOINTMENT book_appointment. Chỉ phân tích
-   yêu cầu MỚI; không lặp lại task của các lượt trước. Xem xe tại showroom là APPOINTMENT.
-   Hỏi thông số/giá của một mẫu xe trong catalog ("động cơ của FUSO Canter FI170 là gì", "xe số 2 hộp số mấy
-   cấp") là SALES product_specs, KHÔNG phải KNOWLEDGE; KNOWLEDGE chỉ cho câu hỏi kỹ thuật chung, sửa chữa, an toàn.
-   Khách chỉ nói muốn mua xe ("tôi muốn mua xe này", "mình lấy xe này", "chốt mẫu này") mà chưa yêu cầu làm/ký hợp đồng
-   và chưa đưa thông tin hợp đồng (địa chỉ, giá chốt) là SALES purchase_interest, KHÔNG phải CONTRACT start_contract;
-   đặt car_model nếu "xe này" là xe khách vừa nói tới trong danh sách xe. CONTRACT start_contract chỉ khi khách nói rõ muốn
-   làm/ký hợp đồng,
-   đồng ý bot đề nghị làm hợp đồng, hoặc đang cung cấp thông tin hợp đồng cho workflow hợp đồng đang mở.
-   Mặc cả, xin giảm giá, xin quà là DISCOUNT. Khách chỉ HỎI xưởng có làm dịch vụ X không, hoặc hỏi
-   thủ tục/giấy tờ, mà chưa yêu cầu đặt lịch/làm hợp đồng: inquiry_only=true.
-3. Slot: chỉ dùng key trong canonical_slots. Chỉ tạo slot_update khi khách nói rõ trong tin nhắn
-   mới (hoặc tin nhắn là câu trả lời ngắn cho câu bot vừa hỏi về đúng slot đó). evidence là đoạn
-   nguyên văn trong tin nhắn mới. Không suy đoán giá trị. Tin nhắn có task APPOINTMENT mà nêu loại lịch thì
-   BẮT BUỘC có slot_update service_type, kể cả khi cùng câu còn có ngày giờ: "xem xe", "xem xe trực tiếp",
-   "đến showroom", "qua xem xe" -> SHOWROOM_VISIT; "bảo dưỡng" -> MAINTENANCE; "sửa" -> REPAIR
-   (evidence là cụm từ đó); "ký hợp đồng" -> CONTRACT_SIGN. Bot vừa hỏi ngày giờ ký hợp đồng (pending của workflow
-   appointment) mà khách trả lời thời gian -> APPOINTMENT book_appointment ANSWER_TO_QUESTION với slot appointment_when,
-   KHÔNG phải CONTRACT. KHÔNG tạo appointment_when khi khách chưa nói thời gian. Xưởng không có dịch vụ lái thử: KHÔNG ghi service_type cho "lái thử". Khách nêu thời gian hẹn dù chưa có giờ cụ thể ("chiều thứ 2
-   tuần sau", "sáng mai") -> vẫn ghi appointment_when đúng như khách nói; workflow sẽ tự hỏi giờ, đó KHÔNG
-   phải điểm mơ hồ. Khách sửa tên/SĐT/địa chỉ -> slot_update CORRECT cho đúng key đó.
-   appointment_when: tin nhắn mới có ngày/giờ hẹn ("đến vào ngày mai lúc 8 giờ", "đổi sang thứ 6", "sáng thứ 6 tuần
-   này tôi qua ký") -> BẮT BUỘC có slot_update appointment_when. value là TOÀN BỘ thời gian hẹn hiện tại theo lời
-   khách, KHÔNG đổi sang ngày tháng cụ thể. Khách chỉ bổ sung một phần cho thời gian đã có trong known_facts (đã có
-   "ngày mai", khách nói "lúc 8 giờ" hoặc "sáng") -> value là thời gian đã gộp ("sáng ngày mai lúc 8 giờ"); evidence
-   CHỈ là đoạn có trong tin nhắn mới ("lúc 8 giờ"), không chép từ lịch sử.
-   Tên khách (customer_name): chỉ khi khách tự giới thiệu hoặc trả lời câu hỏi tên. Ghi dạng chuẩn có dấu, viết hoa
-   chữ cái đầu; khách chỉ nói tên gọi ("Khang", "anh Khang") thì ghi đúng phần đó, KHÔNG tự thêm họ. Xưng hô,
-   lời chào, tên xe, địa danh không phải tên. evidence là cụm khách gõ nguyên văn.
-4. presented_cars = các xe KHÁCH ĐANG THẤY, điền TRƯỚC khi xử lý tham chiếu. Đọc tin nhắn GẦN NHẤT của bot (không
-   phải tin của khách). Nếu nó đưa ra xe, ghi TÊN TỪNG XE theo đúng thứ tự khách đếm "mẫu số N", mỗi tên một phần tử,
-   theo thứ tự xuất hiện của các dòng/mục; dòng ghi hai xe ("FUSO FI170 và FI170L") là hai phần tử liên tiếp. Xe chỉ nhắc
-   trong câu dẫn ("Ngoài X, các mẫu khác gồm:") không phải một mục của danh sách thì KHÔNG ghi. Ví dụ bot viết
-   "Ngoài ISUZU A, gồm: - FUSO B và FUSO C - THACO D" -> ["FUSO B", "FUSO C", "THACO D"]. Tin gần nhất của bot không
-   đưa xe nào -> để trống (danh sách cũ được giữ nguyên).
-5. Tham chiếu: "xe số 1", "mẫu thứ ba", "nó", "xe đó" -> thêm vào references với position theo danh sách xe
-   (1-based, -1 = cuối) và car_model là TÊN XE mà khách đang chỉ, lấy BẰNG CÁCH ĐẾM trong danh sách xe mà bạn vừa ghi
-   ở presented_cars (đó là danh sách khách đang thấy; nếu tin nhắn gần nhất của bot không đưa xe nào thì dùng car_list
-   trong CONVERSATION STATE). Ví dụ khách nói "xe số 2" và danh sách là ["FUSO B", "FUSO C"] -> car_model "FUSO C".
-   Gán car_model cho task liên quan theo cách task đó nói về xe (task nói "xe số 2" thì lấy đúng xe đó; task nói về
-   xe khác thì lấy xe khác). Nếu danh sách không có xe đó, hoặc không xác định được duy nhất -> car_model=null,
-   KHÔNG đoán.
-6. Mơ hồ: thiếu thông tin mà workflow sẽ tự hỏi (SĐT, ngày giờ) không phải là mơ hồ. Không hiểu tin nhắn
-   hoặc có điểm mơ hồ chặn task hiện tại: uncertain=true và một task general_conversation requires_clarification=true.
-7. signals: wants_human (khách muốn gặp nhân viên/người thật), complaint (phàn nàn, bức xúc),
-   safety_risk (xe có dấu hiệu nguy hiểm: mất phanh, cháy, khói, mất lái...), discount_request,
-   deal_change (khách muốn sửa điều khoản hợp đồng, thương lượng lại giá, hoặc hỏi phí/chi phí phát sinh
-   của hợp đồng; KHÔNG bật khi khách chỉ trả lời giá chốt bot hỏi hay khi chữ "giá/phí" nằm trong tên riêng).
-   complexity=HIGH chỉ khi câu hỏi kỹ thuật vượt quá tư vấn thông thường (chẩn đoán phức tạp). Tin nhắn có
-   nhiều yêu cầu thông thường (tìm xe + đặt lịch...), lời chào, hỏi giá/thông số -> LOW.
+1. Task: mỗi yêu cầu riêng biệt là một task, theo thứ tự xuất hiện; chỉ phân tích yêu cầu MỚI, không lặp task cũ.
+   "Tìm xe số 1 và đặt lịch xem xe" = SALES product_detail + APPOINTMENT book_appointment.
+   - Xem xe tại showroom là APPOINTMENT. Thông số/giá của một mẫu trong catalog ("động cơ của FUSO Canter FI170",
+     "xe số 2 hộp số mấy cấp") là SALES product_specs; KNOWLEDGE chỉ cho câu hỏi kỹ thuật chung, sửa chữa, an toàn.
+   - Chỉ nói muốn mua ("tôi muốn mua xe này", "chốt mẫu này") mà chưa yêu cầu làm/ký hợp đồng hay đưa thông tin hợp
+     đồng: SALES purchase_interest (đặt car_model nếu xe đã rõ). CONTRACT start_contract chỉ khi khách nói rõ muốn
+     làm/ký hợp đồng, đồng ý bot đề nghị làm hợp đồng, hoặc cung cấp thông tin cho workflow hợp đồng đang mở.
+   - Mặc cả, xin giảm giá, xin quà: DISCOUNT.
+   - Chỉ HỎI xưởng có làm dịch vụ X không, hoặc hỏi thủ tục/giấy tờ, chưa yêu cầu đặt lịch/làm hợp đồng: inquiry_only=true.
+2. relationship của task theo ngữ cảnh:
+   - Trả lời câu bot vừa hỏi: ANSWER_TO_QUESTION, mang domain/action của việc đang làm (không dùng OTHER); đặt
+     referenced_interaction_id nếu khớp một pending_interactions.
+   - Đồng ý/từ chối gợi ý hay câu xác nhận của bot (kể cả xác nhận đổi/hủy lịch): ACCEPT_OFFER / REJECT_OFFER
+     (accepts_offer=true/false), KHÔNG phải CANCEL_TASK.
+   - Sửa thông tin đã nói: CORRECT_PREVIOUS_INFO + slot_update CORRECT. Nói tiếp workflow: CONTINUE_TASK. Bỏ việc cũ
+     làm việc khác: CHANGE_TOPIC. Hủy việc đang làm dở: CANCEL_TASK.
+   - Lịch hẹn ĐÃ ĐẶT: "hủy lịch hẹn của tôi" -> cancel_appointment (NEW_REQUEST); "đổi lịch sang ngày mai" ->
+     reschedule_appointment + slot_update appointment_when; "lịch hẹn của tôi lúc mấy giờ", "đã xác nhận chưa" ->
+     appointment_details.
+3. Slot: chỉ key trong canonical_slots, chỉ khi khách nói rõ trong tin MỚI (hoặc đáp ngắn cho câu bot hỏi đúng slot đó).
+   evidence là đoạn nguyên văn trong tin mới. Không suy đoán.
+   - Task APPOINTMENT mà tin nêu loại lịch -> BẮT BUỘC có slot_update service_type (evidence là cụm đó): "xem xe",
+     "đến showroom" -> SHOWROOM_VISIT; "bảo dưỡng"; "sửa" -> REPAIR; "ký hợp đồng" -> CONTRACT_SIGN. "Lái thử": xưởng
+     không có, KHÔNG ghi service_type.
+   - appointment_when: tin mới có ngày/giờ hẹn -> BẮT BUỘC có slot_update; value là TOÀN BỘ thời gian hẹn hiện tại theo
+     lời khách, không đổi sang ngày cụ thể. Khách chỉ bổ sung phần cho thời gian đã có trong known_facts (đã có "ngày
+     mai", nói thêm "lúc 8 giờ" hoặc "sáng") -> value gộp ("sáng ngày mai lúc 8 giờ"), evidence chỉ là đoạn trong tin
+     mới. Chưa có giờ cụ thể vẫn ghi ("chiều thứ 2 tuần sau"); workflow tự hỏi giờ. KHÔNG tạo khi tin mới không nêu
+     thời gian (VD "đúng rồi" xác nhận một đề xuất). Bot vừa hỏi ngày giờ ký hợp đồng mà khách đáp thời gian ->
+     APPOINTMENT book_appointment ANSWER_TO_QUESTION, không phải CONTRACT.
+   - customer_name: chỉ khi khách tự giới thiệu hoặc đáp câu hỏi tên; khách chỉ nói tên gọi thì ghi đúng phần đó,
+     KHÔNG tự thêm họ. Xưng hô, lời chào, tên xe, địa danh không phải tên.
+4. Xe khách đang đếm:
+   - presented_cars (điền TRƯỚC): nếu tin GẦN NHẤT của bot (không phải của khách) giới thiệu một hoặc nhiều xe (một xe
+     cũng là danh sách một phần tử), ghi TÊN TỪNG XE theo thứ tự các dòng/mục, vì khách đếm "mẫu số N" theo đó; dòng ghi hai xe ("FUSO FI170 và FI170L") là hai phần tử
+     liên tiếp; xe chỉ nhắc trong câu dẫn ("Ngoài X, gồm:") thì KHÔNG ghi. VD "Ngoài ISUZU A, gồm: - FUSO B và FUSO C -
+     THACO D" -> ["FUSO B", "FUSO C", "THACO D"]. Tin đó không đưa xe nào -> để trống (danh sách cũ được giữ).
+   - Tham chiếu "xe số 1", "mẫu thứ ba", "nó", "xe đó": đặt car_model của task liên quan là TÊN XE khách chỉ, BẰNG CÁCH
+     ĐẾM trong presented_cars vừa ghi (nếu trống thì car_list trong CONVERSATION STATE); mỗi task lấy đúng xe nó nói
+     tới. VD "xe số 2" với ["FUSO B", "FUSO C"] -> "FUSO C". Không có xe đó hoặc không xác định duy nhất -> null.
+   - car_model của task chỉ khi TIN MỚI nêu tên xe, đếm số thứ tự, hoặc "xe này/nó" mà tin gần nhất của bot nói về
+     đúng MỘT xe. Tin mới bắt đầu việc mới mà không nêu xe ("muốn mua xe", "đặt lịch bảo dưỡng"), hoặc "xe này" khi
+     bot vừa đưa NHIỀU xe, hoặc khi tin gần nhất của bot không nói về xe nào -> null. car_list và known_facts là xe khách
+     từng xem hay việc đã xong, KHÔNG tự lấy làm xe của việc mới, kể cả khi danh sách chỉ có một xe.
+5. Mơ hồ: thiếu thông tin workflow sẽ tự hỏi (SĐT, ngày giờ) không phải mơ hồ. Không hiểu tin nhắn hoặc có điểm mơ hồ
+   chặn task: uncertain=true và một task general_conversation requires_clarification=true.
+6. signals: wants_human (muốn gặp nhân viên), complaint (phàn nàn, bức xúc), safety_risk (xe mất phanh, cháy, khói, mất
+   lái...), discount_request, deal_change (muốn sửa điều khoản hợp đồng, thương lượng lại giá, hỏi phí phát sinh của hợp
+   đồng; KHÔNG bật khi khách chỉ trả lời giá chốt bot hỏi hay "giá/phí" nằm trong tên riêng). complexity=HIGH chỉ khi
+   câu hỏi kỹ thuật vượt quá tư vấn thông thường (chẩn đoán phức tạp); nhiều yêu cầu thông thường, lời chào, hỏi
+   giá/thông số -> LOW.
 """
 
 
@@ -226,14 +202,9 @@ def _validated_updates(state: AgentState, interpretation: ConversationInterpreta
     corrects = any(task.relationship == TaskRelationship.CORRECT_PREVIOUS_INFO for task in interpretation.tasks)
     updates: list[SlotUpdate] = []
     for update in interpretation.slot_updates:
-        key = _ALIASES.get(update.key, update.key)
+        key = update.key
         if key not in CANONICAL_SLOTS:
-            logger.warning("Discarding non-canonical slot update: %s", update.key)
-            continue
-        update = update.model_copy(update={"key": key})
-        if key == "appointment_when" and not _TIME_WORDS.search(update.evidence or ""):
-            # "Đúng rồi" to a proposal carries no time; a time copied from the bot's text must not replace the fact.
-            logger.warning("Discarding appointment_when update without a time in its evidence")
+            logger.warning("Discarding non-canonical slot update: %s", key)
             continue
         if not _evidence_is_current(update, text):
             logger.warning("Discarding slot update with invalid current-turn evidence: %s %s", key,
@@ -271,19 +242,13 @@ def _car_list(state: AgentState) -> list[str]:
 
 
 def _resolve_references(state: AgentState, interpretation: ConversationInterpretation) -> ConversationInterpretation:
-    """Ground the references the model resolved in the car's own list.
-
-    The model does the counting ("xe số 2" -> the second car it was given); the code only checks that the
-    answer is really one of the cars the customer can count, so a hallucinated name never reaches a specialist.
-    The list the bot just presented counts too: "xe số 2" said right after a new list refers to that list."""
-    cars = _car_list(state)
-    listed = interpretation.presented_cars
-    known = list(dict.fromkeys([*listed, *cars]))
-    references = [ref.model_copy(update={"car_model": ref.car_model if ref.car_model in known else None})
-                  for ref in interpretation.references]
+    """The model counts ("xe số 2" -> the second car it was given); the code only checks the answer is one of the
+    cars the customer can count (the list the bot just presented, or the one before), so a hallucinated name never
+    reaches a specialist."""
+    known = {*interpretation.presented_cars, *_car_list(state)}
     tasks = [task.model_copy(update={"car_model": task.car_model if task.car_model in known else None})
              for task in interpretation.tasks]
-    return interpretation.model_copy(update={"references": references, "tasks": tasks})
+    return interpretation.model_copy(update={"tasks": tasks})
 
 
 _CAR_CHOICE_ACTIONS = {"purchase_interest", "start_contract"}
@@ -325,13 +290,7 @@ def _apply_interpretation(state: AgentState, interpretation: ConversationInterpr
         facts[update.key] = KnownFact(key=update.key, value=update.value, source=source,
                                       updated_at_message_id=update.source_message_id)
 
-    booking = any(task.domain == Intent.APPOINTMENT and task.action == "book_appointment" for task in applied.tasks)
     _sync_car_model(state, applied, facts)
-    if booking and "service_type" not in facts:
-        text = state.get("user_text", "")
-        match = next(((m, kind) for pattern, kind in _SERVICE_PHRASES if (m := pattern.search(text))), None)
-        if match:
-            facts["service_type"] = KnownFact(key="service_type", value=match[1].value, source=FactSource.USER_EXPLICIT)
     if any(update.key == "appointment_when" for update in applied.slot_updates):
         sync_date_fact(facts)  # the customer's words -> a calendar date, computed in code
     return {"conversation_interpretation": applied, "known_facts": facts, "rejected_slots": rejected}

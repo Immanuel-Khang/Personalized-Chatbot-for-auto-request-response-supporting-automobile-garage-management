@@ -7,11 +7,10 @@ MISSING) and the agent asks. The reply is grounded in what the service returned 
 """
 import json
 import logging
-import re
 import uuid
 from datetime import date, time
 
-from app.agent.date_extraction import OUT_OF_RANGE, RESOLVED, local_today, sync_date_fact
+from app.agent.date_extraction import NEEDS_PERIOD, OUT_OF_RANGE, RESOLVED, local_today, sync_date_fact
 from app.agent.llm import generate_with_tools
 from app.agent.nodes.compose import STYLE_RULES
 from app.agent.state import AgentState, answer, fact_value, open_pending
@@ -27,56 +26,39 @@ logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """\
 Bạn là chuyên viên lịch hẹn của xưởng Foton (bảo dưỡng, sửa chữa, xem xe tại showroom, ký hợp đồng mua xe).
-CÔNG CỤ:
-- get_appointment_details: các lịch hẹn của khách (thời gian, trạng thái). Gọi trước khi trả lời câu hỏi về lịch hẹn
-  và trước khi đổi/hủy để lấy đúng appointment_id.
-- create_appointment: đặt lịch mới từ thông tin đặt lịch đã biết.
-- reschedule_appointment: đổi lịch appointment_id sang thời gian mới.
-- cancel_appointment: hủy lịch appointment_id.
+CÔNG CỤ: get_appointment_details (xem lịch của khách; gọi trước khi trả lời về lịch hẹn và trước khi đổi/hủy để lấy
+appointment_id), create_appointment (đặt lịch mới), reschedule_appointment, cancel_appointment. Công cụ tự lấy dịch vụ,
+ngày, giờ từ thông tin đã xác định; bạn không truyền ngày giờ.
 QUY TẮC:
-1. Tiếng Việt, ngắn gọn; chỉ dựa trên kết quả công cụ của lượt này. KHÔNG bịa giờ, tự suy luận ý muốn đặt lịch của khách, trạng thái, mã lịch.
-2. Kết quả status=NEEDS_CONFIRMATION: nêu đúng nội dung "proposal" và hỏi khách xác nhận; CHƯA được nói là đã làm.
-   status=MISSING: ghi nhận ngắn thông tin khách vừa đưa rồi hỏi GỘP mọi thông tin trong "missing" trong một câu.
-   ok=true: báo đã thực hiện theo "message". ok=false: báo chưa thực hiện được theo "message", gợi ý hotline {hotline}.
-3. "Khách vừa đồng ý" = có: gọi lại đúng công cụ của thao tác đang chờ xác nhận để thực hiện.
-4. Khách có nhiều lịch đang hiệu lực mà không rõ muốn đổi/hủy lịch nào: liệt kê ngắn và hỏi, KHÔNG tự chọn.
-5. Trạng thái: dùng "status_label"; thời gian: dùng "when_label". Lịch chưa có start_time thì giờ chính xác do nhân
-   viên chốt khi xác nhận.
-6. Khách chỉ cập nhật tên/SĐT: ghi nhận thông tin liên hệ mới, không gọi công cụ.
-7. Ngày hẹn do hệ thống xác định từ lời khách ("Ngày hẹn đã xác định"); KHÔNG tự tính hay tự chọn ngày. Khách
-   đã nêu thời gian thì gọi công cụ ngay; công cụ báo MISSING ngày hẹn thì hỏi khách ngày cụ thể theo "message".
-   start_time (HH:MM, 24 giờ) chỉ khi khách nêu giờ ("8h", "14 giờ 30"); "8 giờ tối" = 20:00, "2 giờ chiều" = 14:00.
-   Khách chưa nêu giờ cụ thể (chỉ có ngày hoặc buổi sáng/chiều) thì bỏ trống start_time, KHÔNG tự chọn giờ; công
-   cụ báo MISSING giờ hẹn thì hỏi khách giờ cụ thể (gộp với ngày nếu cũng thiếu). NEEDS_AM_PM thì hỏi đúng một câu: giờ đó buổi sáng hay chiều/tối.
-8. Tra cứu lịch hẹn hoặc sau khi thao tác thành công: trả lời đúng việc đó rồi dừng, KHÔNG hỏi thêm thông tin
-   (loại xe, biển số, tải trọng...) hay đề nghị việc khác.
-9. Lịch "ký hợp đồng mua xe" (CONTRACT_SIGN): hợp đồng đã đủ thông tin, chỉ cần ngày giờ ký; KHÔNG hỏi lại thông tin
-   hợp đồng (tên, địa chỉ, dòng xe, giá).
-10. Đủ thông tin thì gọi công cụ ghi ngay; proposal của công cụ là câu xác nhận DUY NHẤT. KHÔNG tự hỏi "đúng không",
-   "bạn xác nhận ngày ... nhé" hay nhắc lại lịch cũ trước khi gọi công cụ.
-11. "Yêu cầu" là đặt lịch mới -> create_appointment, kể cả khi khách đã có lịch khác; KHÔNG hỏi có muốn đổi lịch cũ
-   không. Chỉ đổi/hủy khi yêu cầu là đổi/hủy lịch.
-12. KHÔNG nhắc tới "proposal", mã/id lịch hẹn hay tên công cụ với khách.
-13. Công cụ trả ok=false với status=SLOT_FULL hoặc DUPLICATE (ngoại lệ của quy tắc 2): báo đúng "message" (giữ nguyên số liệu),
-   nếu có "alternatives" thì gợi ý các giờ đó và hỏi khách muốn giờ nào. KHÔNG nói đã đặt, KHÔNG tự chọn giờ thay khách,
-   KHÔNG gợi ý hotline. Khách chọn giờ khác thì gọi lại công cụ với giờ đó.
+1. Tiếng Việt, ngắn gọn; chỉ dựa trên kết quả công cụ của lượt này. KHÔNG bịa giờ, trạng thái, mã lịch.
+2. Kết quả status=NEEDS_CONFIRMATION: nêu đúng "proposal" và hỏi khách xác nhận; CHƯA được nói là đã làm. Đây là câu
+   xác nhận DUY NHẤT: đủ thông tin thì gọi công cụ ngay, không tự hỏi "đúng không" trước.
+   status=MISSING: ghi nhận ngắn thông tin khách vừa đưa rồi hỏi GỘP mọi mục trong "missing" trong một câu (kèm "message"
+   nếu có). NEEDS_AM_PM: hỏi đúng một câu theo "message".
+   ok=true: báo đã thực hiện theo "message". ok=false: báo chưa thực hiện được theo "message", gợi ý hotline {hotline};
+   riêng SLOT_FULL/DUPLICATE: giữ nguyên số liệu của "message", gợi ý các giờ trong "alternatives" và hỏi khách chọn giờ
+   (KHÔNG nói đã đặt, KHÔNG gợi ý hotline, KHÔNG tự chọn giờ).
+3. "Khách vừa đồng ý" = có: gọi lại đúng công cụ của thao tác đang chờ xác nhận.
+4. Nhiều lịch đang hiệu lực mà không rõ đổi/hủy lịch nào: liệt kê ngắn và hỏi. Yêu cầu đặt lịch MỚI -> create_appointment
+   dù khách đã có lịch khác, không hỏi có muốn đổi lịch cũ.
+5. Trạng thái dùng "status_label", thời gian dùng "when_label". Lịch chưa có giờ thì nhân viên chốt giờ chính xác.
+6. Khách chỉ cập nhật tên/SĐT: ghi nhận, không gọi công cụ. Lịch ký hợp đồng: hợp đồng đã đủ thông tin, chỉ cần ngày giờ
+   ký, KHÔNG hỏi lại thông tin hợp đồng.
+7. Tra cứu hoặc sau khi thao tác thành công: trả lời đúng việc đó rồi dừng, không hỏi thêm (loại xe, biển số...) và không
+   đề nghị việc khác. KHÔNG nhắc "proposal", mã lịch hay tên công cụ.
 """
 
-# The date is not a tool argument: code resolves it from the customer's words (date_extraction).
-_WHEN = {"start_time": {"type": "string", "description": "Giờ bắt đầu HH:MM; bỏ trống nếu khách chưa nêu giờ cụ thể"}}
 _ID = {"appointment_id": {"type": "integer", "description": "id lịch hẹn lấy từ get_appointment_details"}}
 TOOLS = [
     {"name": "get_appointment_details", "description": "Xem các lịch hẹn của khách (mới nhất trước).",
      "input_schema": {"type": "object", "properties": {}, "required": []}},
     {"name": "create_appointment", "description": "Đặt lịch hẹn mới từ thông tin đặt lịch đã biết.",
-     "input_schema": {"type": "object", "required": [], "properties": _WHEN}},
-    {"name": "reschedule_appointment", "description": "Đổi lịch hẹn sang ngày giờ mới.",
-     "input_schema": {"type": "object", "required": ["appointment_id"],
-                      "properties": {**_ID, **_WHEN}}},
+     "input_schema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "reschedule_appointment", "description": "Đổi lịch hẹn sang ngày giờ mới đã biết.",
+     "input_schema": {"type": "object", "required": ["appointment_id"], "properties": _ID}},
     {"name": "cancel_appointment", "description": "Hủy lịch hẹn.",
      "input_schema": {"type": "object", "required": ["appointment_id"], "properties": _ID}},
 ]
-WRITE_TOOLS = {"create_appointment", "reschedule_appointment", "cancel_appointment"}
 REQUIRED = {"service_type": "loại dịch vụ (bảo dưỡng/sửa chữa/xem xe/ký hợp đồng)", "appointment_when": "ngày giờ hẹn",
             "customer_name": "họ và tên đầy đủ", "customer_phone": "số điện thoại"}
 LABELS = {ServiceType.MAINTENANCE.value: "bảo dưỡng", ServiceType.REPAIR.value: "sửa chữa",
@@ -84,9 +66,8 @@ LABELS = {ServiceType.MAINTENANCE.value: "bảo dưỡng", ServiceType.REPAIR.va
 STATUS_LABELS = {"PENDING_APPROVAL": "đang chờ nhân viên xác nhận", "CONFIRMED": "đã được xác nhận",
                  "CANCELLED": "đã hủy", "REJECTED": "không được duyệt", "DONE": "đã hoàn thành"}
 BOOKING_KEYS = {"service_type", "appointment_when", "appointment_date", "service_detail"}
+DEAL_SERVICES = (ServiceType.SHOWROOM_VISIT.value, ServiceType.CONTRACT_SIGN.value)  # the car being sold is their subject
 WEEKDAYS = ("Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật")
-# Day period words; "tối đa" (at most) is not "tối" (evening).
-PERIOD = re.compile(r"(?<!\w)(sáng|trưa|chiều|tối(?!\s+đa)|đêm)(?!\w)", re.IGNORECASE)
 MAX_ASKS = 3  # turns asking the same thing (missing info / confirmation) before staff take over
 FAILED = BookingResult(ok=False, status="ERROR", message="Hệ thống chưa thực hiện được thao tác này.")
 
@@ -95,11 +76,12 @@ def _booking_detail(state: AgentState, facts: dict) -> tuple[str | None, str | N
     """(vehicle, work item) for staff: the car an appointment task pointed at, else car_model; plus
     service_detail."""
     interpretation = state.get("conversation_interpretation")
-    if fact_value(facts, "service_type") == ServiceType.CONTRACT_SIGN.value and fact_value(facts, "car_model"):
-        return fact_value(facts, "car_model"), fact_value(facts, "service_detail")
-    vehicle = next((t.car_model for t in (interpretation.tasks if interpretation else [])
+    service, car = fact_value(facts, "service_type"), fact_value(facts, "car_model")
+    pointed = next((t.car_model for t in (interpretation.tasks if interpretation else [])
                     if t.domain.value == "APPOINTMENT" and t.car_model), None)
-    vehicle = vehicle or fact_value(facts, "car_model")
+    # The contract's car wins; a showroom visit falls back to it; a service visit is about the customer's own vehicle.
+    vehicle = (car or pointed) if service == ServiceType.CONTRACT_SIGN.value else pointed or (
+        car if service in DEAL_SERVICES else None)
     return vehicle, fact_value(facts, "service_detail")
 
 
@@ -122,31 +104,6 @@ def _turn(state: AgentState) -> int:
 def _new_time_this_turn(state: AgentState) -> bool:
     interpretation = state.get("conversation_interpretation")
     return bool(interpretation and any(u.key == "appointment_when" for u in interpretation.slot_updates))
-
-
-def _ambiguous_hour(start: time, stated: str) -> bool:
-    """A 1-11 o'clock hour said without sáng/chiều/tối could be morning or evening; so could a PM hour the LLM
-    made from "8 giờ" (20:00) on its own."""
-    if PERIOD.search(stated):
-        return False
-    said = set(re.findall(r"\d{1,2}", stated))
-    return 1 <= start.hour <= 11 or (start.hour >= 13 and str(start.hour) not in said and str(start.hour - 12) in said)
-
-
-def _said_hour(start: time, stated: str) -> bool:
-    """The hour appears in the customer's words: "14h30" for 14:30, or "2 giờ chiều" for 14:00."""
-    said = {int(n) for n in re.findall(r"\d{1,2}", stated)}
-    return start.hour in said or (start.hour % 12 or 12) in said
-
-
-def _parse_time(raw_time) -> time | None | str:
-    """Validate the hour the LLM read; an error string goes back to it as the tool result."""
-    if not raw_time:
-        return None
-    try:
-        return time.fromisoformat(str(raw_time)).replace(second=0, microsecond=0)
-    except ValueError:
-        return "start_time phải có dạng HH:MM"
 
 
 def _fmt(day: str | None, start: str | None) -> str:
@@ -173,16 +130,13 @@ def _slot_problem(booking, session_id: str, service_type: str, day: str, at: str
                   exclude_id: int | None = None) -> dict | None:
     """Khung giờ đã đủ chỗ hoặc khách đã có lịch cùng khung giờ -> kết quả ok=False (kèm giờ còn trống) để báo khách TRƯỚC khi đề
     xuất. Lỗi kiểm tra không chặn đặt lịch: BookingService kiểm tra lại lúc ghi."""
-    check = getattr(booking, "check_slot", None)
-    if check is None:
-        return None
     try:
-        result = check(session_id, service_type, date.fromisoformat(day), time.fromisoformat(at) if at else None,
-                       exclude_id=exclude_id, phone=phone)
+        result = booking.check_slot(session_id, service_type, date.fromisoformat(day),
+                                    time.fromisoformat(at) if at else None, exclude_id=exclude_id, phone=phone)
     except Exception:
         logger.exception("Slot check failed")
         return None
-    return result.model_dump() if isinstance(result, BookingResult) and not result.ok else None
+    return None if result.ok else result.model_dump()
 
 
 def appointment(state: AgentState) -> dict:
@@ -195,6 +149,9 @@ def appointment(state: AgentState) -> dict:
                          and item.metadata.get("turn") == _turn(state) - 2), None)  # a stale one is never accepted
     approved = confirmation.metadata if confirmation and _accepted(state) else None
     vehicle, detail = _booking_detail(state, facts)
+    # Date and hour both come from the customer's words (date_extraction): the LLM only reads components, the code
+    # computes. The customer gives the exact hour too, so staff do not have to call back for it.
+    resolved = sync_date_fact(facts) or {}
     results: list[tuple[str, dict]] = []
     done: dict[str, dict] = {}  # executed writes; a repeated call must not write twice
     proposal: dict = {}
@@ -218,39 +175,24 @@ def appointment(state: AgentState) -> dict:
         proposal.update(action=action, args=args, text=_summary(action, args, info))
         return {"status": "NEEDS_CONFIRMATION", "proposal": proposal["text"]}
 
-    def when(tool_args: dict) -> tuple[str, str | None] | dict:
-        # The date comes from the customer's words (date_extraction), never from the LLM's own count.
-        resolved = sync_date_fact(facts) or {}
-        day_ok = resolved.get("status") == RESOLVED and date.fromisoformat(resolved["date"]) >= local_today()
-        parsed = _parse_time(tool_args.get("start_time"))
-        if isinstance(parsed, str):
-            return {"status": "INVALID_TIME", "message": parsed}
-        # "8 giờ" alone: ask sáng or tối once instead of booking 08:00 (or 20:00) on a guess.
-        # The current message counts too: a reply "Buổi sáng" may come with the previous turn's task text.
-        stated = (f"{fact_value(facts, 'appointment_when') or ''} {state.get('task_text') or ''} "
-                  f"{state.get('user_text', '')}")
-        if parsed and not _said_hour(parsed, stated):
-            parsed = None  # an hour the customer never said is the LLM's guess
-        # The customer gives the exact hour too, so staff do not have to call back for it.
-        gaps = ([] if day_ok else ["ngày hẹn cụ thể"]) + ([] if parsed else ["giờ hẹn cụ thể"])
-        if gaps:
+    def when() -> tuple[str, str] | dict:
+        day_ok = resolved.get("status") == RESOLVED
+        if resolved.get("time_status") == NEEDS_PERIOD:
+            return {"status": "NEEDS_AM_PM", "message": "Khách nói giờ mà chưa nói là buổi sáng hay chiều/tối."}
+        time_ok = resolved.get("time_status") == RESOLVED
+        if gaps := ([] if day_ok else ["ngày hẹn cụ thể"]) + ([] if time_ok else ["giờ hẹn cụ thể"]):
             missing[:] = gaps
             reason = ("ngày khách nói nằm ngoài khoảng nhận lịch (từ hôm nay đến hết tháng sau)"
                       if resolved.get("status") == OUT_OF_RANGE else
                       "chưa xác định được ngày cụ thể từ lời khách (VD: thứ 7 tuần này, ngày 15/12)" if not day_ok
                       else "khách chưa nêu giờ cụ thể (VD: 9 giờ sáng, 14h30)")
             return {"status": "MISSING", "missing": missing, "message": reason}
-        already_confirmed = approved is not None and approved.get("args", {}).get("time") == parsed.strftime(
-            "%H:%M") if parsed else False
-        if parsed and not already_confirmed and _ambiguous_hour(parsed, stated):
-            hour = parsed.hour % 12 or 12
-            return {"status": "NEEDS_AM_PM", "message": f"{hour} giờ sáng hay {hour} giờ chiều/tối?"}
-        return resolved["date"], parsed.strftime("%H:%M") if parsed else None
+        return resolved["date"], resolved["time"]
 
     def run_args(a: dict) -> tuple[date, time | None]:
         return date.fromisoformat(a["date"]), time.fromisoformat(a["time"]) if a["time"] else None
 
-    def create(tool_args: dict) -> dict:
+    def create() -> dict:
         phone = normalize_phone(str(fact_value(facts, "customer_phone") or ""))
         name = str(fact_value(facts, "customer_name") or "")
         present = {"customer_phone": phone, "customer_name": is_full_name(name)}  # a given name alone is not enough
@@ -259,7 +201,7 @@ def appointment(state: AgentState) -> dict:
             invalid = "customer_phone" in (state.get("rejected_slots") or [])
             return {"status": "MISSING", "missing": missing,
                     **({"invalid": "số điện thoại chưa đúng định dạng (10 số, bắt đầu bằng 0)"} if invalid else {})}
-        if isinstance(deduced := when(tool_args), dict):
+        if isinstance(deduced := when(), dict):
             return deduced
         args = {"service_type": str(fact_value(facts, "service_type")), "when": str(fact_value(facts, "appointment_when")),
                 "date": deduced[0], "time": deduced[1], "name": name, "phone": phone, "vehicle": vehicle,
@@ -283,10 +225,7 @@ def appointment(state: AgentState) -> dict:
         if name == "cancel_appointment":
             return confirm_or_run(name, {"appointment_id": appointment_id}, same_id, info,
                                   lambda a: booking.cancel_appointment(session_id, a["appointment_id"]))
-        if not fact_value(facts, "appointment_when"):
-            missing[:] = ["thời gian mới"]
-            return {"status": "MISSING", "missing": missing}
-        if isinstance(deduced := when(tool_args), dict):
+        if isinstance(deduced := when(), dict):
             return deduced
         args = {"appointment_id": appointment_id, "date": deduced[0], "time": deduced[1]}
         if blocked := _slot_problem(booking, session_id, info["service_type"], deduced[0], deduced[1],
@@ -307,8 +246,8 @@ def appointment(state: AgentState) -> dict:
                                             "service_label": LABELS.get(info.service_type, info.service_type)}
                                            for info in booking.list_appointments(session_id)[:5]]}
             elif name == "create_appointment":
-                result = create(tool_args)
-            elif name in WRITE_TOOLS:
+                result = create()
+            elif name in ("reschedule_appointment", "cancel_appointment"):
                 result = change(name, tool_args)
             else:
                 result = {"error": f"unknown tool {name}"}
@@ -323,7 +262,6 @@ def appointment(state: AgentState) -> dict:
         known["xe"] = vehicle
     waiting_for = f"{confirmation.text} (thao tác: {confirmation.metadata.get('action')})" if confirmation else "không"
     today = local_today()
-    resolved = sync_date_fact(facts) or {}
     booked_day = (_fmt(resolved["date"], None) if resolved.get("status") == RESOLVED
                   else "chưa xác định, cần hỏi khách ngày cụ thể" if resolved else "khách chưa nêu")
     context = (f"Hôm nay: {WEEKDAYS[today.weekday()]} {today:%d/%m/%Y}\nNgày hẹn đã xác định: {booked_day}\n"
@@ -343,10 +281,12 @@ def _fallback(results: list[tuple[str, dict]], proposal: dict, missing: list[str
         return f"Dạ bạn xác nhận giúp mình: bạn muốn {proposal['text']} phải không ạ?"
     if missing:
         return f"Dạ bạn cho mình xin {missing[0]} nhé."
-    if results and results[-1][1].get("status") in ("SLOT_FULL", "DUPLICATE"):
-        return f"{results[-1][1].get('message', '')} Bạn chọn giúp mình một giờ khác nhé.".strip()
-    if results and (message := results[-1][1].get("message")):
-        return message if results[-1][1].get("ok") else f"{message} Bạn có thể gọi hotline {settings.hotline}."
+    last = results[-1][1] if results else {}
+    message = last.get("message", "")
+    if last.get("status") in ("SLOT_FULL", "DUPLICATE"):
+        return f"{message} Bạn chọn giúp mình một giờ khác nhé.".strip()
+    if message:
+        return message if last.get("ok") else f"{message} Bạn có thể gọi hotline {settings.hotline}."
     return "Dạ mình chưa tìm thấy lịch hẹn nào của bạn ạ."
 
 
@@ -389,7 +329,11 @@ def _update(state: AgentState, facts: dict, workflow: ActiveWorkflow | None, min
     elif succeeded:
         update["pending_interactions"] = _pending(mine, InteractionStatus.RESOLVED)
         if "create_appointment" in succeeded:
-            for key in BOOKING_KEYS:  # the stored request must not drive a second booking
+            # The finished task's leftovers must not drive the next one: the stored request would book twice, and
+            # the showroom/contract car and agreed price belong to that deal. car_list stays (the customer may
+            # still pick from it); a MAINTENANCE/REPAIR car is the customer's own vehicle, so it stays too.
+            deal = fact_value(facts, "service_type") in DEAL_SERVICES
+            for key in BOOKING_KEYS | ({"car_model", "decided_price"} if deal else set()):
                 facts.pop(key, None)
             update["active_workflow"] = workflow.model_copy(update={
                 "status": WorkflowStatus.WAITING_FOR_APPROVAL,

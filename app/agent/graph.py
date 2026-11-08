@@ -72,7 +72,7 @@ def build_graph():
 
 # Pydantic models/enums kept in AgentState; LangGraph only deserializes allowlisted types from a checkpoint.
 CHECKPOINT_TYPES = [("app.contracts.schemas", name) for name in (
-    "ActiveWorkflow", "ConversationInterpretation", "EntityReference", "FactSource", "Intent", "InteractionKind",
+    "ActiveWorkflow", "ConversationInterpretation", "FactSource", "Intent", "InteractionKind",
     "InteractionStatus", "KnownFact", "PendingInteraction", "PolicySignals", "SlotOperation",
     "SlotUpdate", "TaskInterpretation", "TaskRelationship", "WorkflowStatus")]
 assert all(hasattr(schemas, name) for _, name in CHECKPOINT_TYPES)

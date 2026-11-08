@@ -1,7 +1,8 @@
 """Appointment date: the LLM reads WHICH date the customer means (components only); code computes the date.
 
 "thứ 7 tuần sau" -> {kind: WEEKDAY, weekday: THU_7, week_offset: 1} -> 2026-11-14. The LLM never counts days,
-so a miscount cannot reach a booking. ``sync_date_fact`` keeps the derived ``appointment_date`` fact in step with
+so a miscount cannot reach a booking. The hour is read the same way (hour + sáng/chiều) and converted to HH:MM here.
+``sync_date_fact`` keeps the derived ``appointment_date`` fact in step with
 ``appointment_when`` (the customer's own words): Preprocessing calls it after each accepted time, and the
 appointment agent books only a RESOLVED date, otherwise it asks the customer for a specific day.
 """
@@ -21,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 TZ = ZoneInfo("Asia/Ho_Chi_Minh")
 RESOLVED, NEEDS_CLARIFICATION, OUT_OF_RANGE = "RESOLVED", "NEEDS_CLARIFICATION", "OUT_OF_RANGE"
+MISSING, NEEDS_PERIOD = "MISSING", "NEEDS_PERIOD"  # time_status values besides RESOLVED
 
 
 class Kind(str, Enum):
@@ -40,6 +42,11 @@ class Weekday(str, Enum):
     CHU_NHAT = "CHU_NHAT"
 
 
+class Period(str, Enum):
+    AM = "AM"
+    PM = "PM"
+
+
 class DateInfo(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -51,10 +58,13 @@ class DateInfo(BaseModel):
     month: Optional[int] = None
     year: Optional[int] = None
     month_offset: Optional[int] = None  # 0=this month, 1=next month
+    hour: Optional[int] = None          # hour as the customer said it: "2 giờ chiều" -> 2, "14h30" -> 14
+    minute: Optional[int] = None
+    period: Optional[Period] = None     # AM (sáng) | PM (trưa/chiều/tối); null when no day period was said
 
 
 PROMPT = """
-Extract the date meaning from the Vietnamese message.
+Extract the date and the time of day from the Vietnamese message.
 Return components only. NEVER calculate the final date.
 
 Reference date and weekday are provided in the user message.
@@ -87,7 +97,8 @@ Never confuse thứ 7 with chủ nhật.
 - ngày 15 tháng sau: day=15, month_offset=1
 - ngày 15 tháng này: day=15, month_offset=0
 - 15/12/2026: day=15, month=12, year=2026
-Vietnamese numeric dates use DD/MM/YYYY.
+- 15/11 (no year): day=15, month=11, year=null
+Vietnamese numeric dates use DD/MM[/YYYY]; the number after the slash is the month.
 
 4. UNKNOWN:
 Use UNKNOWN if no exact date can be determined.
@@ -99,10 +110,14 @@ Examples:
 - đầu tuần sau (not supported by this extractor)
 - lúc 8 giờ (time only, no date)
 
+5. TIME OF DAY (independent of the date kind, also with UNKNOWN):
+- hour/minute exactly as said: "8 giờ" hour=8; "14h30" hour=14 minute=30; "2 giờ chiều" hour=2.
+- period: sáng=AM; trưa/chiều/tối/đêm=PM; null when no such word.
+- "sáng"/"chiều" without an hour: hour=null (never invent an hour).
+An hour is never a day or a month.
+
 Ignore activity words such as "tôi đến", "tôi qua", "tôi ghé",
 "tôi muốn qua", and "tôi qua ký". They do not change the date.
-Ignore times of day such as "sáng", "chiều", "tối", "8 giờ", "14h30".
-An hour is never a day or a month.
 
 Do not guess missing information. Do not return a final calendar date.
 """
@@ -165,20 +180,38 @@ def resolve(info: DateInfo, today: date) -> date | None:
     return None
 
 
+def resolve_time(info: DateInfo) -> tuple[str, str | None]:
+    """(time_status, "HH:MM"): MISSING without an hour; NEEDS_PERIOD for 1-11 o'clock said without sáng/chiều
+    (could be 08:00 or 20:00); an hour of 13-23 is a 24-hour time and needs no period."""
+    hour, minute = info.hour, info.minute or 0
+    if hour is None or not 0 <= hour <= 23 or not 0 <= minute <= 59:
+        return MISSING, None
+    if hour > 12 or hour == 0 or hour == 12:
+        pass
+    elif info.period is None:
+        return NEEDS_PERIOD, None
+    elif info.period == Period.PM:
+        hour += 12
+    return RESOLVED, f"{hour:02d}:{minute:02d}"
+
+
 def extract_date(text: str, today: date | None = None) -> dict:
-    """{"status": RESOLVED | NEEDS_CLARIFICATION | OUT_OF_RANGE, "date": ISO date or None}."""
+    """{"status": RESOLVED | NEEDS_CLARIFICATION | OUT_OF_RANGE, "date": ISO date or None,
+    "time_status": RESOLVED | MISSING | NEEDS_PERIOD, "time": "HH:MM" or None}."""
     today = today or local_today()
     info = generate_structured(PROMPT, f"Today: {today.isoformat()} ({today:%A})\nTimezone: Asia/Ho_Chi_Minh\n"
                                        f"Expression: {text}", DateInfo)
     if info is None:
-        return {"status": NEEDS_CLARIFICATION, "date": None}
+        return {"status": NEEDS_CLARIFICATION, "date": None, "time_status": MISSING, "time": None}
     result = resolve(info, today)
-    logger.info("Date extraction %r -> %s -> %s", text, info.model_dump(mode="json", exclude_none=True), result)
+    time_status, hhmm = resolve_time(info)
+    logger.info("Date extraction %r -> %s -> %s %s", text, info.model_dump(mode="json", exclude_none=True), result, hhmm)
+    clock = {"time_status": time_status, "time": hhmm}
     if result is None:
-        return {"status": NEEDS_CLARIFICATION, "date": None}
+        return {"status": NEEDS_CLARIFICATION, "date": None, **clock}
     if not today <= result <= allowed_end(today):
-        return {"status": OUT_OF_RANGE, "date": None}
-    return {"status": RESOLVED, "date": result.isoformat()}
+        return {"status": OUT_OF_RANGE, "date": None, **clock}
+    return {"status": RESOLVED, "date": result.isoformat(), **clock}
 
 
 def sync_date_fact(facts: dict) -> dict | None:

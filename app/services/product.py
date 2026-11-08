@@ -48,8 +48,9 @@ class DbProductService:
 
     def find_model(self, name: str, limit: int = 3) -> list[Product]:
         """Tra đúng dòng xe khách nêu: tên xe phải chứa MỌI từ của tên khách nói ('Toyota Vios' không khớp
-        'Má phanh Toyota'). Không có thì trả rỗng, không thay bằng xe khác."""
-        words = _name_words(name)
+        'Má phanh Toyota'). Không có thì trả rỗng, không thay bằng xe khác.
+        Số và từ ngắn cũng tính ('Aumark-7.5T', '9T', 'WB 3800' phân biệt các mẫu cùng dòng)."""
+        words = [w for w in re.findall(r"\w+(?:\.\w+)*", name.lower()) if w not in GENERIC_WORDS]
         if not words:
             return []
         with SessionLocal() as db:
@@ -72,21 +73,4 @@ class DbProductService:
                     .filter(CatalogItem.kind.in_(VEHICLE_KINDS)).group_by(CatalogItem.kind).all())
             return {kind: count for kind, count in rows}
 
-    def get_popular(self, limit: int = 3) -> list[Product]:
-        """Trả danh sách xe phổ biến (hiện tại theo thứ tự catalog, sau có thể dùng lượt xem thực)."""
-        with SessionLocal() as db:
-            items = (db.query(CatalogItem).filter(CatalogItem.kind.in_(VEHICLE_KINDS))
-                     .order_by(CatalogItem.id).limit(limit).all())
-            return [_to_product(i) for i in items]
 
-    def get_by_id(self, product_id: int) -> Optional[Product]:
-        """Tra đúng một mẫu xe theo id (định danh ổn định) sau khi đã xác định khách nhắc mẫu nào."""
-        with SessionLocal() as db:
-            item = db.get(CatalogItem, product_id)
-            return _to_product(item) if item and item.kind in VEHICLE_KINDS else None
-
-    def get_by_name(self, name: str) -> Optional[Product]:
-        """Tìm xe theo tên (case-insensitive partial match)."""
-        with SessionLocal() as db:
-            item = db.query(CatalogItem).filter(CatalogItem.name.ilike(f"%{name}%")).first()
-            return _to_product(item) if item else None
