@@ -1,17 +1,17 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách nói cảm ơn sau khi bot nhắc cung cấp họ tên để hoàn tất đặt lịch xem xe.",
+      "message_summary": "Khách hỏi tư vấn giờ nào hợp lý để đặt lịch bảo dưỡng, đang trả lời câu hỏi bot hỏi ngày và giờ hẹn.",
       "tasks": [
         {
           "task_id": "t1",
-          "domain": "OTHER",
-          "action": "general_conversation",
-          "text": "Cảm ơn",
-          "relationship": "CONTINUE_TASK",
-          "referenced_interaction_id": "appointment_5fc560d2",
+          "domain": "APPOINTMENT",
+          "action": "book_appointment",
+          "text": "Theo bạn mấy giờ là hợp lý",
+          "relationship": "ANSWER_TO_QUESTION",
+          "referenced_interaction_id": "appointment_05fe8a16",
           "requires_clarification": false,
-          "car_model": null,
+          "car_model": "FOTON Aumark-12T",
           "inquiry_only": false
         }
       ],
@@ -31,20 +31,12 @@
       "uncertain": false
     },
     "known_facts": {
-      "customer_name": "[REDACTED]",
-      "budget_vnd": {
-        "key": "budget_vnd",
-        "value": 500000000,
-        "source": "USER_EXPLICIT",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
       "car_list": {
         "key": "car_list",
         "value": [
-          "HYUNDAI New Mighty N250L",
-          "KIA Frontier K250 Chassis",
-          "HYUNDAI New Mighty N250"
+          "FOTON Aumark-12T",
+          "FUSO Canter FI170",
+          "JAC N800 Plus E5"
         ],
         "source": "INFERRED",
         "updated_at_message_id": null,
@@ -52,38 +44,20 @@
       },
       "car_model": {
         "key": "car_model",
-        "value": "KIA Frontier K250 Chassis",
+        "value": "FOTON Aumark-12T",
         "source": "INFERRED",
         "updated_at_message_id": null,
         "confidence": null
       },
+      "customer_name": "[REDACTED]",
+      "customer_phone": "[REDACTED]",
       "service_type": {
         "key": "service_type",
-        "value": "SHOWROOM_VISIT",
+        "value": "MAINTENANCE",
         "source": "USER_EXPLICIT",
         "updated_at_message_id": null,
         "confidence": null
-      },
-      "appointment_when": {
-        "key": "appointment_when",
-        "value": "Thứ 5 tuần sau",
-        "source": "USER_EXPLICIT",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "appointment_date": {
-        "key": "appointment_date",
-        "value": {
-          "text": "Thứ 5 tuần sau",
-          "reference": "2026-11-07",
-          "status": "RESOLVED",
-          "date": "2026-11-12"
-        },
-        "source": "APPLICATION_VERIFIED",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "customer_phone": "[REDACTED]"
+      }
     },
     "rejected_slots": [],
     "trace": [

@@ -37,8 +37,9 @@ AVAILABLE_ACTIONS = [
      "description": "Customer explicitly asks to make/sign the contract, or gives contract details (address, agreed price)",
      "required_fields": ["customer_name", "customer_phone", "customer_address", "car_model", "decided_price"]},
     {"action": "request_discount", "domain": "DISCOUNT", "description": "Customer bargains; manager must approve"},
+    {"action": "greeting", "domain": "GREETING", "description": "Customer greets (chào, xin chào, hello)"},
     {"action": "general_conversation", "domain": "OTHER",
-     "description": "Greetings, clarification, out-of-scope or general conversation"},
+     "description": "Clarification, out-of-scope or general conversation (not greetings)"},
 ]
 
 

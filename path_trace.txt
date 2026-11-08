@@ -1,69 +1,69 @@
-SESSION : test_summary_97698332
-USER MSG: Cảm ơn
+SESSION : e6288691-dfeb-4d4a-bda3-438ae2323468
+USER MSG: Theo bạn mấy giờ là hợp lý
 
-============================================================ input (0ms) ============================================================
-USER TEXT : Cảm ơn
-mode      : BOT  turn:18
-car_list  : [HYUNDAI New Mighty N250L, KIA Frontier K250 Chassis, HYUNDAI New Mighty N250]
-history   : 20 msgs
+============================================================ input (3777ms) ============================================================
+USER TEXT : Theo bạn mấy giờ là hợp lý
+mode      : BOT  turn:22
+car_list  : [FOTON Aumark-12T, FUSO Canter FI170, JAC N800 Plus E5]
+history   : 24 msgs
 --- OUT ---
-known_facts: customer_name=[REDACTED]  |  budget_vnd=500000000  |  car_list=[HYUNDAI New Mighty N250L, KIA Frontier K250 Chassis, HYUNDAI New Mighty N250]  |  car_model=KIA Frontier K250 Chassis  |  service_type=SHOWROOM_VISIT  |  appointment_when=Thứ 5 tuần sau  |  appointment_date={text=Thứ 5 tuần sau, reference=2026-11-07, status=RESOLVED, date=2026-11-12}  |  customer_phone=[REDACTED]
+known_facts: car_list=[FOTON Aumark-12T, FUSO Canter FI170, JAC N800 Plus E5]  |  car_model=FOTON Aumark-12T  |  customer_name=[REDACTED]  |  customer_phone=[REDACTED]  |  service_type=MAINTENANCE
 
-============================================================ preprocess (2266ms) ============================================================
-USER TEXT : Cảm ơn
-car_list  : [HYUNDAI New Mighty N250L, KIA Frontier K250 Chassis, HYUNDAI New Mighty N250]
+============================================================ preprocess (2590ms) ============================================================
+USER TEXT : Theo bạn mấy giờ là hợp lý
+car_list  : [FOTON Aumark-12T, FUSO Canter FI170, JAC N800 Plus E5]
 pending   : 1 open
 --- LLM INPUT ---
 SYSTEM: Bạn là Preprocessing Agent của trợ lý gara ô tô. Phân tích TIN NHẮN MỚI NHẤT của khách trong ngữ cảnh hội thoại (tóm tắt các lượt trước + các tin gần nhất) và CONVERSATION STATE, trả về đúng schema Co…
-USER  : Cảm ơn
-SUMMARY (727 chars):
-  - Khách tên Khang, muốn mua xe tải; ngân sách tối đa 500 triệu đồng. - Chưa nêu mục đích chở hàng, tải trọng hoặc loại thùng mong muốn. - Bot giới thiệu trong ngân sách: HYUNDAI New Mighty N250L (480 triệu), KIA Frontier K250 Chassis (465 triệu), HYUNDAI New Mighty N250 (459 triệu); giá áp dụng từ 1…
-HISTORY WINDOW (8 msgs, showing last 3):
-  [ai] Mình đã ghi nhận số điện thoại 0901234567. Bạn cho mình họ tên đầy đủ để hoàn tất đặt lịch nhé?
-  [user] Xác nhận lịch hẹn
-  [ai] Mình ghi nhận bạn muốn đặt lịch xem xe KIA Frontier K250 Chassis vào thứ Năm 12/11/2026. Bạn vui lòng cung cấp họ tên đầy đủ nhé?
+USER  : Theo bạn mấy giờ là hợp lý
+SUMMARY (717 chars):
+  - Khách muốn mua FOTON Aumark-12T bản WB 4200: 3 chỗ, động cơ Cummins diesel 3,8L, hộp số sàn 6 cấp. - Tải trọng và kích thước thùng chưa có dữ liệu, cần nhân viên xác nhận; chưa rõ nhu cầu chở hàng, loại thùng, ngân sách. - Bot từng giới thiệu thêm FUSO Canter FI170 và JAC N800 Plus E5; danh mục có…
+HISTORY WINDOW (6 msgs, showing last 3):
+  [ai] Dạ, mình chưa hiểu rõ ý bạn lắm ạ. Bạn nói rõ hơn giúp mình được không ạ?
+  [user] Chào bạn
+  [ai] Chào bạn! Mình đang hỗ trợ đặt lịch bảo dưỡng. Bạn muốn hẹn vào ngày nào và lúc mấy giờ?
 --- OUT ---
-  tasks:     OTHER:general_conversation(car=None)
+  tasks:     APPOINTMENT:book_appointment(car=FOTON Aumark-12T)
   complexity:LOW  uncertain:False
-car_list  : [HYUNDAI New Mighty N250L, KIA Frontier K250 Chassis, HYUNDAI New Mighty N250]
+car_list  : [FOTON Aumark-12T, FUSO Canter FI170, JAC N800 Plus E5]
 route     : None  ()
 
 ============================================================ policy_guard (0ms) ============================================================
-  tasks:     OTHER:general_conversation(car=None)
+  tasks:     APPOINTMENT:book_appointment(car=FOTON Aumark-12T)
   complexity:LOW  uncertain:False
 --- OUT ---
 route     : router  ()
 
 ============================================================ router (0ms) ============================================================
-  tasks:     OTHER:general_conversation(car=None)
+  tasks:     APPOINTMENT:book_appointment(car=FOTON Aumark-12T)
   complexity:LOW  uncertain:False
 --- OUT ---
-route     : None  plan:[{'agent': 'appointment', 'text': 'Cảm ơn', 'order': 0, 'task_ids': ['t1']}]
+route     : None  plan:[{'agent': 'appointment', 'text': 'Theo bạn mấy giờ là hợp lý', 'order': 0, 'task_ids': ['t1']}]
 
-============================================================ appointment (7094ms) ============================================================
-task_text : Cảm ơn
+============================================================ appointment (4096ms) ============================================================
+task_text : Theo bạn mấy giờ là hợp lý
 task_ids  : ['t1']
-  tasks:     OTHER:general_conversation(car=None)
+  tasks:     APPOINTMENT:book_appointment(car=FOTON Aumark-12T)
   complexity:LOW  uncertain:False
 --- OUT ---
-  reply [appointment]: Mình ghi nhận bạn muốn đặt lịch xem xe KIA Frontier K250 Chassis vào thứ Năm 12/11/2026. Bạn cho mình họ tên đầy đủ nhé?
+  reply [appointment]: Mình chưa có thông tin giờ hoạt động của xưởng để đề xuất giờ phù hợp. Bạn cho mình ngày muốn hẹn nhé; nếu chưa chọn giờ…
 
 ============================================================ validation (0ms) ============================================================
-  [appointment] Mình ghi nhận bạn muốn đặt lịch xem xe KIA Frontier K250 Chassis vào thứ Năm 12/11/2026. Bạn cho mình họ tên đầy đủ nhé?
+  [appointment] Mình chưa có thông tin giờ hoạt động của xưởng để đề xuất giờ phù hợp. Bạn cho mình ngày muốn hẹn nhé; nếu chưa chọn giờ…
 --- OUT ---
 route     : compose  feedback:
 
 ============================================================ compose (0ms) ============================================================
-  [appointment] Mình ghi nhận bạn muốn đặt lịch xem xe KIA Frontier K250 Chassis vào thứ Năm 12/11/2026. Bạn cho mình họ tên đầy đủ nhé?
+  [appointment] Mình chưa có thông tin giờ hoạt động của xưởng để đề xuất giờ phù hợp. Bạn cho mình ngày muốn hẹn nhé; nếu chưa chọn giờ…
 --- OUT ---
-draft     : Mình ghi nhận bạn muốn đặt lịch xem xe KIA Frontier K250 Chassis vào thứ Năm 12/11/2026. Bạn cho mình họ tên đầy đủ nhé?
+draft     : Mình chưa có thông tin giờ hoạt động của xưởng để đề xuất giờ phù hợp. Bạn cho mình ngày muốn hẹn nhé; nếu chưa chọn giờ…
 
 ============================================================ output_guard (0ms) ============================================================
-draft     : Mình ghi nhận bạn muốn đặt lịch xem xe KIA Frontier K250 Chassis vào thứ Năm 12/11/2026. Bạn cho mình họ tên đầy đủ nhé?
+draft     : Mình chưa có thông tin giờ hoạt động của xưởng để đề xuất giờ phù hợp. Bạn cho mình ngày muốn hẹn nhé; nếu chưa chọn giờ…
 --- OUT ---
 needs_human: None  final:
 
 ============================================================ respond (0ms) ============================================================
-final     : Mình ghi nhận bạn muốn đặt lịch xem xe KIA Frontier K250 Chassis vào thứ Năm 12/11/2026. Bạn vui lòng cung cấp họ tên đầ…
+final     : Chào bạn! Mình đang hỗ trợ đặt lịch bảo dưỡng. Bạn muốn hẹn vào ngày nào và lúc mấy giờ?
 --- OUT ---
-final_reply: Mình ghi nhận bạn muốn đặt lịch xem xe KIA Frontier K250 Chassis vào thứ Năm 12/11/2026. Bạn cho mình họ tên đầy đủ nhé?
+final_reply: Mình chưa có thông tin giờ hoạt động của xưởng để đề xuất giờ phù hợp. Bạn cho mình ngày muốn hẹn nhé; nếu chưa chọn giờ…
