@@ -3,6 +3,7 @@
 This agent gives the LLM direct access to product search tools, allowing it to
 make intelligent decisions based on conversation context rather than brittle keyword matching.
 """
+import json
 from typing import Any
 
 from app.agent.llm import generate_with_tools
@@ -28,6 +29,9 @@ Bạn là trợ lý tư vấn xe của xưởng Foton, thân thiện, trả lờ
 6. Khách nói muốn xem bao nhiêu mẫu ("3 xe", "top 5"): truyền đúng số đó vào limit và trả đúng chừng đó mẫu. Khách hỏi
    xe bán chạy/phổ biến/nổi bật: dữ liệu KHÔNG có số liệu bán hàng, nên gọi browse_catalog, nói rõ đây là một số mẫu trong
    danh mục chứ không phải xếp hạng bán chạy, và KHÔNG gọi mẫu nào là bán chạy nhất.
+7. browse_catalog chỉ trả TÊN xe: liệt kê tên, KHÔNG nêu giá hay thông số. Khi khách yêu cầu thông tin chi tiết/thông số
+   của các xe cụ thể: gọi find_by_model_name cho từng xe và nêu thông số của đúng các xe đó.
+8. Trả lời gọn, tối đa khoảng 250 token (khoảng 120 từ): chỉ nêu điều khách hỏi, không lặp lại, không rào đón.
 """ + STYLE_RULES
 
 
@@ -56,12 +60,12 @@ PRODUCT_SEARCH_TOOLS = [
     _tool("find_by_model_name", "Tìm xe theo tên mẫu cụ thể ('FUSO Canter', 'ISUZU Forward'...); dùng cả khi khách hỏi "
           "thông số của một mẫu (mặc định 3 kết quả).",
           {"model_name": {"type": "string", "description": "Tên mẫu xe khách hỏi"}, **_LIMIT}, ["model_name"]),
-    _tool("browse_catalog", "Danh sách xe trong catalog khi khách muốn xem tất cả / có mẫu nào / xe nổi bật "
-          "(mặc định 10 mẫu).", _LIMIT),
+    _tool("browse_catalog", "Danh sách TÊN xe trong catalog khi khách muốn xem tất cả / có mẫu nào / xe nổi bật "
+          "(mặc định 5 mẫu). Chỉ trả tên; cần giá/thông số thì gọi find_by_model_name.", _LIMIT),
 ]
 
 
-MAX_RESULTS = 20
+MAX_RESULTS = 5
 
 
 def _limit(tool_input: dict[str, Any], default: int) -> int:
@@ -85,9 +89,10 @@ def _execute_tool(tool_name: str, tool_input: dict[str, Any]) -> dict[str, Any]:
             products = service.find_model(name=tool_input["model_name"], limit=_limit(tool_input, 3))
             note = None if products else f"Không tìm thấy mẫu '{tool_input['model_name']}'"
         elif tool_name == "browse_catalog":
-            products = service.list_vehicles(limit=_limit(tool_input, 10))
+            products = service.list_vehicles(limit=_limit(tool_input, 5))
             note = ", ".join(f"{count} mẫu xe {'tải' if kind == 'TRUCK' else 'con'}"
                              for kind, count in service.vehicle_summary().items())
+            return {"products": [{"name": p.name} for p in products], "message": note}  # names only: lowest latency
         else:
             return {"error": f"Unknown tool: {tool_name}"}
     except Exception as e:
@@ -105,6 +110,14 @@ def _product_to_dict(product: Product) -> dict:
         "specs": product.specs or {},
         "kind": product.kind
     }
+
+
+def _viewed_products(names: list[str]) -> list[dict]:
+    """Catalog rows of the cars in car_list (the list the customer counts from). Read from the catalog each turn so
+    the data and the prices the output guard allows follow the list as it changes."""
+    service = get_services().product
+    return [{"name": p.name, "list_price_vnd": p.list_price_vnd, "price_as_of": str(p.price_as_of)}
+            for name in names for p in service.find_model(name, limit=10) if p.name.casefold() == name.casefold()]
 
 
 # Contact, booking and deal data stay out; a car chosen for an earlier deal is not a fact about this request.
@@ -132,7 +145,9 @@ def sales(state: AgentState) -> dict:
                  if not cars else "") + "\n" + PURCHASE_INTEREST_NOTE
 
     viewed = fact_value(state.get("known_facts"), "car_list") or []
-    viewed_line = f"\nXe khách đã xem (có thể chưa liên quan tới tin nhắn này): {', '.join(viewed)}\n" if viewed else ""
+    viewed_products = _viewed_products(viewed)
+    viewed_line = (f"\nXe khách đã xem (có thể chưa liên quan tới tin nhắn này), dữ liệu catalog: "
+                   f"{json.dumps(viewed_products, ensure_ascii=False)}\n" if viewed_products else "")
     context = (f"Tin nhắn của khách: {state.get('task_text') or state.get('user_text', '')}\n\n"
                f"Thông tin đã biết về khách:\n{_format_known_facts(state)}\n{viewed_line}{note}")
     result = generate_with_tools(
@@ -150,9 +165,10 @@ def sales(state: AgentState) -> dict:
     else:
         reply = result.get("final_response", "Xin lỗi, mình chưa thể tư vấn được ạ.")
 
-    # Prices the reply may quote: exactly those the tools returned (checked by the output guard).
-    products = [p for call in result.get("tool_calls", []) for p in call.get("result", {}).get("products", [])]
+    # Prices the reply may quote: the cars the tools returned plus the cars in car_list (checked by the output guard).
+    products = viewed_products + [p for call in result.get("tool_calls", [])
+                                  for p in call.get("result", {}).get("products", [])]
     update = {"trace": ["sales"], "answers": [answer(state, "sales", reply)]}
-    if products:
-        update["allowed_amounts"] = [fmt_vnd(p["list_price_vnd"]) for p in products]
+    if priced := [p["list_price_vnd"] for p in products if "list_price_vnd" in p]:  # browse results carry names only
+        update["allowed_amounts"] = [fmt_vnd(price) for price in priced]
     return update

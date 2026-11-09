@@ -1,22 +1,38 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách hỏi xe/sản phẩm nào đã được chọn để bảo dưỡng; trong yêu cầu đặt lịch bảo dưỡng hiện tại chưa nêu mẫu xe.",
+      "message_summary": "Khách muốn xem thông số chi tiết của xe số 1 và số 2 trong danh sách vừa được giới thiệu.",
       "tasks": [
         {
-          "task_id": "task_1",
-          "domain": "OTHER",
-          "action": "general_conversation",
-          "text": "Nhưng sản phẩm tôi muốn bảo dưỡng là gì",
-          "relationship": "CONTINUE_TASK",
+          "task_id": "t1",
+          "domain": "SALES",
+          "action": "product_specs",
+          "text": "thông số chi tiết của xe số 1",
+          "relationship": "NEW_REQUEST",
           "referenced_interaction_id": null,
           "requires_clarification": false,
-          "car_model": null,
+          "car_model": "FUSO Canter FI170 (Thùng mui bạt)",
+          "inquiry_only": false
+        },
+        {
+          "task_id": "t2",
+          "domain": "SALES",
+          "action": "product_specs",
+          "text": "thông số chi tiết của xe số 2",
+          "relationship": "NEW_REQUEST",
+          "referenced_interaction_id": null,
+          "requires_clarification": false,
+          "car_model": "FUSO Canter FI170L (Thùng mui bạt)",
           "inquiry_only": false
         }
       ],
       "slot_updates": [],
-      "presented_cars": [],
+      "presented_cars": [
+        "FUSO Canter FI170 (Thùng mui bạt)",
+        "FUSO Canter FI170L (Thùng mui bạt)",
+        "ISUZU Forward FRR90NE5 Chassis",
+        "ISUZU Forward FRR90QE5 Chassis"
+      ],
       "signals": {
         "wants_human": false,
         "complaint": false,
@@ -33,27 +49,12 @@
       "car_list": {
         "key": "car_list",
         "value": [
-          "THACO Linker T2-12 (WB 4500)",
-          "ISUZU Q-Series QLR77FE5 Chassis",
-          "THACO Linker T2-12 (WB 3800)"
+          "FUSO Canter FI170 (Thùng mui bạt)",
+          "FUSO Canter FI170L (Thùng mui bạt)",
+          "ISUZU Forward FRR90NE5 Chassis",
+          "ISUZU Forward FRR90QE5 Chassis"
         ],
         "source": "INFERRED",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "customer_name": "[REDACTED]",
-      "customer_phone": "[REDACTED]",
-      "budget_vnd": {
-        "key": "budget_vnd",
-        "value": 600000000,
-        "source": "USER_EXPLICIT",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "service_type": {
-        "key": "service_type",
-        "value": "MAINTENANCE",
-        "source": "USER_EXPLICIT",
         "updated_at_message_id": null,
         "confidence": null
       }
