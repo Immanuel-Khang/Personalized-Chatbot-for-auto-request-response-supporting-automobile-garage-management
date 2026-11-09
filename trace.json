@@ -1,38 +1,22 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách muốn xem thông số chi tiết của xe số 1 và số 2 trong danh sách vừa được giới thiệu.",
+      "message_summary": "Khách xác nhận đề xuất đặt lịch xem xe THACO Linker T2-13 tại showroom vào Thứ 7, 21/11/2026 lúc 08:00.",
       "tasks": [
         {
           "task_id": "t1",
-          "domain": "SALES",
-          "action": "product_specs",
-          "text": "thông số chi tiết của xe số 1",
-          "relationship": "NEW_REQUEST",
-          "referenced_interaction_id": null,
+          "domain": "APPOINTMENT",
+          "action": "book_appointment",
+          "text": "Đúng rồi",
+          "relationship": "ACCEPT_OFFER",
+          "referenced_interaction_id": "appointment_0504e6c0",
           "requires_clarification": false,
-          "car_model": "FUSO Canter FI170 (Thùng mui bạt)",
-          "inquiry_only": false
-        },
-        {
-          "task_id": "t2",
-          "domain": "SALES",
-          "action": "product_specs",
-          "text": "thông số chi tiết của xe số 2",
-          "relationship": "NEW_REQUEST",
-          "referenced_interaction_id": null,
-          "requires_clarification": false,
-          "car_model": "FUSO Canter FI170L (Thùng mui bạt)",
+          "car_model": null,
           "inquiry_only": false
         }
       ],
       "slot_updates": [],
-      "presented_cars": [
-        "FUSO Canter FI170 (Thùng mui bạt)",
-        "FUSO Canter FI170L (Thùng mui bạt)",
-        "ISUZU Forward FRR90NE5 Chassis",
-        "ISUZU Forward FRR90QE5 Chassis"
-      ],
+      "presented_cars": [],
       "signals": {
         "wants_human": false,
         "complaint": false,
@@ -42,19 +26,54 @@
         "note": null
       },
       "complexity": "LOW",
-      "accepts_offer": null,
+      "accepts_offer": true,
       "uncertain": false
     },
     "known_facts": {
+      "customer_name": "[REDACTED]",
       "car_list": {
         "key": "car_list",
         "value": [
           "FUSO Canter FI170 (Thùng mui bạt)",
-          "FUSO Canter FI170L (Thùng mui bạt)",
-          "ISUZU Forward FRR90NE5 Chassis",
-          "ISUZU Forward FRR90QE5 Chassis"
+          "THACO Linker T2-13"
         ],
         "source": "INFERRED",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "car_model": {
+        "key": "car_model",
+        "value": "THACO Linker T2-13",
+        "source": "INFERRED",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "service_type": {
+        "key": "service_type",
+        "value": "SHOWROOM_VISIT",
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "appointment_when": {
+        "key": "appointment_when",
+        "value": "Thứ 7 tuần tới, lúc 8 giờ sáng",
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "customer_phone": "[REDACTED]",
+      "appointment_date": {
+        "key": "appointment_date",
+        "value": {
+          "text": "Thứ 7 tuần tới, lúc 8 giờ sáng",
+          "reference": "2026-11-09",
+          "status": "RESOLVED",
+          "date": "2026-11-21",
+          "time_status": "RESOLVED",
+          "time": "08:00"
+        },
+        "source": "APPLICATION_VERIFIED",
         "updated_at_message_id": null,
         "confidence": null
       }

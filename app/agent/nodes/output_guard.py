@@ -12,7 +12,7 @@ FORBIDDEN = re.compile(r"(giảm\s*\d+\s*%|tặng|miễn phí|cam kết|đảm b
 AMOUNT = re.compile(r"\d[\d\.]*\s*(?:đồng|triệu|tỷ|vnđ)", re.IGNORECASE)
 
 
-def _violation(draft: str, allowed: set[str]) -> str | None:
+def violation(draft: str, allowed: set[str]) -> str | None:
     if FORBIDDEN.search(draft):
         return "OUTPUT_GUARD: cam kết/giảm giá"
     # Chỉ kiểm tra số tiền khi allowed_amounts không rỗng, và chỉ dạng chuẩn "X.XXX.XXX đồng"
@@ -28,7 +28,7 @@ def _violation(draft: str, allowed: set[str]) -> str | None:
 
 def output_guard(state: AgentState) -> dict:
     update: dict = {"trace": ["output_guard"]}
-    reason = _violation(state.get("draft_reply", ""), set(state.get("allowed_amounts", [])))
+    reason = violation(state.get("draft_reply", ""), set(state.get("allowed_amounts", [])))
     if reason:
         previous = state.get("handover_reason") if state.get("needs_human") else None
         update.update(needs_human=True, draft_reply="",

@@ -1,71 +1,69 @@
-SESSION : verify80119d728d12
-USER MSG: Cho tôi thông số chi tiết của xe số 1 và số 2
+SESSION : e6288691-dfeb-4d4a-bda3-438ae2323468
+USER MSG: Đúng rồi
 
 ============================================================ input (0ms) ============================================================
-USER TEXT : Cho tôi thông số chi tiết của xe số 1 và số 2
-mode      : BOT  turn:0
-car_list  : []
-history   : 2 msgs
+USER TEXT : Đúng rồi
+mode      : HUMAN_PENDING  turn:15
+car_list  : [FUSO Canter FI170 (Thùng mui bạt), THACO Linker T2-13]
+history   : 17 msgs
 --- OUT ---
-known_facts: (none)
+known_facts: customer_name=[REDACTED]  |  car_list=[FUSO Canter FI170 (Thùng mui bạt), THACO Linker T2-13]  |  car_model=THACO Linker T2-13  |  service_type=SHOWROOM_VISIT  |  appointment_when=Thứ 7 tuần tới, lúc 8 giờ sáng  |  customer_phone=[REDACTED]  |  appointment_date={text=Thứ 7 tuần tới, lúc 8 giờ sáng, reference=2026-11-09, status=RESOLVED, date=2026-11-21…}
 
-============================================================ preprocess (2985ms) ============================================================
-USER TEXT : Cho tôi thông số chi tiết của xe số 1 và số 2
-car_list  : []
-pending   : 0 open
+============================================================ preprocess (3485ms) ============================================================
+USER TEXT : Đúng rồi
+car_list  : [FUSO Canter FI170 (Thùng mui bạt), THACO Linker T2-13]
+pending   : 1 open
 --- LLM INPUT ---
 SYSTEM: Bạn là Preprocessing Agent của trợ lý gara ô tô. Phân tích TIN NHẮN MỚI NHẤT của khách trong ngữ cảnh hội thoại (tóm tắt + các tin gần nhất) và CONVERSATION STATE, trả về đúng schema ConversationInter…
-USER  : Cho tôi thông số chi tiết của xe số 1 và số 2
-HISTORY WINDOW (2 msgs, showing last 2):
-  [user] Cho tôi xem 4 xe nổi bật
-  [ai] Danh mục có 55 mẫu xe. Dưới đây là 4 mẫu trong danh mục, không phải xếp hạng bán chạy:  - FUSO Canter FI170 (Thùng mui bạt) - FUSO Canter FI170L (Thùn…
+USER  : Đúng rồi
+SUMMARY (204 chars):
+  - Khách tên Khang, muốn được tư vấn xe. - Khách yêu cầu giới thiệu những loại xe nổi bật; chưa có tiêu chí về tải trọng, loại thùng hay ngân sách. - Chưa có mẫu xe nào được giới thiệu hoặc khách quan tâm.
+HISTORY WINDOW (10 msgs, showing last 3):
+  [ai] Mình ghi nhận bạn muốn đến xem xe THACO Linker T2-13. Bạn cho mình xin ngày và giờ hẹn, họ tên đầy đủ và số điện thoại nhé.  Hiện nhân viên đang bận n…
+  [user] Thứ 7 tuần tới, lúc 8 giờ sáng, Dương Định Khang, 0386764983 nhé
+  [ai] Mình đề xuất đặt lịch xem xe THACO Linker T2-13 tại showroom vào Thứ 7, 21/11/2026 lúc 08:00 cho Dương Định Khang, số điện thoại 0386764983. Bạn xác n…
 --- OUT ---
-  tasks:     SALES:product_specs(car=FUSO Canter FI170 (Thùng mui bạt)); SALES:product_specs(car=FUSO Canter FI170L (Thùng mui bạt))
-  presented: ['FUSO Canter FI170 (Thùng mui bạt)', 'FUSO Canter FI170L (Thùng mui bạt)', 'ISUZU Forward FRR90NE5 Chassis', 'ISUZU Forward FRR90QE5 Chassis']
+  tasks:     APPOINTMENT:book_appointment(car=None)
   complexity:LOW  uncertain:False
-car_list  : [FUSO Canter FI170 (Thùng mui bạt), FUSO Canter FI170L (Thùng mui bạt), ISUZU Forward FRR90NE5 Chassis, ISUZU Forward FRR90QE5 Chassis]
+car_list  : [FUSO Canter FI170 (Thùng mui bạt), THACO Linker T2-13]
 route     : None  ()
 
 ============================================================ policy_guard (0ms) ============================================================
-  tasks:     SALES:product_specs(car=FUSO Canter FI170 (Thùng mui bạt)); SALES:product_specs(car=FUSO Canter FI170L (Thùng mui bạt))
-  presented: ['FUSO Canter FI170 (Thùng mui bạt)', 'FUSO Canter FI170L (Thùng mui bạt)', 'ISUZU Forward FRR90NE5 Chassis', 'ISUZU Forward FRR90QE5 Chassis']
+  tasks:     APPOINTMENT:book_appointment(car=None)
   complexity:LOW  uncertain:False
 --- OUT ---
 route     : router  ()
 
 ============================================================ router (0ms) ============================================================
-  tasks:     SALES:product_specs(car=FUSO Canter FI170 (Thùng mui bạt)); SALES:product_specs(car=FUSO Canter FI170L (Thùng mui bạt))
-  presented: ['FUSO Canter FI170 (Thùng mui bạt)', 'FUSO Canter FI170L (Thùng mui bạt)', 'ISUZU Forward FRR90NE5 Chassis', 'ISUZU Forward FRR90QE5 Chassis']
+  tasks:     APPOINTMENT:book_appointment(car=None)
   complexity:LOW  uncertain:False
 --- OUT ---
-route     : None  plan:[{'agent': 'sales', 'text': 'thông số chi tiết của xe số 1, thông số chi tiết của xe số 2', 'order': 0, 'task_ids': ['t1', 't2']}]
+route     : None  plan:[{'agent': 'appointment', 'text': 'Đúng rồi', 'order': 0, 'task_ids': ['t1']}]
 
-============================================================ sales (6570ms) ============================================================
-task_text : thông số chi tiết của xe số 1, thông số chi tiết của xe số 2
-task_ids  : ['t1', 't2']
-  tasks:     SALES:product_specs(car=FUSO Canter FI170 (Thùng mui bạt)); SALES:product_specs(car=FUSO Canter FI170L (Thùng mui bạt))
-  presented: ['FUSO Canter FI170 (Thùng mui bạt)', 'FUSO Canter FI170L (Thùng mui bạt)', 'ISUZU Forward FRR90NE5 Chassis', 'ISUZU Forward FRR90QE5 Chassis']
+============================================================ appointment (3359ms) ============================================================
+task_text : Đúng rồi
+task_ids  : ['t1']
+  tasks:     APPOINTMENT:book_appointment(car=None)
   complexity:LOW  uncertain:False
 --- OUT ---
-  reply [sales]: FUSO Canter FI170 (Thùng mui bạt): - Giá niêm yết: 809.000.000 đồng, áp dụng từ ngày 18/10/2026 - Động cơ: FUSO 4D37 125…
-  allowed_amounts: ['809.000.000 đồng', '845.000.000 đồng', '965.628.000 đồng', '991.980.000 đồng', '809.000.000 đồng', '845.000.000 đồng', '845.000.000 đồng']
+  reply [appointment]: Lịch xem xe THACO Linker T2-13 vào Thứ 7, 21/11/2026 lúc 08:00 đang chờ nhân viên xác nhận.
 
 ============================================================ validation (0ms) ============================================================
-  [sales] FUSO Canter FI170 (Thùng mui bạt): - Giá niêm yết: 809.000.000 đồng, áp dụng từ ngày 18/10/2026 - Động cơ: FUSO 4D37 125…
+  [appointment] Lịch xem xe THACO Linker T2-13 vào Thứ 7, 21/11/2026 lúc 08:00 đang chờ nhân viên xác nhận.
 --- OUT ---
 route     : compose  feedback:
 
 ============================================================ compose (0ms) ============================================================
-  [sales] FUSO Canter FI170 (Thùng mui bạt): - Giá niêm yết: 809.000.000 đồng, áp dụng từ ngày 18/10/2026 - Động cơ: FUSO 4D37 125…
+  [appointment] Lịch xem xe THACO Linker T2-13 vào Thứ 7, 21/11/2026 lúc 08:00 đang chờ nhân viên xác nhận.
 --- OUT ---
-draft     : FUSO Canter FI170 (Thùng mui bạt): - Giá niêm yết: 809.000.000 đồng, áp dụng từ ngày 18/10/2026 - Động cơ: FUSO 4D37 125…
+draft     : Lịch xem xe THACO Linker T2-13 vào Thứ 7, 21/11/2026 lúc 08:00 đang chờ nhân viên xác nhận.
 
-============================================================ output_guard (1ms) ============================================================
-draft     : FUSO Canter FI170 (Thùng mui bạt): - Giá niêm yết: 809.000.000 đồng, áp dụng từ ngày 18/10/2026 - Động cơ: FUSO 4D37 125…
+============================================================ output_guard (0ms) ============================================================
+draft     : Lịch xem xe THACO Linker T2-13 vào Thứ 7, 21/11/2026 lúc 08:00 đang chờ nhân viên xác nhận.
 --- OUT ---
 needs_human: None  final:
 
 ============================================================ respond (0ms) ============================================================
-final     : Danh mục có 55 mẫu xe. Dưới đây là 4 mẫu trong danh mục, không phải xếp hạng bán chạy:  - FUSO Canter FI170 (Thùng mui b…
+final     : [REDACTED]
 --- OUT ---
-final_reply: FUSO Canter FI170 (Thùng mui bạt): - Giá niêm yết: 809.000.000 đồng, áp dụng từ ngày 18/10/2026 - Động cơ: FUSO 4D37 125…
+final_reply: Lịch xem xe THACO Linker T2-13 vào Thứ 7, 21/11/2026 lúc 08:00 đang chờ nhân viên xác nhận.
