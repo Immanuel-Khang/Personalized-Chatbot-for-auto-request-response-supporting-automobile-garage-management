@@ -226,6 +226,27 @@ class DbBookingService:
             return BookingResult(ok=True, appointment_id=row.id, status="PENDING_APPROVAL",
                                  message="Lịch hẹn đang chờ nhân viên xác nhận.")
 
+    def available_windows(self, session_id: str, service_type: ServiceType | str, appointment_date: date,
+                          period: str | None = None) -> dict:
+        """Các khung giờ còn trống trong ngày (đúng lưới và sức chứa của booking), tùy chọn chỉ buổi sáng ('morning',
+        bắt đầu trước 12:00) hoặc chiều ('afternoon'). Giờ đã qua của hôm nay không tính. Không ghi gì."""
+        with SessionLocal() as db:
+            cfg = _config(db)
+            slot_type = _slot_type(getattr(service_type, "value", service_type))
+            rows = _rows_on(db, appointment_date, slot_type, HOLDING, None)
+            now = datetime.now(LOCAL_TZ)
+            free = [w for w in work_windows(cfg) if len(_in_window(rows, w, cfg)) < cfg.capacity_for(slot_type)]
+            if appointment_date < now.date():
+                free = []
+            elif appointment_date == now.date():
+                free = [w for w in free if minutes_of(w) > now.hour * 60 + now.minute]
+            if period == "morning":
+                free = [w for w in free if w.hour < 12]
+            elif period == "afternoon":
+                free = [w for w in free if w.hour >= 12]
+            return {"date": appointment_date.isoformat(), "period": period or "all",
+                    "free": [f"{w:%H:%M}" for w in free], "slot_minutes": cfg.slot_minutes}
+
     def list_appointments(self, session_id: str, active_only: bool = False) -> list[AppointmentInfo]:
         with SessionLocal() as db:
             query = select(Appointment).where(Appointment.session_id == session_id)

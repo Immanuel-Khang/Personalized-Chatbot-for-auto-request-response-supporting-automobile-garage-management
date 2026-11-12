@@ -37,6 +37,8 @@ class BookingService(Protocol):
     def check_slot(self, session_id: str, service_type: ServiceType, appointment_date: date, start_time: time | None,
                    exclude_id: int | None = None) -> BookingResult: ...  # ok=False + SLOT_FULL/DUPLICATE nếu không đặt được
     def cancel_appointment(self, session_id: str, appointment_id: int) -> BookingResult: ...
+    def available_windows(self, session_id: str, service_type: ServiceType | str, appointment_date: date,
+                          period: str | None = None) -> dict: ...  # {"free": ["13:00", ...], ...}; không ghi gì
 
 
 class HandoverService(Protocol):

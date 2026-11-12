@@ -10,7 +10,8 @@ import logging
 import uuid
 from datetime import date, time
 
-from app.agent.date_extraction import NEEDS_PERIOD, OUT_OF_RANGE, RESOLVED, local_today, sync_date_fact
+from app.agent.date_extraction import (NEEDS_PERIOD, OUT_OF_RANGE, RESOLVED, extract_date, has_explicit_date, local_today,
+                                       period_of, sync_date_fact)
 from app.agent.llm import generate_with_tools
 from app.agent.nodes.compose import STYLE_RULES
 from app.agent.state import AgentState, answer, fact_value, open_pending
@@ -48,10 +49,30 @@ QUY TẮC:
    đề nghị việc khác. KHÔNG nhắc "proposal", mã lịch hay tên công cụ.
 """
 
+AVAILABILITY_PROMPT = """\
+Bạn là chuyên viên lịch hẹn của xưởng Foton. Khách đang HỎI khung giờ còn trống, chưa yêu cầu đặt lịch.
+Gọi check_availability MỘT lần:
+- date_text: đúng lời khách vừa nêu về ngày trong tin này (VD "thứ 7 này", "14/11", "ngày mai"); bỏ trống nếu khách không nêu
+  ngày mới (hỏi tiếp về ngày đang bàn).
+- period: morning nếu khách hỏi buổi sáng, afternoon nếu buổi chiều, còn lại all.
+Trả lời dựa trên kết quả:
+- Chỉ nêu các giờ trong "free", đúng như vậy, không thêm hay đổi giờ nào. KHÔNG bịa giờ.
+- Khách nêu một giờ cụ thể (VD 9 giờ): nói rõ khung giờ đó còn trống hay đã đầy (có trong "free" hay không), rồi gợi ý các giờ còn lại.
+- "free" rỗng: nói không còn khung trống và gợi ý buổi hoặc ngày khác.
+- status=MISSING: hỏi đúng thông tin còn thiếu theo "message"/"missing".
+Không nói là đã đặt lịch; để khách chọn giờ. Tiếng Việt, ngắn gọn.
+"""
+
 _ID = {"appointment_id": {"type": "integer", "description": "id lịch hẹn lấy từ get_appointment_details"}}
 TOOLS = [
     {"name": "get_appointment_details", "description": "Xem các lịch hẹn của khách (mới nhất trước).",
      "input_schema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "check_availability",
+     "description": "Xem các khung giờ còn trống trong ngày hẹn đã biết (không ghi gì). period: buổi khách hỏi.",
+     "input_schema": {"type": "object", "required": [], "properties": {
+         "period": {"type": "string", "enum": ["morning", "afternoon", "all"],
+                    "description": "morning = sáng, afternoon = chiều, all = cả ngày"},
+         "date_text": {"type": "string", "description": "Ngày khách vừa nêu trong tin này, nguyên văn; bỏ trống nếu không có"}}}},
     {"name": "create_appointment", "description": "Đặt lịch hẹn mới từ thông tin đặt lịch đã biết.",
      "input_schema": {"type": "object", "properties": {}, "required": []}},
     {"name": "reschedule_appointment", "description": "Đổi lịch hẹn sang ngày giờ mới đã biết.",
@@ -99,6 +120,15 @@ def _accepted(state: AgentState) -> bool:
 def _turn(state: AgentState) -> int:
     """Full history length identifies the turn; the next turn's is two higher. state["history"] is windowed."""
     return state.get("turn", len(state.get("history") or []))
+
+
+def _availability_only(state: AgentState) -> bool:
+    """Every task handled here only asks which hours are free: the agent gets just the read-only lookup, so it cannot
+    re-run the booking check and repeat an old "slot full" answer."""
+    interpretation = state.get("conversation_interpretation")
+    mine = set(state.get("task_ids") or [])
+    tasks = [t for t in (interpretation.tasks if interpretation else []) if not mine or t.task_id in mine]
+    return bool(tasks) and all(t.action == "check_availability" for t in tasks)
 
 
 def _new_time_this_turn(state: AgentState) -> bool:
@@ -189,6 +219,27 @@ def appointment(state: AgentState) -> dict:
             return {"status": "MISSING", "missing": missing, "message": reason}
         return resolved["date"], resolved["time"]
 
+    def availability(tool_args: dict) -> dict:
+        # The day comes from the customer's words: the LLM passes them, the code computes the date (as for bookings).
+        # A date_text without a day ("buổi chiều", "chiều") is ignored: the day stays the one already discussed.
+        date_text = str(tool_args.get("date_text") or "")
+        day = extract_date(date_text, local_today()) if has_explicit_date(date_text) else resolved
+        if day.get("status") != RESOLVED:
+            missing[:] = ["ngày hẹn cụ thể"]
+            return {"status": "MISSING", "missing": missing, "message": (
+                "ngày khách nói nằm ngoài khoảng nhận lịch (từ hôm nay đến hết tháng sau)"
+                if day.get("status") == OUT_OF_RANGE else "chưa xác định được ngày cụ thể cần xem giờ trống")}
+        service = fact_value(facts, "service_type") or ServiceType.MAINTENANCE.value  # bay slots unless a deal visit
+        said = period_of(f"{state.get('task_text') or ''} {state.get('user_text') or ''}")  # the customer's words win
+        period = said or (tool_args.get("period") if tool_args.get("period") in ("morning", "afternoon") else None)
+        info = booking.available_windows(session_id, str(service), date.fromisoformat(day["date"]), period)
+        label = {"morning": "buổi sáng", "afternoon": "buổi chiều"}.get(period, "cả ngày")
+        free = info["free"]
+        message = (f"{_fmt(info['date'], None)}, {label} còn trống các khung giờ (mỗi khung {info['slot_minutes']} phút): "
+                   + ", ".join(free) + "." if free else
+                   f"{_fmt(info['date'], None)}, {label} không còn khung giờ trống.")
+        return {"ok": True, "status": "AVAILABILITY", "free": free, "message": message}
+
     def run_args(a: dict) -> tuple[date, time | None]:
         return date.fromisoformat(a["date"]), time.fromisoformat(a["time"]) if a["time"] else None
 
@@ -245,6 +296,8 @@ def appointment(state: AgentState) -> dict:
                                             "when_label": _fmt(info.appointment_date, info.start_time),
                                             "service_label": LABELS.get(info.service_type, info.service_type)}
                                            for info in booking.list_appointments(session_id)[:5]]}
+            elif name == "check_availability":
+                result = availability(tool_args)
             elif name == "create_appointment":
                 result = create()
             elif name in ("reschedule_appointment", "cancel_appointment"):
@@ -269,8 +322,10 @@ def appointment(state: AgentState) -> dict:
                f"Yêu cầu: {state.get('task_text') or state.get('user_text', '')}\n"
                f"Thông tin đặt lịch đã biết: {json.dumps(known, ensure_ascii=False)}\n"
                f"Xác nhận đang chờ: {waiting_for}\nKhách vừa đồng ý xác nhận: {'có' if approved else 'không'}")
-    system = SYSTEM_PROMPT.format(hotline=settings.hotline) + STYLE_RULES
-    out = generate_with_tools(system, context, TOOLS, execute, history=state.get("history"), max_turns=4)
+    only_availability = _availability_only(state)
+    system = (AVAILABILITY_PROMPT if only_availability else SYSTEM_PROMPT.format(hotline=settings.hotline)) + STYLE_RULES
+    tools = [t for t in TOOLS if (t["name"] == "check_availability") == only_availability]
+    out = generate_with_tools(system, context, tools, execute, history=state.get("history"), max_turns=4)
     reply = (out.get("final_response") or "").strip() or _fallback(results, proposal, missing)
     return _update(state, facts, workflow, mine, reply, results, done, proposal, missing)
 
@@ -303,7 +358,9 @@ def _update(state: AgentState, facts: dict, workflow: ActiveWorkflow | None, min
                                   workflow_type="appointment", status=WorkflowStatus.ACTIVE)
     succeeded = {name: result for name, result in done.items() if result.get("ok")}
     # Lookups are DB results too, so a reply restating a stored booking is grounded.
-    looked_up = any(name == "get_appointment_details" and result.get("appointments") for name, result in results)
+    looked_up = any((name == "get_appointment_details" and result.get("appointments"))
+                    or (name == "check_availability" and result.get("status") == "AVAILABILITY")
+                    for name, result in results)
     update: dict = {"trace": ["appointment"], "known_facts": facts,
                     "answers": [answer(state, "appointment", reply, executed=bool(succeeded) or looked_up)]}
 

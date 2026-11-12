@@ -8,6 +8,7 @@ appointment agent books only a RESOLVED date, otherwise it asks the customer for
 """
 import calendar
 import logging
+import re
 from datetime import date, datetime, timedelta
 from enum import Enum
 from typing import Optional
@@ -126,6 +127,31 @@ WEEKDAYS = {Weekday.THU_2: 0, Weekday.THU_3: 1, Weekday.THU_4: 2, Weekday.THU_5:
             Weekday.THU_7: 5, Weekday.CHU_NHAT: 6}
 
 
+# --- Deterministic guards: the LLM must never decide a date from a bare "chiều"/"sáng" ---------------------------
+_DATE_WORD = re.compile(
+    r"hôm nay|ngày mai|\bmai\b|ngày mốt|ngày kia|\bmốt\b|hôm qua|ngày nữa|hôm nữa|thứ\s*[2-7]\b|thứ\s*(hai|ba|tư|bảy)\b|"
+    r"chủ\s*nhật|\bcn\b|tuần\s+(này|sau|tới|trước)|tháng\s+(này|sau|tới)|\d{1,2}\s*/\s*\d{1,2}|ngày\s*\d{1,2}\b",
+    re.IGNORECASE)
+_TODAY_WORD = re.compile(r"hôm nay|bây giờ|lúc này|ngay hôm nay|\bnay\b", re.IGNORECASE)
+_HOUR = re.compile(r"\d\s*(giờ|h\b|h\d|g\b|:)", re.IGNORECASE)
+_AM = re.compile(r"\bsáng\b", re.IGNORECASE)
+_PM = re.compile(r"\b(trưa|chiều|tối)\b", re.IGNORECASE)
+_DAYPART = re.compile(r"\b(buổi|sáng|trưa|chiều|tối|đêm)\b", re.IGNORECASE)
+
+
+def has_explicit_date(text: str | None) -> bool:
+    """True when the words name a day (weekday, relative day, dd/mm, ...), not just a part of the day."""
+    return bool(text and _DATE_WORD.search(text))
+
+
+def period_of(text: str | None) -> str | None:
+    """'morning' / 'afternoon' from the customer's own words (code, not LLM); None when absent or both are said."""
+    if not text:
+        return None
+    am, pm = bool(_AM.search(text)), bool(_PM.search(text))
+    return "morning" if am and not pm else "afternoon" if pm and not am else None
+
+
 def local_today() -> date:
     return datetime.now(TZ).date()
 
@@ -199,11 +225,17 @@ def extract_date(text: str, today: date | None = None) -> dict:
     """{"status": RESOLVED | NEEDS_CLARIFICATION | OUT_OF_RANGE, "date": ISO date or None,
     "time_status": RESOLVED | MISSING | NEEDS_PERIOD, "time": "HH:MM" or None}."""
     today = today or local_today()
+    if not _HOUR.search(text):  # no hour -> the day part is not needed to read the date ("chiều thứ 7" -> "thứ 7")
+        text = " ".join(_DAYPART.sub(" ", text).split())
+        if not has_explicit_date(text):  # only "chiều"/"buổi sáng": there is no date to read, never guess one
+            return {"status": NEEDS_CLARIFICATION, "date": None, "time_status": MISSING, "time": None}
     info = generate_structured(PROMPT, f"Today: {today.isoformat()} ({today:%A})\nTimezone: Asia/Ho_Chi_Minh\n"
                                        f"Expression: {text}", DateInfo)
     if info is None:
         return {"status": NEEDS_CLARIFICATION, "date": None, "time_status": MISSING, "time": None}
     result = resolve(info, today)
+    if info.kind == Kind.RELATIVE and info.offset == 0 and not _TODAY_WORD.search(text):
+        result = None  # the LLM read "today" out of words that never said so
     time_status, hhmm = resolve_time(info)
     logger.info("Date extraction %r -> %s -> %s %s", text, info.model_dump(mode="json", exclude_none=True), result, hhmm)
     clock = {"time_status": time_status, "time": hhmm}

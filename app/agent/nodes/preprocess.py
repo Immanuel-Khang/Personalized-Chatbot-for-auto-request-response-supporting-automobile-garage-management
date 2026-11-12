@@ -85,6 +85,10 @@ Bạn là Preprocessing Agent của trợ lý gara ô tô. Phân tích TIN NHẮ
    - Lịch hẹn ĐÃ ĐẶT: "hủy lịch hẹn của tôi" -> cancel_appointment (NEW_REQUEST); "đổi lịch sang ngày mai" ->
      reschedule_appointment + slot_update appointment_when; "lịch hẹn của tôi lúc mấy giờ", "đã xác nhận chưa" ->
      appointment_details.
+   - Khách HỎI giờ/ca/chỗ còn trống ("còn ca nào trống không", "chiều hôm đó còn giờ không", "thứ 6 còn chỗ không") ->
+     APPOINTMENT check_availability (không phải appointment_details hay book_appointment). Tin nêu ngày/giờ (VD "sáng thứ 7
+     này, 9 giờ còn trống không", hoặc đáp "14/11" cho câu bot hỏi ngày) vẫn theo quy tắc appointment_when bên dưới
+     (có slot_update); chỉ khi tin KHÔNG nêu ngày mới (VD "chiều hôm đó còn ca nào không") mới không tạo.
 3. Slot: chỉ key trong canonical_slots, chỉ khi khách nói rõ trong tin MỚI (hoặc đáp ngắn cho câu bot hỏi đúng slot đó).
    evidence là đoạn nguyên văn trong tin mới. Không suy đoán.
    - Task APPOINTMENT mà tin nêu loại lịch -> BẮT BUỘC có slot_update service_type (evidence là cụm đó): "xem xe",

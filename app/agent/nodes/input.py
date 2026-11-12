@@ -31,6 +31,9 @@ AVAILABLE_ACTIONS = [
     {"action": "cancel_appointment", "domain": "APPOINTMENT", "description": "Cancel an already booked appointment"},
     {"action": "appointment_details", "domain": "APPOINTMENT",
      "description": "Time/status of the customer's booked appointment (giờ hẹn, đã xác nhận chưa)"},
+    {"action": "check_availability", "domain": "APPOINTMENT",
+     "description": "Customer asks which hours/slots are still free ('còn ca nào trống không', 'chiều còn giờ không'); "
+                    "no booking is made"},
     {"action": "answer_knowledge", "domain": "KNOWLEDGE", "description": "General technical/repair/safety questions, not specs of a catalog model"},
     {"action": "maintenance_schedule", "domain": "MAINTENANCE", "description": "Maintenance milestones and costs"},
     {"action": "show_service_history", "domain": "AFTER_SALES", "description": "Show the customer's service history"},

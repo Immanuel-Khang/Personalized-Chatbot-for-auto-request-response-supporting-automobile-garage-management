@@ -19,7 +19,7 @@ READ_ONLY = ("sales", "knowledge", "after_sales", "conversation")
 WRITERS = ("contract", "appointment")
 BOOKING_FACTS = {"service_type", "appointment_when", "appointment_date", "service_detail"}
 # Actions on stored appointments: always handled by the appointment agent, never as "stop the current task".
-APPOINTMENT_ACTIONS = {"reschedule_appointment", "cancel_appointment", "appointment_details"}
+APPOINTMENT_ACTIONS = {"reschedule_appointment", "cancel_appointment", "appointment_details", "check_availability"}
 CONTINUING = {TaskRelationship.ANSWER_TO_QUESTION, TaskRelationship.ACCEPT_OFFER,
               TaskRelationship.CONTINUE_TASK, TaskRelationship.CORRECT_PREVIOUS_INFO}
 
