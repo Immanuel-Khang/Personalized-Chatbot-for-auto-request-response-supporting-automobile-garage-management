@@ -468,14 +468,15 @@ def reschedule_appt(appointment_id: int, body: RescheduleBody, user: AdminUser =
 
 # ---- Cấu hình khung giờ đặt lịch -------------------------------------------------------------------------
 class BookingSettingsBody(BaseModel):
-    slot_capacity: int | None = None  # số lịch tối đa trong một khung giờ
+    slot_capacity: int | None = None  # số lịch bảo dưỡng/sửa chữa tối đa trong một khung giờ
+    showroom_capacity: int | None = None  # số lịch đến showroom (xem xe, ký hợp đồng) tối đa trong một khung giờ
     slot_minutes: int | None = None   # độ dài khung giờ = khoảng cách giữa hai khung liên tiếp (phút)
     work_start: str | None = None     # "HH:MM", gốc của lưới khung giờ
     work_end: str | None = None
 
 
 def _cfg_dict(cfg: BookingConfig) -> dict:
-    return {"slot_capacity": cfg.slot_capacity, "slot_minutes": cfg.slot_minutes,
+    return {"slot_capacity": cfg.slot_capacity, "showroom_capacity": cfg.showroom_capacity, "slot_minutes": cfg.slot_minutes,
             "work_start": f"{cfg.work_start:%H:%M}", "work_end": f"{cfg.work_end:%H:%M}"}
 
 
@@ -495,12 +496,13 @@ def put_booking_settings(body: BookingSettingsBody, user: AdminUser = Depends(ad
     try:
         new = BookingConfig(
             slot_capacity=cur.slot_capacity if body.slot_capacity is None else body.slot_capacity,
+            showroom_capacity=cur.showroom_capacity if body.showroom_capacity is None else body.showroom_capacity,
             slot_minutes=cur.slot_minutes if body.slot_minutes is None else body.slot_minutes,
             work_start=cur.work_start if body.work_start is None else parse_hhmm(body.work_start),
             work_end=cur.work_end if body.work_end is None else parse_hhmm(body.work_end))
     except ValueError:
         raise HTTPException(422, "Giờ không hợp lệ, dùng định dạng HH:MM")
-    if error := validate(new.slot_capacity, new.slot_minutes, new.work_start, new.work_end):
+    if error := validate(new.slot_capacity, new.slot_minutes, new.work_start, new.work_end, new.showroom_capacity):
         raise HTTPException(422, error)
     return {**_cfg_dict(set_booking_config(new)), "can_edit": True}
 

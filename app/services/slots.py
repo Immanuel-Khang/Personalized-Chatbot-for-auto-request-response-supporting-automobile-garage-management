@@ -1,7 +1,8 @@
 """Khung giờ đặt lịch: tính toán thuần (không DB) để dùng chung cho booking, admin và test.
 Lưới khung giờ bắt đầu từ giờ mở cửa (work_start) và cách nhau slot_minutes phút.
 Ví dụ work_start=08:00, slot_minutes=90 -> 08:00-09:30, 09:30-11:00, 11:00-12:30 ...
-Một khung giờ nhận tối đa slot_capacity lịch (số xe/khách làm cùng lúc)."""
+Một khung giờ nhận tối đa slot_capacity lịch bảo dưỡng/sửa chữa (số xe làm cùng lúc) và tối đa
+showroom_capacity lịch đến showroom (xem xe, ký hợp đồng). Hai loại đếm riêng, không chiếm chỗ của nhau."""
 from dataclasses import dataclass
 from datetime import time
 
@@ -11,10 +12,14 @@ MIN_CAPACITY, MAX_CAPACITY = 1, 50
 
 @dataclass(frozen=True)
 class BookingConfig:
-    slot_capacity: int = 2      # số lịch tối đa trong một khung giờ
+    slot_capacity: int = 2      # số lịch bảo dưỡng/sửa chữa tối đa trong một khung giờ (chỗ đậu xe/khoang sửa có hạn)
     slot_minutes: int = 60      # độ dài một khung giờ = khoảng cách giữa hai khung liên tiếp
     work_start: time = time(8, 0)
     work_end: time = time(17, 0)
+    showroom_capacity: int = 3  # số lịch đến showroom (xem xe, ký hợp đồng) tối đa trong một khung giờ
+
+    def capacity_for(self, slot_type: str) -> int:
+        return self.showroom_capacity if slot_type == "SHOWROOM_VISIT" else self.slot_capacity
 
 
 def minutes_of(t: time) -> int:
@@ -56,10 +61,13 @@ def work_windows(cfg: BookingConfig) -> list[time]:
     return out
 
 
-def validate(capacity: int, slot_minutes: int, work_start: time, work_end: time) -> str | None:
+def validate(capacity: int, slot_minutes: int, work_start: time, work_end: time,
+             showroom_capacity: int | None = None) -> str | None:
     """Thông báo lỗi tiếng Việt, None nếu hợp lệ."""
     if not MIN_CAPACITY <= capacity <= MAX_CAPACITY:
-        return f"Số lịch mỗi khung giờ phải từ {MIN_CAPACITY} đến {MAX_CAPACITY}."
+        return f"Số lịch bảo dưỡng/sửa chữa mỗi khung giờ phải từ {MIN_CAPACITY} đến {MAX_CAPACITY}."
+    if showroom_capacity is not None and not MIN_CAPACITY <= showroom_capacity <= MAX_CAPACITY:
+        return f"Số lịch showroom mỗi khung giờ phải từ {MIN_CAPACITY} đến {MAX_CAPACITY}."
     if not MIN_SLOT_MINUTES <= slot_minutes <= MAX_SLOT_MINUTES:
         return f"Độ dài khung giờ phải từ {MIN_SLOT_MINUTES} đến {MAX_SLOT_MINUTES} phút."
     if minutes_of(work_start) >= minutes_of(work_end):
