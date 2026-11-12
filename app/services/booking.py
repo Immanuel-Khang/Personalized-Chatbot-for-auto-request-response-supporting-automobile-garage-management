@@ -2,7 +2,8 @@
 [TRACK C] BookingService.
 Tạo: ghi 1 dòng appointments PENDING_APPROVAL, chưa gán slot (slot_id NULL), với appointment_date/start_time agent đã
 quy đổi; note chỉ chứa xe và yêu cầu riêng của khách. Đổi lịch: ghi ngày giờ mới, trả slot đã giữ và quay về
-PENDING_APPROVAL để nhân viên duyệt lại. Hủy: CANCELLED, trả slot đã giữ. Mọi thao tác chỉ chạm lịch của đúng phiên chat (session_id).
+PENDING_APPROVAL để nhân viên duyệt lại. Hủy: CANCELLED, trả slot đã giữ. Mọi thao tác của bot chỉ chạm lịch của đúng phiên chat (session_id).
+Nhân viên hủy/đổi lịch theo mã lịch qua staff_cancel_appointment / staff_reschedule_appointment (bot không gọi).
 Chống trùng/đầy: khi tạo hoặc đổi lịch có giờ cụ thể, kiểm tra khung giờ (lưới theo BookingConfig) ngay trong transaction, khóa theo ngày
 (pg_advisory_xact_lock) nên hai khách đặt cùng lúc không vượt sức chứa. Lịch PENDING_APPROVAL và CONFIRMED đều giữ chỗ.
 Nhân viên xác nhận thì kiểm tra lại theo số lịch đã CONFIRMED. Sức chứa và độ dài khung giờ chỉnh được ở trang admin (app_settings).
@@ -317,6 +318,52 @@ def confirm_appointment(appointment_id: int, start_time: time | None = None) -> 
         row.slot_id, row.start_time, row.status = slot.id, when, "CONFIRMED"
         db.commit()
         return BookingResult(ok=True, appointment_id=row.id, status="CONFIRMED", message="Đã xác nhận lịch hẹn.")
+
+
+def _staff_row(db: Session, appointment_id: int) -> Appointment | None:
+    return db.scalars(select(Appointment).where(Appointment.id == appointment_id).with_for_update()).one_or_none()
+
+
+def staff_cancel_appointment(appointment_id: int) -> BookingResult:
+    """Nhân viên hủy lịch PENDING_APPROVAL/CONFIRMED (theo mã lịch, không cần đúng phiên chat): trả slot đã giữ.
+    Lịch đã DONE/CANCELLED/REJECTED không hủy được. Bot không gọi hàm này."""
+    with SessionLocal() as db:
+        row = _staff_row(db, appointment_id)
+        if refused := _not_changeable(row):
+            return refused
+        assert row is not None
+        _release_slot(db, row)
+        row.status = "CANCELLED"
+        db.commit()
+        return BookingResult(ok=True, appointment_id=row.id, status=row.status, message="Đã hủy lịch hẹn.")
+
+
+def staff_reschedule_appointment(appointment_id: int, appointment_date: date, start_time: time | None) -> BookingResult:
+    """Nhân viên đổi ngày giờ lịch PENDING_APPROVAL/CONFIRMED. Vẫn kiểm tra đầy chỗ/trùng lịch như lúc khách đặt
+    (lịch cũ giữ nguyên nếu bị từ chối). Lịch đang CONFIRMED mà đổi sang giờ cụ thể thì được xác nhận lại luôn vì
+    chính nhân viên đổi; không xác nhận lại được (vd khung mới đã đủ lịch ĐÃ XÁC NHẬN) thì để PENDING_APPROVAL."""
+    with SessionLocal() as db:
+        row = _staff_row(db, appointment_id)
+        if refused := _not_changeable(row):
+            return refused
+        assert row is not None
+        was_confirmed = row.status == "CONFIRMED"
+        _lock_day(db, appointment_date)
+        if refused := _conflict(db, _config(db), row.customer_id, row.service_type, appointment_date, start_time,
+                                exclude_id=row.id):
+            return refused
+        row.appointment_date, row.start_time = appointment_date, start_time
+        _release_slot(db, row)  # slot cũ không còn khớp giờ mới
+        row.status = "PENDING_APPROVAL"
+        db.commit()
+    if was_confirmed and start_time is not None:
+        confirmed = confirm_appointment(appointment_id)
+        if confirmed.ok:
+            return BookingResult(ok=True, appointment_id=appointment_id, status="CONFIRMED", message="Đã đổi lịch hẹn.")
+        return BookingResult(ok=True, appointment_id=appointment_id, status="PENDING_APPROVAL",
+                             message=f"Đã đổi lịch nhưng chưa xác nhận lại được ({confirmed.message}). Hãy xác nhận thủ công.")
+    return BookingResult(ok=True, appointment_id=appointment_id, status="PENDING_APPROVAL",
+                         message="Đã đổi lịch hẹn, đang chờ xác nhận.")
 
 
 def complete_appointment(appointment_id: int) -> BookingResult:

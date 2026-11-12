@@ -2,7 +2,8 @@
 Vai manager xem được mọi cuộc chat (kể cả bot tự xử lý); vai khác chỉ thấy chat đã có ticket chuyển người.
 Luồng chuyển giao: OPEN (bot vẫn trả lời, yêu cầu cần người nữa ghi thêm vào ticket) -> claim (HUMAN_ACTIVE, báo khách) -> reply -> resolve (trả về bot, báo khách).
 Nhân viên cũng có thể chủ động tiếp nhận một chat bot đang xử lý (takeover), vd từ trang Lịch hẹn.
-Lịch hẹn do bot tự đặt/đổi/hủy. Nhân viên XÁC NHẬN (gán khung giờ, báo khách), sau khi làm xong đánh dấu HOÀN THÀNH; muốn đổi thì nhắn khách trong chat.
+Lịch hẹn do bot tự đặt/đổi/hủy. Nhân viên XÁC NHẬN (gán khung giờ, báo khách), sau khi làm xong đánh dấu HOÀN THÀNH;
+nhân viên cũng tự HỦY / ĐỔI lịch được (khách được báo trong chat).
 Đăng nhập sai liên tiếp ADMIN_MAX_LOGIN_ATTEMPTS lần thì khóa tài khoản ADMIN_LOCK_MINUTES phút."""
 import math
 from datetime import date, datetime, time, timedelta, timezone
@@ -17,9 +18,9 @@ from app.contracts.schemas import ConversationMode
 from app.conversation import _locks, post_system
 from app.db.models import Appointment, ChatSession, Customer, HandoverTicket, Manager, Message
 from app.db.session import SessionLocal
-from app.services.booking import (DETAIL_PREFIX, VEHICLE_PREFIX, _note_value, complete_appointment, confirm_appointment,
-                                  default_booking_config,
-                                  get_booking_config, set_booking_config, slot_overview)
+from app.services.booking import (DETAIL_PREFIX, LOCAL_TZ, VEHICLE_PREFIX, _note_value, complete_appointment,
+                                  confirm_appointment, default_booking_config, get_booking_config, set_booking_config,
+                                  slot_overview, staff_cancel_appointment, staff_reschedule_appointment)
 from app.services.slots import (MAX_CAPACITY, MAX_SLOT_MINUTES, MIN_CAPACITY, MIN_SLOT_MINUTES, BookingConfig, parse_hhmm,
                                 validate)
 from app.services.handover import open_ticket
@@ -285,7 +286,7 @@ APPOINTMENT_GROUPS = {"PENDING_APPROVAL": ("PENDING_APPROVAL",), "CONFIRMED": ("
 @router.get("/appointments")
 def list_appointments(status: str = "ALL", q: str = "", limit: int = Query(300, ge=1, le=1000),
                       user: AdminUser = Depends(admin_user)):
-    """Lịch hẹn do bot đặt/đổi/hủy, mới cập nhật trước. Chỉ đọc: muốn đổi thì nhắn khách (takeover) để bot cập nhật.
+    """Lịch hẹn do bot đặt/đổi/hủy, mới cập nhật trước. Nhân viên đổi/hủy qua POST /appointments/{id}/reschedule|cancel.
     status: ALL | PENDING_APPROVAL | CONFIRMED | DONE | CANCELLED (gồm REJECTED)."""
     status = status.upper()
     if status != "ALL" and status not in APPOINTMENT_GROUPS:
@@ -369,6 +370,100 @@ def complete_appt(appointment_id: int, user: AdminUser = Depends(admin_user)):
                                              "đã hoàn thành. Cảm ơn bạn đã sử dụng dịch vụ của Garage One!")
             db.commit()
     return {"ok": True, "status": "DONE"}
+
+
+# ---- Nhân viên hủy / đổi lịch (khách được báo trong chat) ---------------------------------------------------
+class RescheduleBody(BaseModel):
+    appointment_date: str  # "YYYY-MM-DD"
+    start_time: str | None = None  # "HH:MM"; bỏ trống = chưa chọn giờ
+    reason: str | None = None  # lý do, chèn vào thông báo cho khách
+
+
+class CancelBody(BaseModel):
+    reason: str | None = None
+
+
+def _reason_text(reason: str | None) -> str:
+    reason = " ".join((reason or "").split())[:200]
+    return f" Lý do: {reason}." if reason else ""
+
+
+def _appt_label(appt: Appointment) -> str:
+    return f"Lịch hẹn #{appt.id} ({SERVICE_LABEL.get(appt.service_type, appt.service_type)})"
+
+
+def parse_new_time(date_raw: str, time_raw: str | None) -> tuple[date, time | None]:
+    """Ngày/giờ nhân viên nhập -> (date, time|None). ValueError (thông điệp tiếng Việt) nếu sai hoặc ngày đã qua."""
+    try:
+        day = date.fromisoformat((date_raw or "").strip())
+    except ValueError:
+        raise ValueError("Ngày không hợp lệ, dùng định dạng YYYY-MM-DD")
+    if day < datetime.now(LOCAL_TZ).date():
+        raise ValueError("Không đổi sang ngày đã qua")
+    start = None
+    if time_raw and time_raw.strip():
+        try:
+            start = time.fromisoformat(time_raw.strip())
+        except ValueError:
+            raise ValueError("Giờ không hợp lệ, dùng định dạng HH:MM")
+    return day, start
+
+
+def staff_cancel(appointment_id: int, reason: str | None = None):
+    """Hủy lịch rồi báo khách trong chat. Trả BookingResult (ok=False nếu không hủy được, khi đó không báo khách)."""
+    result = staff_cancel_appointment(appointment_id)
+    if result.ok:
+        with SessionLocal() as db:
+            appt = db.get(Appointment, appointment_id)
+            if appt is not None and appt.session_id:
+                when = f" ngày {appt.appointment_date:%d/%m/%Y}" if appt.appointment_date else ""
+                post_system(db, appt.session_id,
+                            f"{_appt_label(appt)}{when} đã được nhân viên hủy.{_reason_text(reason)} "
+                            "Nếu cần đặt lại, bạn cứ nhắn cho mình nhé.")
+                db.commit()
+    return result
+
+
+def staff_reschedule(appointment_id: int, day: date, start: time | None, reason: str | None = None):
+    """Đổi ngày giờ lịch rồi báo khách trong chat (nêu rõ lịch đã xác nhận hay còn chờ xác nhận)."""
+    result = staff_reschedule_appointment(appointment_id, day, start)
+    if result.ok:
+        with SessionLocal() as db:
+            appt = db.get(Appointment, appointment_id)
+            if appt is not None and appt.session_id:
+                at = f"{appt.start_time:%H:%M} " if appt.start_time else ""
+                state = ("Lịch đã được xác nhận." if result.status == "CONFIRMED"
+                         else "Lịch đang chờ nhân viên xác nhận lại.")
+                post_system(db, appt.session_id,
+                            f"{_appt_label(appt)} đã được nhân viên đổi sang {at}ngày {appt.appointment_date:%d/%m/%Y}."
+                            f"{_reason_text(reason)} {state}")
+                db.commit()
+    return result
+
+
+_APPT_ERRORS = {"NOT_FOUND": 404, "SLOT_FULL": 409, "DUPLICATE": 409}
+
+
+@router.post("/appointments/{appointment_id}/cancel")
+def cancel_appt(appointment_id: int, body: CancelBody | None = None, user: AdminUser = Depends(admin_user)):
+    """Nhân viên hủy lịch PENDING_APPROVAL/CONFIRMED, trả chỗ trong khung giờ và báo khách trong chat."""
+    result = staff_cancel(appointment_id, body.reason if body else None)
+    if not result.ok:
+        raise HTTPException(_APPT_ERRORS.get(result.status, 409), result.message)
+    return {"ok": True, "status": "CANCELLED"}
+
+
+@router.post("/appointments/{appointment_id}/reschedule")
+def reschedule_appt(appointment_id: int, body: RescheduleBody, user: AdminUser = Depends(admin_user)):
+    """Nhân viên đổi ngày giờ lịch PENDING_APPROVAL/CONFIRMED (vẫn kiểm tra đầy chỗ/trùng) và báo khách trong chat."""
+    try:
+        day, start = parse_new_time(body.appointment_date, body.start_time)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    result = staff_reschedule(appointment_id, day, start, body.reason)
+    if not result.ok:
+        raise HTTPException(_APPT_ERRORS.get(result.status, 409), result.message)
+    return {"ok": True, "status": result.status, "message": result.message}
 
 
 # ---- Cấu hình khung giờ đặt lịch -------------------------------------------------------------------------
