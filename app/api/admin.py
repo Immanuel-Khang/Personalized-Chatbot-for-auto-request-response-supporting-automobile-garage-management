@@ -1,6 +1,6 @@
 """[TRACK C] Admin API. Đăng nhập bằng bảng managers (app/auth.py; tạo tài khoản: python -m app.manage).
 Vai manager xem được mọi cuộc chat (kể cả bot tự xử lý); vai khác chỉ thấy chat đã có ticket chuyển người.
-Luồng chuyển giao: OPEN (bot im lặng) -> claim (HUMAN_ACTIVE, báo khách) -> reply -> resolve (trả về bot, báo khách).
+Luồng chuyển giao: OPEN (bot vẫn trả lời, yêu cầu cần người nữa ghi thêm vào ticket) -> claim (HUMAN_ACTIVE, báo khách) -> reply -> resolve (trả về bot, báo khách).
 Nhân viên cũng có thể chủ động tiếp nhận một chat bot đang xử lý (takeover), vd từ trang Lịch hẹn.
 Lịch hẹn do bot tự đặt/đổi/hủy. Nhân viên XÁC NHẬN (gán khung giờ, báo khách), sau khi làm xong đánh dấu HOÀN THÀNH;
 nhân viên cũng tự HỦY / ĐỔI lịch được (khách được báo trong chat).

@@ -1,7 +1,8 @@
 """
 [TRACK C] Conversation Manager: nhận tin -> khóa theo phiên -> kiểm tra mode -> chạy agent -> lưu DB.
 - BOT: router chạy các agent chỉ đọc song song + tối đa một agent ghi dữ liệu.
-- HUMAN_PENDING / HUMAN_ACTIVE: bot im lặng, lưu tin và bổ sung ngữ cảnh cho ticket nhân viên.
+- HUMAN_PENDING (chờ nhân viên nhận): bot vẫn trả lời; yêu cầu cần người nữa được ghi thêm vào ticket đang mở.
+- HUMAN_ACTIVE (nhân viên đã nhận): bot im lặng, lưu tin và bổ sung ngữ cảnh cho ticket nhân viên.
 Thông báo chuyển giao (nhân viên tiếp nhận / trả về bot / quá hạn) là tin role="system", client poll để hiển thị.
 Phiên = chat_sessions.id (UUID trình duyệt). TODO[PLATFORM]: _locks chỉ đúng khi chạy 1 process;
 nhiều worker thì đổi sang pg_advisory_xact_lock hoặc SELECT ... FOR UPDATE trên chat_sessions.
@@ -97,8 +98,8 @@ def handle_message(req: ChatRequest) -> ChatResponse:
             session = db.get(ChatSession, session_id)
             if session is None:
                 raise RuntimeError(f"Chat session {session_id!r} disappeared before processing")
-            if session.mode in (ConversationMode.HUMAN_PENDING.value, ConversationMode.HUMAN_ACTIVE.value):
-                # Chờ nhận hoặc đang xử lý: không gọi graph/LLM; nhân viên xem tin đã lưu qua inbox hiện có.
+            if session.mode == ConversationMode.HUMAN_ACTIVE.value:
+                # Nhân viên đã nhận: bot không gọi graph/LLM; nhân viên xem tin đã lưu qua inbox hiện có.
                 ticket = open_ticket(db, session_id)
                 if ticket:
                     ticket.summary = f"{ticket.summary or ''}\n[Khách] {req.message}".strip()
@@ -140,6 +141,11 @@ def handle_message(req: ChatRequest) -> ChatResponse:
 
             # record the bot reply to the database
             reply, trace = result["final_reply"], result["trace"]
+            if session.mode == ConversationMode.HUMAN_PENDING.value and "human_handover" not in trace:
+                # Chờ nhân viên nhưng bot vẫn trả lời được: lưu tin khách vào ticket làm ngữ cảnh.
+                # (Lượt cần người đã được human_handover ghi vào ticket.)
+                if ticket := open_ticket(db, session_id):
+                    ticket.summary = f"{ticket.summary or ''}\n[Khách] {req.message}".strip()
             if notice := _timeout_notice(db, session):
                 db.add(Message(session_id=session_id, role="system", content=notice))
                 db.flush()  # tin system có id nhỏ hơn tin bot -> client poll sau message_id không bị lặp

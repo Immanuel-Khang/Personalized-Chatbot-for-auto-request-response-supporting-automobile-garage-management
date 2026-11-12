@@ -15,7 +15,8 @@ from app.contracts.schemas import (
 
 AVAILABLE_ACTIONS = [
     {"action": "search_catalog", "domain": "SALES", "description": "Search vehicles by explicit criteria"},
-    {"action": "show_catalog", "domain": "SALES", "description": "Show vehicle catalog on explicit request"},
+    {"action": "show_catalog", "domain": "SALES", "description": "Show the catalog, or popular/featured models ('xe bán chạy', 'cho xem 5 xe'), on request; "
+                                                                    "the customer may say how many"},
     {"action": "product_detail", "domain": "SALES", "description": "Show a previously displayed product"},
     {"action": "product_specs", "domain": "SALES",
      "description": "Specs of a catalog vehicle (engine, transmission, seats, fuel, price)"},

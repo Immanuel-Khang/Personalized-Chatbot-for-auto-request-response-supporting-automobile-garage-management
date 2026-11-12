@@ -165,7 +165,7 @@ function drawHead() {
   // BOT / RESOLVED: trợ lý đang trả lời, nhân viên có thể vào chat nhắn khách bất cứ lúc nào (tạo ticket mới).
   if (s === "CLAIMED") b.append(icon("check")); b.append(document.createTextNode(s === "OPEN" ? "Nhận hỗ trợ" : s === "CLAIMED" ? "Kết thúc" : "Vào chat"));
   box.disabled = s !== "CLAIMED"; $("#hint").hidden = s === "CLAIMED";
-  $("#hint").textContent = s === "OPEN" ? "Nhận hỗ trợ để nhắn cho khách. Trợ lý đang im lặng trong cuộc trò chuyện này."
+  $("#hint").textContent = s === "OPEN" ? "Nhận hỗ trợ để nhắn cho khách. Trong lúc chờ, trợ lý vẫn trả lời phần tự xử lý được và ghi thêm yêu cầu cần người vào ticket; khi bạn nhận, trợ lý sẽ im lặng."
     : s === "BOT" ? "Trợ lý AI đang tự trả lời. Bạn chỉ xem; bấm Vào chat nếu muốn nhắn trực tiếp cho khách (trợ lý sẽ im cho tới khi bạn kết thúc)."
     : "Nhân viên đã kết thúc hỗ trợ, trợ lý đang tự trả lời. Bấm Vào chat nếu muốn nhắn trực tiếp cho khách lần nữa.";
   box.placeholder = s === "CLAIMED" ? "Nhập phản hồi cho khách" : "Chưa thể nhắn"; fit();

@@ -178,17 +178,6 @@ class PolicySignals(BaseModel):
     note: Optional[str] = Field(default=None, description="Short reason for any true signal")
 
 
-class EntityReference(BaseModel):
-    """A reference such as 'xe số 1', 'mẫu thứ ba', 'nó' in the current message."""
-    mention: str = Field(description="Verbatim reference text from the current message")
-    position: Optional[int] = Field(
-        default=None, description="1-based position in the car list the customer counts; -1 means the last one")
-    car_model: Optional[str] = Field(
-        default=None,
-        description="The car the reference points at, taken from the car list by counting; None when the "
-                    "reference cannot be resolved to a single car")
-
-
 class TaskInterpretation(BaseModel):
     """Interpretation of a single task within the user's message."""
     task_id: str = Field(description="Application-generated unique ID for this task in this turn")
@@ -215,8 +204,6 @@ class ConversationInterpretation(BaseModel):
         default_factory=list, description="Deduplicated, ordered task interpretations")
     slot_updates: list[SlotUpdate] = Field(
         default_factory=list, description="Proposed fact/slot changes with explicit operations")
-    references: list[EntityReference] = Field(
-        default_factory=list, description="References to previously shown products")
     presented_cars: list[str] = Field(
         default_factory=list,
         description="The cars of a LIST the bot's latest message presented, as their names, in the order the "
