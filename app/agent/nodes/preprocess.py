@@ -57,7 +57,7 @@ CANONICAL_SLOTS = {
 }
 # Values that are usually paraphrased/normalised by the model (e.g. "500 triệu" -> 500000000).
 _NORMALISED_VALUE_KEYS = {"appointment_when", "service_type", "service_detail", "budget_vnd", "customer_name",
-                          "decided_price", "payload_tons", "current_mileage_km", "intended_use"}
+                          "decided_price", "payload_tons", "current_mileage_km", "intended_use", "customer_address"}
 
 INTERPRETATION_PROMPT = """\
 Bạn là Preprocessing Agent của trợ lý gara ô tô. Phân tích TIN NHẮN MỚI NHẤT của khách trong ngữ cảnh hội thoại
