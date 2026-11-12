@@ -12,17 +12,23 @@ FORBIDDEN = re.compile(r"(giảm\s*\d+\s*%|tặng|miễn phí|cam kết|đảm b
 AMOUNT = re.compile(r"\d[\d\.]*\s*(?:đồng|triệu|tỷ|vnđ)", re.IGNORECASE)
 
 
+def _digits(amount: str) -> str:
+    """'425.000.000 VNĐ' / '425.000.000 đồng' -> '425000000' (so sánh theo giá trị, không theo cách viết)."""
+    return re.sub(r"[^\d]", "", amount.split()[0])
+
+
 def violation(draft: str, allowed: set[str]) -> str | None:
     if FORBIDDEN.search(draft):
         return "OUTPUT_GUARD: cam kết/giảm giá"
-    # Chỉ kiểm tra số tiền khi allowed_amounts không rỗng, và chỉ dạng chuẩn "X.XXX.XXX đồng"
-    # (định dạng fmt_vnd, ≥ 9 chữ số) – bỏ qua cách viết tắt (800 triệu) vì đó là ngân sách khách tự nêu.
+    # Chỉ kiểm tra số tiền khi allowed_amounts không rỗng, và chỉ dạng đầy đủ (>= 9 chữ số, vd 425.000.000 đồng/VNĐ)
+    # – bỏ qua cách viết tắt (800 triệu) vì đó là ngân sách khách tự nêu. So khớp theo giá trị số, không theo đuôi đơn vị.
     if allowed:
+        allowed_values = {_digits(item) for item in allowed}
         for amount in AMOUNT.findall(draft):
-            amount_str = amount.strip()
-            digits = re.sub(r"[^\d]", "", amount_str.split()[0])
-            if len(digits) >= 9 and amount_str not in allowed:
-                return f"OUTPUT_GUARD: số tiền lạ ({amount_str})"
+            amount = amount.strip()
+            digits = _digits(amount)
+            if len(digits) >= 9 and digits not in allowed_values:
+                return f"OUTPUT_GUARD: số tiền lạ ({amount})"
     return None
 
 
