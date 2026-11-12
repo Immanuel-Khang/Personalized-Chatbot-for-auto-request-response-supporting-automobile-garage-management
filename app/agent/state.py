@@ -55,6 +55,9 @@ class AgentState(TypedDict, total=False):
     active_workflow: ActiveWorkflow | None
     # Current turn only: canonical slots the customer gave but that failed validation (e.g. a malformed phone).
     rejected_slots: list[str]
+    # Debug trace of slot extraction this turn: keys the model proposed, and "key: reason" for each one dropped.
+    proposed_slots: list[str]
+    dropped_slots: list[str]
 
 
 # "Chào Khang," / "Xin chào bạn!" ở đầu câu trả lời

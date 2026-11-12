@@ -84,7 +84,8 @@ def contract(state: AgentState) -> dict:
 
     message = state.get("task_text") or state.get("user_text", "")
     if missing:
-        asks = _asks(pending, missing)
+        # A message that gave the bot new information is progress, not the same question asked again.
+        asks = 1 if interpretation and interpretation.slot_updates else _asks(pending, missing)
         if asks > MAX_ASKS:  # the same question again would not help: staff finish the contract
             return {"answers": [answer(state, "contract", needs_human=True,
                                        handover_reason="OTHER: contract fields still missing after repeated asks")],

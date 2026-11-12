@@ -68,6 +68,8 @@ Bạn là Preprocessing Agent của trợ lý gara ô tô. Phân tích TIN NHẮ
    "Tìm xe số 1 và đặt lịch xem xe" = SALES product_detail + APPOINTMENT book_appointment.
    - Xem xe tại showroom là APPOINTMENT. Thông số/giá của một mẫu trong catalog ("động cơ của FUSO Canter FI170",
      "xe số 2 hộp số mấy cấp") là SALES product_specs; KNOWLEDGE chỉ cho câu hỏi kỹ thuật chung, sửa chữa, an toàn.
+   - Chọn một xe trong danh sách bot vừa đưa ("mình chọn mẫu đầu", "lấy xe số 2") cũng là SALES purchase_interest,
+     đặt car_model bằng cách đếm trong danh sách.
    - Chỉ nói muốn mua ("tôi muốn mua xe này", "chốt mẫu này") mà chưa yêu cầu làm/ký hợp đồng hay đưa thông tin hợp
      đồng: SALES purchase_interest (đặt car_model nếu xe đã rõ). CONTRACT start_contract chỉ khi khách nói rõ muốn
      làm/ký hợp đồng, đồng ý bot đề nghị làm hợp đồng, hoặc cung cấp thông tin cho workflow hợp đồng đang mở.
@@ -94,6 +96,11 @@ Bạn là Preprocessing Agent của trợ lý gara ô tô. Phân tích TIN NHẮ
      mới. Chưa có giờ cụ thể vẫn ghi ("chiều thứ 2 tuần sau"); workflow tự hỏi giờ. KHÔNG tạo khi tin mới không nêu
      thời gian (VD "đúng rồi" xác nhận một đề xuất). Bot vừa hỏi ngày giờ ký hợp đồng mà khách đáp thời gian ->
      APPOINTMENT book_appointment ANSWER_TO_QUESTION, không phải CONTRACT.
+   - customer_phone, customer_address, decided_price: tin mới có thông tin nào thì BẮT BUỘC có slot_update riêng cho
+     từng thông tin đó, kể cả khi khách đưa nhiều thông tin trong một tin hoặc đáp câu bot vừa xin. evidence là đoạn
+     nguyên văn khách gõ (giữ cả lỗi chính tả). customer_phone: value đúng như khách gõ. customer_address: cả địa
+     chỉ khách nói. decided_price: số nguyên VND; khách nói chốt theo "giá mặc định/giá niêm yết/giá của xe" thì
+     value là giá niêm yết của xe đó, lấy từ tin gần nhất của bot (không đoán, không thấy giá thì bỏ qua).
    - customer_name: chỉ khi khách tự giới thiệu hoặc đáp câu hỏi tên; khách chỉ nói tên gọi thì ghi đúng phần đó,
      KHÔNG tự thêm họ. Xưng hô, lời chào, tên xe, địa danh không phải tên.
 4. Xe khách đang đếm:
@@ -106,7 +113,9 @@ Bạn là Preprocessing Agent của trợ lý gara ô tô. Phân tích TIN NHẮ
      tới. VD "xe số 2" với ["FUSO B", "FUSO C"] -> "FUSO C". Không có xe đó hoặc không xác định duy nhất -> null.
    - car_model của task chỉ khi TIN MỚI nêu tên xe, đếm số thứ tự, hoặc "xe này/nó" mà tin gần nhất của bot nói về
      đúng MỘT xe. Tin mới bắt đầu việc mới mà không nêu xe ("muốn mua xe", "đặt lịch bảo dưỡng"), hoặc "xe này" khi
-     bot vừa đưa NHIỀU xe, hoặc khi tin gần nhất của bot không nói về xe nào -> null. car_list và known_facts là xe khách
+     bot vừa đưa NHIỀU xe, hoặc khi tin gần nhất của bot không nói về xe nào -> null.
+     Ngoại lệ: task CONTRACT (khách muốn làm/ký hợp đồng hoặc đang gửi thông tin hợp đồng) mà bot đã ghi nhận khách
+     chọn đúng một xe -> car_model là xe đó. car_list và known_facts là xe khách
      từng xem hay việc đã xong, KHÔNG tự lấy làm xe của việc mới, kể cả khi danh sách chỉ có một xe.
 5. Mơ hồ: thiếu thông tin workflow sẽ tự hỏi (SĐT, ngày giờ) không phải mơ hồ. Không hiểu tin nhắn hoặc có điểm mơ hồ
    chặn task: uncertain=true và một task general_conversation requires_clarification=true.
@@ -195,8 +204,10 @@ def _canonical_value(key: str, value):
 
 
 def _validated_updates(state: AgentState, interpretation: ConversationInterpretation,
-                       rejected: list[str]) -> list[SlotUpdate]:
-    """Valid updates only; keys whose value failed validation are appended to ``rejected``."""
+                       rejected: list[str], dropped: list[str] | None = None) -> list[SlotUpdate]:
+    """Valid updates only; keys whose value failed validation are appended to ``rejected``.
+    Every other discarded proposal is named (key + reason, never the value) in ``dropped`` for the debug trace."""
+    dropped = dropped if dropped is not None else []
     text = state.get("user_text", "")
     facts = state.get("known_facts") or {}
     corrects = any(task.relationship == TaskRelationship.CORRECT_PREVIOUS_INFO for task in interpretation.tasks)
@@ -205,8 +216,10 @@ def _validated_updates(state: AgentState, interpretation: ConversationInterpreta
         key = update.key
         if key not in CANONICAL_SLOTS:
             logger.warning("Discarding non-canonical slot update: %s", key)
+            dropped.append(f"{key}: not a canonical slot")
             continue
         if not _evidence_is_current(update, text):
+            dropped.append(f"{key}: evidence/value not found in the current message")
             logger.warning("Discarding slot update with invalid current-turn evidence: %s %s", key,
                            "" if key in {"customer_phone", "customer_name", "customer_address"}
                            else repr((update.evidence, update.value)))
@@ -215,6 +228,7 @@ def _validated_updates(state: AgentState, interpretation: ConversationInterpreta
             value = _canonical_value(key, update.value)
             if value is None:
                 logger.warning("Discarding slot update with invalid value for %s", key)
+                dropped.append(f"{key}: invalid value")
                 rejected.append(key)
                 continue
             update = update.model_copy(update={"value": value})
@@ -227,6 +241,7 @@ def _validated_updates(state: AgentState, interpretation: ConversationInterpreta
         if (key == "customer_name" and old_value and old_value != update.value and not corrects
                 and not completes and update.operation != SlotOperation.CORRECT):
             logger.warning("Discarding customer_name update that would overwrite a known name")
+            dropped.append(f"{key}: would overwrite a known name")
             continue
         operation = update.operation
         if operation == SlotOperation.SET and old is not None and old_value != update.value:
@@ -241,12 +256,26 @@ def _car_list(state: AgentState) -> list[str]:
     return [str(item) for item in value] if isinstance(value, list) else []
 
 
+def _is_catalog_car(name: str | None) -> bool:
+    """True when ``name`` is exactly the name of a vehicle in the catalog (a hallucinated name never is)."""
+    if not name:
+        return False
+    try:
+        return any(item.name == name for item in get_services().product.find_model(str(name), limit=5))
+    except Exception:
+        logger.exception("Catalog lookup for car reference failed")
+        return False
+
+
 def _resolve_references(state: AgentState, interpretation: ConversationInterpretation) -> ConversationInterpretation:
     """The model counts ("xe số 2" -> the second car it was given); the code only checks the answer is one of the
     cars the customer can count (the list the bot just presented, or the one before), so a hallucinated name never
     reaches a specialist."""
     known = {*interpretation.presented_cars, *_car_list(state)}
-    tasks = [task.model_copy(update={"car_model": task.car_model if task.car_model in known else None})
+    # car_list can be empty although the customer already chose a car (the bot's list was never captured); a car
+    # that exists in the catalog under exactly that name is just as safe to pass on as one from the list.
+    tasks = [task.model_copy(update={"car_model": task.car_model if task.car_model in known
+                                     or _is_catalog_car(task.car_model) else None})
              for task in interpretation.tasks]
     return interpretation.model_copy(update={"tasks": tasks})
 
@@ -270,9 +299,24 @@ def _sync_car_model(state: AgentState, interpretation: ConversationInterpretatio
         facts.pop("decided_price", None)
 
 
+def _phone_fallback(state: AgentState, applied: ConversationInterpretation) -> list[SlotUpdate]:
+    """A phone number has a fixed format, so it does not depend on the model alone: when the message holds exactly one
+    valid Vietnamese number, the model proposed none and no phone is known yet, it is stored. A different number
+    than the known one is left to the model (a correction needs its judgement)."""
+    if any(update.key == "customer_phone" for update in applied.slot_updates):
+        return []
+    if fact_value(state.get("known_facts"), "customer_phone"):
+        return []
+    found = {match.group(0) for match in _PHONE_RE.finditer(state.get("user_text", ""))}
+    if len(found) != 1 or not normalize_phone(phone := found.pop()):
+        return []
+    return [SlotUpdate(key="customer_phone", operation=SlotOperation.SET, value=phone, evidence=phone)]
+
+
 def _apply_interpretation(state: AgentState, interpretation: ConversationInterpretation) -> dict:
     """Validate the model output, then write accepted slot updates into known_facts."""
     rejected: list[str] = []
+    dropped: list[str] = []
     # The cars the bot's last message listed replace the list the customer counts. The model names them;
     # the code keeps the previous list when it names none, so a chatty reply never wipes the count.
     facts = dict(state.get("known_facts") or {})
@@ -281,7 +325,8 @@ def _apply_interpretation(state: AgentState, interpretation: ConversationInterpr
                                       source=FactSource.INFERRED)
     state = {**state, "known_facts": facts}
     applied = _resolve_references(state, interpretation)
-    applied = applied.model_copy(update={"slot_updates": _validated_updates(state, applied, rejected)})
+    applied = applied.model_copy(update={"slot_updates": _validated_updates(state, applied, rejected, dropped)})
+    applied = applied.model_copy(update={"slot_updates": [*applied.slot_updates, *_phone_fallback(state, applied)]})
     for update in applied.slot_updates:
         if update.operation == SlotOperation.CLEAR:
             facts.pop(update.key, None)
@@ -293,7 +338,9 @@ def _apply_interpretation(state: AgentState, interpretation: ConversationInterpr
     _sync_car_model(state, applied, facts)
     if any(update.key == "appointment_when" for update in applied.slot_updates):
         sync_date_fact(facts)  # the customer's words -> a calendar date, computed in code
-    return {"conversation_interpretation": applied, "known_facts": facts, "rejected_slots": rejected}
+    return {"conversation_interpretation": applied, "known_facts": facts, "rejected_slots": rejected,
+            # Debug trace only (keys and reasons, no values): what the model proposed and what validation dropped.
+            "proposed_slots": [update.key for update in interpretation.slot_updates], "dropped_slots": dropped}
 
 
 def _trace_safe(value, key: str | None = None):
