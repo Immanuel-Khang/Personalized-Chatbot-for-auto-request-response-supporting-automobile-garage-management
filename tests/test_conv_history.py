@@ -7,7 +7,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from app.agent.llm import _messages
 from app.conversation import _history
-from app.db.models import CatalogItem, Message
+from app.db.models import CatalogProduct, Message
 from app.db.session import SessionLocal
 from app.identity import get_or_create_session
 
@@ -103,7 +103,7 @@ def test_ordinal_follow_up_keeps_vehicle_list(client, llm):
     sid = new_session()
     listing = say(client, llm, sid, "Cho mình xem danh sách các mẫu xe")["reply"]
     with SessionLocal() as db:
-        names = [n for (n,) in db.query(CatalogItem.name)]
+        names = [n for (n,) in db.query(CatalogProduct.name)]
     assert sum(name in listing for name in names) >= 2  # bot đã hiển thị danh sách xe
     say(client, llm, sid, "Mẫu thứ hai thì sao?")
     assert_turn_context(llm, [("HumanMessage", "Cho mình xem danh sách các mẫu xe"), ("AIMessage", listing)],

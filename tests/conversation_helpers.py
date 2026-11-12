@@ -9,7 +9,7 @@ import pytest
 
 from app.agent.graph import get_graph
 from app.agent.nodes.router import WRITERS
-from app.db.models import Appointment, CatalogItem, ChatSession, HandoverTicket
+from app.db.models import Appointment, ChatSession, HandoverTicket, ProductPrice
 from app.db.session import SessionLocal
 from app.identity import attach_phone, get_or_create_session
 from app.services.maintenance import COST_MAP
@@ -86,7 +86,7 @@ def questions(reply: str) -> int:
 def supported_amounts() -> set[str]:
     """Số tiền có nguồn (chỉ so chữ số): giá catalog, chi phí mốc bảo dưỡng, số trong tài liệu RAG."""
     with SessionLocal() as db:
-        amounts = {str(price) for (price,) in db.query(CatalogItem.list_price_vnd)}
+        amounts = {str(price) for (price,) in db.query(ProductPrice.amount_vnd)}
     amounts |= {str(cost) for cost in COST_MAP.values()}
     for doc in KNOWLEDGE_DIR.glob("*.md"):
         amounts |= {a.replace(".", "") for a in re.findall(r"\d{1,3}(?:\.\d{3})+", doc.read_text(encoding="utf-8"))}

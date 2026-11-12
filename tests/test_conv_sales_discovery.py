@@ -1,5 +1,5 @@
 """Sales discovery regressions against canonical conversation interpretation."""
-from app.db.models import CatalogItem
+from app.db.models import CatalogProduct
 from app.db.session import SessionLocal
 from tests.conversation_helpers import AMOUNT, NOT_UNDERSTOOD, Conversation, questions, unsupported_amounts
 
@@ -9,7 +9,7 @@ USE_QUESTION = ("mục đích", "để làm gì", "sử dụng xe")
 
 def catalog_names() -> list[str]:
     with SessionLocal() as db:
-        return [name.lower() for (name,) in db.query(CatalogItem.name)]
+        return [name.lower() for (name,) in db.query(CatalogProduct.name)]
 
 
 def lists_products(reply: str) -> bool:

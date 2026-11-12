@@ -1,69 +1,82 @@
-SESSION : e6288691-dfeb-4d4a-bda3-438ae2323468
-USER MSG: Đúng rồi
+SESSION : 358edba0-3fdd-4f42-9e15-211c7f201f3a
+USER MSG: Chào shop
 
-============================================================ input (0ms) ============================================================
-USER TEXT : Đúng rồi
-mode      : HUMAN_PENDING  turn:15
-car_list  : [FUSO Canter FI170 (Thùng mui bạt), THACO Linker T2-13]
-history   : 17 msgs
+============================================================ input (3769ms) ============================================================
+USER TEXT : Chào shop
+mode      : BOT  turn:10
+car_list  : []
+history   : 12 msgs
 --- OUT ---
-known_facts: customer_name=[REDACTED]  |  car_list=[FUSO Canter FI170 (Thùng mui bạt), THACO Linker T2-13]  |  car_model=THACO Linker T2-13  |  service_type=SHOWROOM_VISIT  |  appointment_when=Thứ 7 tuần tới, lúc 8 giờ sáng  |  customer_phone=[REDACTED]  |  appointment_date={text=Thứ 7 tuần tới, lúc 8 giờ sáng, reference=2026-11-09, status=RESOLVED, date=2026-11-21…}
+known_facts: (none)
 
-============================================================ preprocess (3485ms) ============================================================
-USER TEXT : Đúng rồi
-car_list  : [FUSO Canter FI170 (Thùng mui bạt), THACO Linker T2-13]
-pending   : 1 open
+============================================================ preprocess (5571ms) ============================================================
+USER TEXT : Chào shop
+car_list  : []
+pending   : 0 open
 --- LLM INPUT ---
 SYSTEM: Bạn là Preprocessing Agent của trợ lý gara ô tô. Phân tích TIN NHẮN MỚI NHẤT của khách trong ngữ cảnh hội thoại (tóm tắt + các tin gần nhất) và CONVERSATION STATE, trả về đúng schema ConversationInter…
-USER  : Đúng rồi
-SUMMARY (204 chars):
-  - Khách tên Khang, muốn được tư vấn xe. - Khách yêu cầu giới thiệu những loại xe nổi bật; chưa có tiêu chí về tải trọng, loại thùng hay ngân sách. - Chưa có mẫu xe nào được giới thiệu hoặc khách quan tâm.
-HISTORY WINDOW (10 msgs, showing last 3):
-  [ai] Mình ghi nhận bạn muốn đến xem xe THACO Linker T2-13. Bạn cho mình xin ngày và giờ hẹn, họ tên đầy đủ và số điện thoại nhé.  Hiện nhân viên đang bận n…
-  [user] Thứ 7 tuần tới, lúc 8 giờ sáng, Dương Định Khang, 0386764983 nhé
-  [ai] Mình đề xuất đặt lịch xem xe THACO Linker T2-13 tại showroom vào Thứ 7, 21/11/2026 lúc 08:00 cho Dương Định Khang, số điện thoại 0386764983. Bạn xác n…
+USER  : Chào shop
+SUMMARY (156 chars):
+  - Khách muốn mua xe; chưa nêu loại xe, mục đích, tải trọng hay ngân sách. - Chưa có mẫu xe được giới thiệu hoặc khách quan tâm. - Cần hỏi rõ nhu cầu mua xe.
+HISTORY WINDOW (6 msgs, showing last 3):
+  [ai] Dạ, mình chưa hiểu rõ ý bạn lắm ạ. Bạn nói rõ hơn giúp mình được không ạ?
+  [user] tôi muốn mua xe
+  [ai] Mình có thể tư vấn xe tải theo nhu cầu của bạn. Một vài mẫu trong danh mục hiện có:  - FUSO Canter FI170 thùng mui bạt: 809.000.000 đồng, giá áp dụng …
 --- OUT ---
-  tasks:     APPOINTMENT:book_appointment(car=None)
+  tasks:     GREETING:greeting(car=None)
+  presented: ['FUSO Canter FI170 thùng mui bạt', 'FUSO Canter FI170L thùng mui bạt', 'ISUZU Forward FRR90NE5 chassis', 'THACO Linker T2-13']
   complexity:LOW  uncertain:False
-car_list  : [FUSO Canter FI170 (Thùng mui bạt), THACO Linker T2-13]
+car_list  : [FUSO Canter FI170 thùng mui bạt, FUSO Canter FI170L thùng mui bạt, ISUZU Forward FRR90NE5 chassis, THACO Linker T2-13]
 route     : None  ()
 
 ============================================================ policy_guard (0ms) ============================================================
-  tasks:     APPOINTMENT:book_appointment(car=None)
+  tasks:     GREETING:greeting(car=None)
+  presented: ['FUSO Canter FI170 thùng mui bạt', 'FUSO Canter FI170L thùng mui bạt', 'ISUZU Forward FRR90NE5 chassis', 'THACO Linker T2-13']
   complexity:LOW  uncertain:False
 --- OUT ---
 route     : router  ()
 
 ============================================================ router (0ms) ============================================================
-  tasks:     APPOINTMENT:book_appointment(car=None)
+  tasks:     GREETING:greeting(car=None)
+  presented: ['FUSO Canter FI170 thùng mui bạt', 'FUSO Canter FI170L thùng mui bạt', 'ISUZU Forward FRR90NE5 chassis', 'THACO Linker T2-13']
   complexity:LOW  uncertain:False
 --- OUT ---
-route     : None  plan:[{'agent': 'appointment', 'text': 'Đúng rồi', 'order': 0, 'task_ids': ['t1']}]
+route     : None  plan:[{'agent': 'conversation', 'text': 'Chào shop', 'order': 0, 'task_ids': ['t1']}]
 
-============================================================ appointment (3359ms) ============================================================
-task_text : Đúng rồi
+============================================================ conversation (3609ms) ============================================================
+task_text : Chào shop
 task_ids  : ['t1']
-  tasks:     APPOINTMENT:book_appointment(car=None)
+  tasks:     GREETING:greeting(car=None)
+  presented: ['FUSO Canter FI170 thùng mui bạt', 'FUSO Canter FI170L thùng mui bạt', 'ISUZU Forward FRR90NE5 chassis', 'THACO Linker T2-13']
   complexity:LOW  uncertain:False
+--- LLM INPUT ---
+SYSTEM: Bạn là trợ lý thân thiện của xưởng Foton. Nhiệm vụ của bạn: 1. Luôn chào lại ngắn gọn khi khách chào. Nếu chưa biết tên khách, hỏi lịch sự "Bạn có thể cho mình biết họ tên để thuận tiện xưng hô được k…
+USER  : Khách đang chào hỏi. Sau khi chào và giới thiệu dịch vụ, hỏi lịch sự: 'Bạn có thể cho mình biết họ tên để thuận tiện xưng hô được không ạ?'                  Chưa có thông tin khách hàng trong hồ sơ.  …
+SUMMARY (156 chars):
+  - Khách muốn mua xe; chưa nêu loại xe, mục đích, tải trọng hay ngân sách. - Chưa có mẫu xe được giới thiệu hoặc khách quan tâm. - Cần hỏi rõ nhu cầu mua xe.
+HISTORY WINDOW (6 msgs, showing last 3):
+  [ai] Dạ, mình chưa hiểu rõ ý bạn lắm ạ. Bạn nói rõ hơn giúp mình được không ạ?
+  [user] tôi muốn mua xe
+  [ai] Mình có thể tư vấn xe tải theo nhu cầu của bạn. Một vài mẫu trong danh mục hiện có:  - FUSO Canter FI170 thùng mui bạt: 809.000.000 đồng, giá áp dụng …
 --- OUT ---
-  reply [appointment]: Lịch xem xe THACO Linker T2-13 vào Thứ 7, 21/11/2026 lúc 08:00 đang chờ nhân viên xác nhận.
+  reply [conversation]: Chào bạn! Bạn có thể cho mình biết họ tên để thuận tiện xưng hô được không ạ? Bạn muốn mình hỗ trợ tư vấn xe hay đặt lịc…
 
 ============================================================ validation (0ms) ============================================================
-  [appointment] Lịch xem xe THACO Linker T2-13 vào Thứ 7, 21/11/2026 lúc 08:00 đang chờ nhân viên xác nhận.
+  [conversation] Chào bạn! Bạn có thể cho mình biết họ tên để thuận tiện xưng hô được không ạ? Bạn muốn mình hỗ trợ tư vấn xe hay đặt lịc…
 --- OUT ---
 route     : compose  feedback:
 
 ============================================================ compose (0ms) ============================================================
-  [appointment] Lịch xem xe THACO Linker T2-13 vào Thứ 7, 21/11/2026 lúc 08:00 đang chờ nhân viên xác nhận.
+  [conversation] Chào bạn! Bạn có thể cho mình biết họ tên để thuận tiện xưng hô được không ạ? Bạn muốn mình hỗ trợ tư vấn xe hay đặt lịc…
 --- OUT ---
-draft     : Lịch xem xe THACO Linker T2-13 vào Thứ 7, 21/11/2026 lúc 08:00 đang chờ nhân viên xác nhận.
+draft     : Chào bạn! Bạn có thể cho mình biết họ tên để thuận tiện xưng hô được không ạ? Bạn muốn mình hỗ trợ tư vấn xe hay đặt lịc…
 
 ============================================================ output_guard (0ms) ============================================================
-draft     : Lịch xem xe THACO Linker T2-13 vào Thứ 7, 21/11/2026 lúc 08:00 đang chờ nhân viên xác nhận.
+draft     : Chào bạn! Bạn có thể cho mình biết họ tên để thuận tiện xưng hô được không ạ? Bạn muốn mình hỗ trợ tư vấn xe hay đặt lịc…
 --- OUT ---
 needs_human: None  final:
 
 ============================================================ respond (0ms) ============================================================
-final     : [REDACTED]
+final     : Mình có thể tư vấn xe tải theo nhu cầu của bạn. Một vài mẫu trong danh mục hiện có:  - FUSO Canter FI170 thùng mui bạt: …
 --- OUT ---
-final_reply: Lịch xem xe THACO Linker T2-13 vào Thứ 7, 21/11/2026 lúc 08:00 đang chờ nhân viên xác nhận.
+final_reply: Chào bạn! Bạn có thể cho mình biết họ tên để thuận tiện xưng hô được không ạ? Bạn muốn mình hỗ trợ tư vấn xe hay đặt lịc…

@@ -1,16 +1,16 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách xác nhận đề xuất đặt lịch xem xe THACO Linker T2-13 tại showroom vào Thứ 7, 21/11/2026 lúc 08:00.",
+      "message_summary": "Structured interpretation unavailable: LLM unavailable",
       "tasks": [
         {
-          "task_id": "t1",
-          "domain": "APPOINTMENT",
-          "action": "book_appointment",
-          "text": "Đúng rồi",
-          "relationship": "ACCEPT_OFFER",
-          "referenced_interaction_id": "appointment_0504e6c0",
-          "requires_clarification": false,
+          "task_id": "task_d5decd8c",
+          "domain": "OTHER",
+          "action": "general_conversation",
+          "text": "Xin chào",
+          "relationship": "UNCLEAR",
+          "referenced_interaction_id": null,
+          "requires_clarification": true,
           "car_model": null,
           "inquiry_only": false
         }
@@ -26,59 +26,13 @@
         "note": null
       },
       "complexity": "LOW",
-      "accepts_offer": true,
-      "uncertain": false
+      "accepts_offer": null,
+      "uncertain": true
     },
-    "known_facts": {
-      "customer_name": "[REDACTED]",
-      "car_list": {
-        "key": "car_list",
-        "value": [
-          "FUSO Canter FI170 (Thùng mui bạt)",
-          "THACO Linker T2-13"
-        ],
-        "source": "INFERRED",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "car_model": {
-        "key": "car_model",
-        "value": "THACO Linker T2-13",
-        "source": "INFERRED",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "service_type": {
-        "key": "service_type",
-        "value": "SHOWROOM_VISIT",
-        "source": "USER_EXPLICIT",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "appointment_when": {
-        "key": "appointment_when",
-        "value": "Thứ 7 tuần tới, lúc 8 giờ sáng",
-        "source": "USER_EXPLICIT",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "customer_phone": "[REDACTED]",
-      "appointment_date": {
-        "key": "appointment_date",
-        "value": {
-          "text": "Thứ 7 tuần tới, lúc 8 giờ sáng",
-          "reference": "2026-11-09",
-          "status": "RESOLVED",
-          "date": "2026-11-21",
-          "time_status": "RESOLVED",
-          "time": "08:00"
-        },
-        "source": "APPLICATION_VERIFIED",
-        "updated_at_message_id": null,
-        "confidence": null
-      }
-    },
+    "known_facts": {},
     "rejected_slots": [],
+    "proposed_slots": [],
+    "dropped_slots": [],
     "trace": [
       "preprocess"
     ]
@@ -87,6 +41,8 @@
     "conversation_interpretation",
     "known_facts",
     "rejected_slots",
+    "proposed_slots",
+    "dropped_slots",
     "trace"
   ]
 }
