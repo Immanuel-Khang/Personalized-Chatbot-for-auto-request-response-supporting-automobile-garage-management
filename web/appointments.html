@@ -63,7 +63,8 @@ dialog.dlg::backdrop{background:#0b1f33a0}
   <details class="cfg" id="cfg" open>
     <summary>Khung giờ &amp; sức chứa</summary>
     <div class="cfg-form">
-      <label>Số lịch tối đa / khung giờ<input id="c-cap" type="number" min="1" max="50" style="width:150px"></label>
+      <label>Bảo dưỡng / sửa chữa: tối đa lịch / khung giờ<input id="c-cap" type="number" min="1" max="50" style="width:150px"></label>
+      <label>Đến showroom (xem xe, ký HĐ): tối đa lịch / khung giờ<input id="c-scap" type="number" min="1" max="50" style="width:150px"></label>
       <label>Độ dài mỗi khung giờ (phút)<input id="c-min" type="number" min="10" max="480" step="5" style="width:170px"></label>
       <label>Giờ mở cửa<input id="c-ws" type="time"></label>
       <label>Giờ đóng cửa<input id="c-we" type="time"></label>
@@ -72,7 +73,7 @@ dialog.dlg::backdrop{background:#0b1f33a0}
     <p class="note" id="c-note" style="margin-top:8px"></p>
     <div class="cfg-day">
       <label>Xem tải theo ngày<input id="c-day" type="date"></label>
-      <label>Loại<select id="c-type"><option value="SERVICE_BAY">Bảo dưỡng / sửa chữa</option><option value="SHOWROOM_VISIT">Xem xe showroom</option></select></label>
+      <label>Loại (lọc cả danh sách lịch bên dưới)<select id="c-type"><option value="ALL">Tất cả</option><option value="SERVICE_BAY">Bảo dưỡng / sửa chữa</option><option value="SHOWROOM_VISIT">Đặt lịch đến showroom (xem xe, ký hợp đồng)</option></select></label>
     </div>
     <div class="wins" id="wins"></div>
     <p class="note" id="c-uns" style="margin-top:8px" hidden></p>
@@ -105,16 +106,21 @@ const STATUS = { PENDING_APPROVAL: "Chờ xác nhận", CONFIRMED: "Đã xác nh
 const SERVICE = { MAINTENANCE: "Bảo dưỡng", REPAIR: "Sửa chữa", SHOWROOM_VISIT: "Xem xe tại showroom", CONTRACT_SIGN: "Ký hợp đồng" };
 const CHAT = { BOT: "Trợ lý AI đang xử lý", OPEN: "Khách đang chờ nhân viên", CLAIMED: "Nhân viên đang chat", RESOLVED: "Trợ lý AI (nhân viên đã xong)" };
 const ROLE_NAME = { manager: "Quản lý", sales_admin: "Nhân viên kinh doanh", technician: "Kỹ thuật" };
+const KIND = { SERVICE_BAY: ["MAINTENANCE", "REPAIR"], SHOWROOM_VISIT: ["SHOWROOM_VISIT", "CONTRACT_SIGN"] };
 let tab = "ALL", items = [], counts = {}, sig = "", seen = new Map(), firstLoad = true, online = true, timer = null;
 $("#logout").onclick = logout;
 const dmy = iso => iso ? iso.split("-").reverse().join("/") : null;
 function toast(msg) { $(".toast")?.remove(); const t = el("div", "toast", msg); t.setAttribute("role", "status"); document.body.append(t); setTimeout(() => t.remove(), 4000); }
 
+const GROUP = { PENDING_APPROVAL: ["PENDING_APPROVAL"], CONFIRMED: ["CONFIRMED"], DONE: ["DONE"], CANCELLED: ["CANCELLED", "REJECTED"] };
 function draw() {
+  const kind = $("#c-type").value;
+  const ofKind = items.filter(a => kind === "ALL" || KIND[kind].includes(a.service_type));
+  counts = { ALL: ofKind.length, ...Object.fromEntries(Object.entries(GROUP).map(([g, m]) => [g, ofKind.filter(a => m.includes(a.status)).length])) };
   document.querySelectorAll(".tab").forEach(b => { b.setAttribute("aria-selected", b.dataset.s === tab); $(".n", b).textContent = counts[b.dataset.s] ?? 0; });
   $('.tab[data-s="PENDING_APPROVAL"]').classList.toggle("hot", (counts.PENDING_APPROVAL || 0) > 0);
-  const rows = items.filter(a => tab === "ALL" || (tab === "CANCELLED" ? ["CANCELLED", "REJECTED"].includes(a.status) : a.status === tab));
-  const s = tab + JSON.stringify(rows.map(a => [a.id, a.updated_at, a.status, a.conversation_status]));
+  const rows = ofKind.filter(a => tab === "ALL" || GROUP[tab].includes(a.status));
+  const s = kind + tab + JSON.stringify(counts) + JSON.stringify(rows.map(a => [a.id, a.updated_at, a.status, a.conversation_status]));
   if (s === sig) return; sig = s;
   const ul = $("#list"); ul.replaceChildren();
   if (!rows.length) { ul.append(el("div", "none", $("#q").value.trim() ? "Không có lịch hẹn nào khớp từ khóa." : "Chưa có lịch hẹn nào. Khi khách đặt lịch qua chat, lịch sẽ hiện ở đây.")); return; }
@@ -198,7 +204,7 @@ async function chat(a, b) {
 async function load() {
   try {
     const d = await api("/admin/appointments?status=ALL&q=" + encodeURIComponent($("#q").value.trim()));
-    items = d.items; counts = d.counts; $("#whoami").textContent = (d.username || "Chưa bật đăng nhập") + " · " + (ROLE_NAME[d.role] || d.role);
+    items = d.items; $("#whoami").textContent = (d.username || "Chưa bật đăng nhập") + " · " + (ROLE_NAME[d.role] || d.role);
     if (!online) { online = true; $("#live").textContent = "● tự cập nhật"; }
     draw(); seen = new Map(items.map(a => [a.id, a.updated_at])); firstLoad = false;
   } catch { if (online) { online = false; $("#live").textContent = "● mất kết nối, đang thử lại"; } }
@@ -213,34 +219,42 @@ let cfgSig = "";
 async function loadCfg() {
   try {
     const c = await api("/admin/settings/booking");
-    $("#c-cap").value = c.slot_capacity; $("#c-min").value = c.slot_minutes; $("#c-ws").value = c.work_start; $("#c-we").value = c.work_end;
-    for (const id of ["c-cap", "c-min", "c-ws", "c-we", "c-save"]) $("#" + id).disabled = !c.can_edit;
-    $("#c-note").textContent = (c.can_edit ? "" : "Chỉ quản lý được đổi. ") + `Mặc định từ máy chủ: ${c.defaults.slot_capacity} lịch/khung, ${c.defaults.slot_minutes} phút. ` +
+    $("#c-cap").value = c.slot_capacity; $("#c-scap").value = c.showroom_capacity; $("#c-min").value = c.slot_minutes; $("#c-ws").value = c.work_start; $("#c-we").value = c.work_end;
+    for (const id of ["c-cap", "c-scap", "c-min", "c-ws", "c-we", "c-save"]) $("#" + id).disabled = !c.can_edit;
+    $("#c-note").textContent = (c.can_edit ? "" : "Chỉ quản lý được đổi. ") + `Mặc định từ máy chủ: ${c.defaults.slot_capacity} lịch bảo dưỡng/sửa chữa và ${c.defaults.showroom_capacity} lịch showroom mỗi khung, ${c.defaults.slot_minutes} phút. Hai loại đếm riêng, không chiếm chỗ của nhau. ` +
       "Khung giờ tính từ giờ mở cửa, cách nhau đúng độ dài khung giờ. Thay đổi áp dụng cho lần đặt/xác nhận tiếp theo; lịch đã có giữ nguyên.";
   } catch {}
 }
 $("#c-save").onclick = async () => {
   try {
     await api("/admin/settings/booking", { method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slot_capacity: Number($("#c-cap").value), slot_minutes: Number($("#c-min").value), work_start: $("#c-ws").value, work_end: $("#c-we").value }) });
+      body: JSON.stringify({ slot_capacity: Number($("#c-cap").value), showroom_capacity: Number($("#c-scap").value), slot_minutes: Number($("#c-min").value), work_start: $("#c-ws").value, work_end: $("#c-we").value }) });
     toast("Đã lưu cấu hình khung giờ"); cfgSig = ""; await loadCfg(); loadWins();
   } catch (e) { toast(e.message); }
 };
 async function loadWins() {
   const day = $("#c-day").value; if (!day) return;
   try {
-    const d = await api(`/admin/slots?date=${day}&service=${$("#c-type").value}`);
-    const sig = JSON.stringify(d); if (sig === cfgSig) return; cfgSig = sig;
+    const sel = $("#c-type").value, types = sel === "ALL" ? ["SERVICE_BAY", "SHOWROOM_VISIT"] : [sel];
+    const ds = await Promise.all(types.map(t => api(`/admin/slots?date=${day}&service=${t}`)));
+    const sig = JSON.stringify(ds); if (sig === cfgSig) return; cfgSig = sig;
     const box = $("#wins"); box.replaceChildren();
-    for (const w of d.windows) {
+    // "Tất cả": gộp hai loại thành một danh sách khung giờ (cộng số lịch và cộng sức chứa của hai loại)
+    const windows = ds[0].windows.map((w, i) => ds.slice(1).reduce((m, d) => {
+      const x = d.windows[i];
+      return { ...m, confirmed: m.confirmed + x.confirmed, pending: m.pending + x.pending, capacity: m.capacity + x.capacity,
+               free: m.free + x.free, appointment_ids: [...m.appointment_ids, ...x.appointment_ids].sort((p, q) => p - q) };
+    }, w));
+    for (const w of windows) {
       const used = w.confirmed + w.pending, c = el("div", "win" + (w.free === 0 ? " full" : used ? " part" : ""));
       c.append(el("b", "", w.label + "  ·  " + used + "/" + w.capacity),
         el("div", "sub", `${w.confirmed} đã xác nhận, ${w.pending} chờ` + (w.appointment_ids.length ? " · " + w.appointment_ids.map(i => "#" + i).join(" ") : "")));
       box.append(c);
     }
-    const u = $("#c-uns"); u.hidden = !d.unscheduled; u.textContent = `${d.unscheduled} lịch ngày này chưa có giờ cụ thể (chưa chiếm chỗ cho tới khi chốt giờ).`;
+    const un = ds.reduce((n, d) => n + d.unscheduled, 0); const u = $("#c-uns"); u.hidden = !un; u.textContent = `${un} lịch ngày này chưa có giờ cụ thể (chưa chiếm chỗ cho tới khi chốt giờ).`;
   } catch {}
 }
-$("#c-day").value = localToday(); $("#c-day").onchange = $("#c-type").onchange = () => { cfgSig = ""; loadWins(); };
+$("#c-day").value = localToday(); $("#c-day").onchange = () => { cfgSig = ""; loadWins(); };
+$("#c-type").onchange = () => { sig = ""; cfgSig = ""; draw(); loadWins(); };
 loadCfg(); loadWins(); setInterval(() => !document.hidden && loadWins(), 4000);
 </script></body></html>

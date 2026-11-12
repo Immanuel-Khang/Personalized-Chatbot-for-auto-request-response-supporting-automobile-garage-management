@@ -117,7 +117,7 @@ Account commands (run inside the `web` container, or locally with the database u
 On `/appointments.html` → "Slots & capacity" (only `manager` can edit):
 - Set the *max bookings per slot*, *slot length (minutes)*, and opening/closing hours. Slots start from opening time, e.g. 08:00 + 90 min = 08:00-09:30, 09:30-11:00, ...
 - `PENDING_APPROVAL` and `CONFIRMED` bookings both hold a slot. If a slot is full, the bot says so and suggests free times; if the customer already has a booking in that slot, it reports a conflict. Checks run on booking, rescheduling, and staff confirmation.
-- Defaults come from `SLOT_CAPACITY`, `SLOT_MINUTES`, `WORK_START`, `WORK_END`. Values set on the admin page (`app_settings` table) take precedence and apply only to future bookings and confirmations.
+- Defaults come from `SLOT_CAPACITY` (maintenance/repair), `SHOWROOM_CAPACITY` (showroom visits and contract signing, counted separately), `SLOT_MINUTES`, `WORK_START`, `WORK_END`. Values set on the admin page (`app_settings` table) take precedence and apply only to future bookings and confirmations.
 - API: `GET|PUT /admin/settings/booking`, `GET /admin/slots?date=YYYY-MM-DD`.
 
 ---

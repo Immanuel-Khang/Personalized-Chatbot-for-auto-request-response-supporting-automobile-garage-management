@@ -29,7 +29,7 @@ LOCAL_TZ = timezone(timedelta(hours=7))
 DEFAULT_SHOWROOM = "Garage One"
 HOLDING = ("PENDING_APPROVAL", "CONFIRMED")  # trạng thái đang giữ chỗ trong khung giờ
 CFG_PREFIX = "booking."
-CFG_FIELDS = ("slot_capacity", "slot_minutes", "work_start", "work_end")
+CFG_FIELDS = ("slot_capacity", "showroom_capacity", "slot_minutes", "work_start", "work_end")
 
 
 def _note_value(note: str | None, prefix: str) -> str | None:
@@ -78,7 +78,8 @@ def _default_config() -> BookingConfig:
             return parse_hhmm(raw)
         except ValueError:
             return fallback
-    return BookingConfig(slot_capacity=settings.slot_capacity, slot_minutes=settings.slot_minutes,
+    return BookingConfig(slot_capacity=settings.slot_capacity, showroom_capacity=settings.showroom_capacity,
+                         slot_minutes=settings.slot_minutes,
                          work_start=hhmm(settings.work_start, time(8, 0)), work_end=hhmm(settings.work_end, time(17, 0)))
 
 
@@ -109,7 +110,8 @@ def default_booking_config() -> BookingConfig:
 
 def set_booking_config(cfg: BookingConfig) -> BookingConfig:
     """Lưu cấu hình (người gọi đã kiểm tra bằng slots.validate). Chỉ ảnh hưởng đặt/xác nhận từ giờ trở đi; lịch cũ giữ nguyên."""
-    pairs = {"slot_capacity": str(cfg.slot_capacity), "slot_minutes": str(cfg.slot_minutes),
+    pairs = {"slot_capacity": str(cfg.slot_capacity), "showroom_capacity": str(cfg.showroom_capacity),
+             "slot_minutes": str(cfg.slot_minutes),
              "work_start": f"{cfg.work_start:%H:%M}", "work_end": f"{cfg.work_end:%H:%M}"}
     with SessionLocal() as db:
         for field, value in pairs.items():
@@ -120,8 +122,11 @@ def set_booking_config(cfg: BookingConfig) -> BookingConfig:
 
 
 # ---------------------------------------------------------------- kiểm tra trùng / đầy
+SHOWROOM_SERVICES = ("SHOWROOM_VISIT", "CONTRACT_SIGN")  # khách đến showroom, không dùng chỗ sửa xe
+
+
 def _slot_type(service_type: str) -> str:
-    return "SHOWROOM_VISIT" if service_type == "SHOWROOM_VISIT" else "SERVICE_BAY"
+    return "SHOWROOM_VISIT" if service_type in SHOWROOM_SERVICES else "SERVICE_BAY"
 
 
 def _lock_day(db: Session, day: date) -> None:
@@ -132,8 +137,8 @@ def _lock_day(db: Session, day: date) -> None:
 def _rows_on(db: Session, day: date, slot_type: str, statuses: tuple[str, ...], exclude_id: int | None) -> list[Appointment]:
     query = select(Appointment).where(Appointment.appointment_date == day, Appointment.status.in_(statuses),
                                       Appointment.start_time.is_not(None))
-    query = query.where(Appointment.service_type == "SHOWROOM_VISIT" if slot_type == "SHOWROOM_VISIT"
-                        else Appointment.service_type != "SHOWROOM_VISIT")
+    query = query.where(Appointment.service_type.in_(SHOWROOM_SERVICES) if slot_type == "SHOWROOM_VISIT"
+                        else Appointment.service_type.not_in(SHOWROOM_SERVICES))
     if exclude_id is not None:
         query = query.where(Appointment.id != exclude_id)
     return list(db.scalars(query))
@@ -143,10 +148,11 @@ def _in_window(rows: list[Appointment], window: time, cfg: BookingConfig) -> lis
     return [r for r in rows if window_start(r.start_time, cfg) == window]
 
 
-def _alternatives(rows: list[Appointment], day: date, wanted: time, cfg: BookingConfig, limit: int = 3) -> list[str]:
+def _alternatives(rows: list[Appointment], day: date, wanted: time, cfg: BookingConfig, slot_type: str,
+                  limit: int = 3) -> list[str]:
     """Các khung giờ còn trống cùng ngày (trong giờ làm việc), gần giờ khách muốn nhất, xếp theo thời gian."""
     now = datetime.now(LOCAL_TZ)
-    free = [w for w in work_windows(cfg) if w != wanted and len(_in_window(rows, w, cfg)) < cfg.slot_capacity
+    free = [w for w in work_windows(cfg) if w != wanted and len(_in_window(rows, w, cfg)) < cfg.capacity_for(slot_type)
             and not (day == now.date() and minutes_of(w) <= now.hour * 60 + now.minute)]
     free.sort(key=lambda w: abs(minutes_of(w) - minutes_of(wanted)))
     return [f"{w:%H:%M}" for w in sorted(free[:limit])]
@@ -167,11 +173,12 @@ def _conflict(db: Session, cfg: BookingConfig, customer_id: int | None, service_
         return BookingResult(ok=False, appointment_id=mine.id, status="DUPLICATE",
                              message=f"Bạn đã có lịch #{mine.id} lúc {mine.start_time:%H:%M} ngày {day:%d/%m/%Y}, "
                                      f"cùng khung giờ {window_label(window, cfg)}, nên không đặt thêm trùng được.")
-    if len(inside) >= cfg.slot_capacity:
-        alts = _alternatives(rows, day, window, cfg)
+    capacity = cfg.capacity_for(slot_type)
+    if len(inside) >= capacity:
+        alts = _alternatives(rows, day, window, cfg, slot_type)
         hint = f" Còn trống: {', '.join(alts)}." if alts else " Ngày này không còn khung giờ trống."
         return BookingResult(ok=False, status="SLOT_FULL", alternatives=alts,
-                             message=f"Khung giờ {label} đã đủ chỗ ({len(inside)}/{cfg.slot_capacity}).{hint}")
+                             message=f"Khung giờ {label} đã đủ chỗ ({len(inside)}/{capacity}).{hint}")
     return None
 
 
@@ -181,15 +188,17 @@ def slot_overview(day: date, slot_type: str = "SERVICE_BAY") -> dict:
         cfg = _config(db)
         pending = _rows_on(db, day, slot_type, ("PENDING_APPROVAL",), None)
         confirmed = _rows_on(db, day, slot_type, ("CONFIRMED",), None)
-        windows = []
+        windows, cap = [], cfg.capacity_for(slot_type)
         for w in work_windows(cfg):
             p, c = _in_window(pending, w, cfg), _in_window(confirmed, w, cfg)
             windows.append({"start": f"{w:%H:%M}", "label": window_label(w, cfg), "confirmed": len(c), "pending": len(p),
-                            "capacity": cfg.slot_capacity, "free": max(0, cfg.slot_capacity - len(c) - len(p)),
+                            "capacity": cap, "free": max(0, cap - len(c) - len(p)),
                             "appointment_ids": sorted(r.id for r in [*c, *p])})
         unscheduled = db.scalar(select(func.count()).select_from(Appointment).where(
-            Appointment.appointment_date == day, Appointment.status.in_(HOLDING), Appointment.start_time.is_(None)))
-        return {"date": day.isoformat(), "slot_type": slot_type, "slot_capacity": cfg.slot_capacity,
+            Appointment.appointment_date == day, Appointment.status.in_(HOLDING), Appointment.start_time.is_(None),
+            Appointment.service_type.in_(SHOWROOM_SERVICES) if slot_type == "SHOWROOM_VISIT"
+            else Appointment.service_type.not_in(SHOWROOM_SERVICES)))
+        return {"date": day.isoformat(), "slot_type": slot_type, "slot_capacity": cap,
                 "slot_minutes": cfg.slot_minutes, "windows": windows, "unscheduled": unscheduled or 0}
 
 
@@ -301,19 +310,20 @@ def confirm_appointment(appointment_id: int, start_time: time | None = None) -> 
         _lock_day(db, row.appointment_date)
         window = window_start(when, cfg)
         confirmed = _in_window(_rows_on(db, row.appointment_date, slot_type, ("CONFIRMED",), row.id), window, cfg)
-        if len(confirmed) >= cfg.slot_capacity:
+        capacity = cfg.capacity_for(slot_type)
+        if len(confirmed) >= capacity:
             return BookingResult(ok=False, appointment_id=row.id, status="SLOT_FULL",
-                                 message=f"Khung giờ này đã đủ chỗ ({len(confirmed)}/{cfg.slot_capacity}).")
+                                 message=f"Khung giờ này đã đủ chỗ ({len(confirmed)}/{capacity}).")
         starts = datetime.combine(row.appointment_date, window, tzinfo=LOCAL_TZ)
         showroom = _showroom(db)
         db.execute(pg_insert(AppointmentSlot).values(
             showroom_id=showroom.id, slot_type=slot_type, starts_at=starts,
-            ends_at=starts + timedelta(minutes=cfg.slot_minutes), capacity=cfg.slot_capacity, booked_count=0,
+            ends_at=starts + timedelta(minutes=cfg.slot_minutes), capacity=capacity, booked_count=0,
         ).on_conflict_do_nothing(index_elements=["showroom_id", "slot_type", "starts_at"]))
         slot = db.scalars(select(AppointmentSlot).where(
             AppointmentSlot.showroom_id == showroom.id, AppointmentSlot.slot_type == slot_type,
             AppointmentSlot.starts_at == starts).with_for_update()).one()
-        slot.capacity = max(cfg.slot_capacity, slot.booked_count + 1)  # theo cấu hình hiện hành; không thấp hơn số đã giữ
+        slot.capacity = max(capacity, slot.booked_count + 1)  # theo cấu hình hiện hành; không thấp hơn số đã giữ
         slot.booked_count += 1
         row.slot_id, row.start_time, row.status = slot.id, when, "CONFIRMED"
         db.commit()
