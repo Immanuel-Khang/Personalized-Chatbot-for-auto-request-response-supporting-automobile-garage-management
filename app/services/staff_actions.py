@@ -48,7 +48,7 @@ class ActionDraft(BaseModel):
     evidence: str = Field(description="Trích nguyên văn câu làm căn cứ")
     source_message_id: int | None = Field(default=None, description="Số #id của tin nhân viên làm căn cứ chính")
     appointment_id: int | None = Field(default=None, description="Mã lịch trong danh sách LỊCH HẸN HIỆN CÓ (đổi/hủy)")
-    service_type: str | None = Field(default=None, description="MAINTENANCE | REPAIR | SHOWROOM_VISIT | CONTRACT_SIGN")
+    service_type: str | None = Field(default=None, description="Mục đích khách đến: MAINTENANCE (bảo dưỡng) | REPAIR (sửa chữa) | SHOWROOM_VISIT | CONTRACT_SIGN; đúng một trong bốn giá trị này")
     service_detail: str | None = Field(default=None, description="Hạng mục (thay dầu, phanh...)")
     date: DateInfo | None = Field(default=None, description="Ngày hẹn dạng thành phần; KHÔNG tự tính ngày")
     time: str | None = Field(default=None, description="Giờ 24h HH:MM, chỉ khi nhân viên nêu giờ")
@@ -80,6 +80,15 @@ KHÁCH cung cấp (họ tên, SĐT, địa chỉ, giờ/ngày khách hẹn) PH�
 nhắn sau tin nhân viên. Không bịa thông tin chưa ai nói; trường nào không rõ thì bỏ trống (null).
 Mỗi dòng hội thoại có dạng [#id Vai trò]; điền source_message_id bằng #id của tin làm căn cứ chính.
 
+MỤC ĐÍCH LỊCH HẸN (service_type) là điều khách muốn làm, lấy từ lời khách dù khách nói trước khi nhân viên trả lời:
+  bảo dưỡng / bảo trì / thay dầu, nhớt / kiểm tra định kỳ -> MAINTENANCE;  sửa chữa / hỏng / lỗi / va chạm -> REPAIR;
+  xem xe / lái thử / đến showroom -> SHOWROOM_VISIT;  ký hợp đồng -> CONTRACT_SIGN.
+  Chỉ để null khi cả đoạn hội thoại thật sự chưa nói khách đến làm gì. service_detail CHỈ ghi hạng mục cụ thể khách nêu
+  (thay dầu, kiểm tra phanh, vá lốp...); khách chỉ nói chung chung "bảo dưỡng" thì service_detail = null, không lặp lại tên dịch vụ.
+Thông tin (tên khách, SĐT, mục đích, hạng mục, ngày giờ) có thể do KHÁCH hoặc NHÂN VIÊN nói ra ("em ghi anh Vanh, số 09..."),
+đọc cả hai phía. SĐT chép NGUYÊN số khách/nhân viên nêu, kể cả khi số trông sai độ dài (hệ thống sẽ cảnh báo để sửa).
+SĐT/họ tên/địa chỉ khách cung cấp LUÔN phải có trong hành động CUSTOMER_INFO, kể cả khi SĐT đó cũng đã nằm trong lịch hẹn.
+
 Loại hành động:
 - BOOK_APPOINTMENT: đặt lịch mới (service_type, date, time, service_detail, customer_phone). Một lịch = một hành động.
 - RESCHEDULE_APPOINTMENT: đổi lịch ĐÃ CÓ sang ngày/giờ khác (appointment_id từ LỊCH HẸN HIỆN CÓ, date/time mới).
@@ -91,7 +100,9 @@ Loại hành động:
   nêu rõ khách đề nghị gì, nhân viên trả lời gì, kết quả/giá/% cụ thể), đặt note_topic:
     SALES_NEGOTIATION = thương lượng giá, ưu đãi, giảm giá, mua xe (viết tóm tắt cả quá trình mặc cả);
     COMPLAINT = khiếu nại, sự cố và cách đã xử lý;  GENERAL = cam kết/việc cần làm khác.
-  Không tạo ghi chú nếu chỉ lặp lại đúng nội dung một hành động khác (VD chỉ có đặt lịch thì không cần ghi chú).
+  KHÔNG tạo ghi chú để kể lại hội thoại (ai hỏi gì, ai trả lời gì, xin SĐT, hỏi giờ). Tên, SĐT, mục đích, hạng mục, ngày giờ
+  đã nằm trong thẻ CUSTOMER_INFO/BOOK_APPOINTMENT thì TUYỆT ĐỐI không ghi lại lần nữa. Chỉ tạo GENERAL khi có yêu cầu đặc biệt
+  hoặc cam kết riêng của nhân viên mà không thẻ nào chứa được; nếu không có thì không tạo ghi chú nào.
 
 Mục "ĐÃ XỬ LÝ" liệt kê những gì nhân viên đã duyệt/bỏ trong đợt này: KHÔNG đề xuất lại các mục đó. Với ghi chú đã duyệt
 tới tin #N của một chủ đề, chỉ tổng hợp phần diễn biến SAU tin #N của chủ đề đó; không có gì mới thì không tạo.
@@ -103,7 +114,13 @@ Khi chỉ có đúng một lịch hẹn hiện có mà nói "đổi/hủy lịch
 
 
 # ---- quy tắc dự phòng (không có LLM) -----------------------------------------------------------------------------
-_PHONE = re.compile(r"(?<!\d)((?:\+84|0)\d{9})(?!\d)")
+# Bắt cả số sai độ dài (khách gõ thừa/thiếu số) và số có dấu cách/chấm: hợp lệ hay không do normalize_params quyết định,
+# số sai vẫn hiện trong hộp thoại kèm cảnh báo để nhân viên sửa, không được im lặng bỏ mất.
+_PHONE = re.compile(r"(?<![\d+])((?:\+84|0)(?:[ .-]?\d){8,10})(?!\d)")
+_NAME_STRICT = re.compile(r"(?:họ\s*tên|tên\s+khách|khách\s+tên)\s*(?:là|:)?\s+([^\d,.;\n]{2,60}?)(?=\s+(?:sđt|sdt|số|địa\s*chỉ)\b|[\d,.;\n]|$)",
+                         re.IGNORECASE)  # nhân viên chỉ được nêu tên KHÁCH khi nói rõ, "em tên là Lan" là tên nhân viên
+_DETAIL = re.compile(r"(?:thay|kiểm\s+tra|vá|cân\s+chỉnh|vệ\s+sinh|sơn|hàn|nạp)\s+[^\s,.;]+(?:\s+[^\s,.;]+)?", re.IGNORECASE)
+_GENERIC_DETAIL = re.compile(r"^(?:xe\s+)?(?:bảo\s+dưỡng|bảo\s+trì|sửa\s+chữa|sửa|xem|ký\s+hợp\s+đồng|kiểm\s+tra)(?:\s+xe)?$", re.IGNORECASE)
 _HOUR = re.compile(r"(?<![\d/])(\d{1,2})\s*(?:h|giờ|g|:)\s*(\d{2})?\s*(?:phút)?\s*(sáng|trưa|chiều|tối)?", re.IGNORECASE)
 _DMY = re.compile(r"(?<!\d)(\d{1,2})\s*/\s*(\d{1,2})(?:\s*/\s*(\d{4}))?(?!\d)")
 _DAY_MONTH = re.compile(r"ngày\s+(\d{1,2})\s+tháng\s+(\d{1,2})", re.IGNORECASE)
@@ -112,6 +129,10 @@ _PRICE = re.compile(r"(?:chốt|giá\s+cuối|chốt\s+giá|thống\s+nhất)\D{
                     re.IGNORECASE)
 _NAME = re.compile(r"(?:họ\s*tên|tên\s+khách|khách\s+tên|tên)\s*(?:là|:)?\s+([^\d,.;\n]{2,60}?)(?=\s+(?:sđt|sdt|số|địa\s*chỉ)\b|[\d,.;\n]|$)",
                    re.IGNORECASE)
+_RECAP = re.compile(r"hỏi|xin\s+(?:sđt|sdt|số)|cung\s+cấp|muốn\s+(?:đặt|bảo|sửa)|hẹn\s+(?:ngày|lúc)|đặt\s+lịch", re.IGNORECASE)
+_PART_BEFORE = re.compile(r"(sáng|trưa|chiều|tối)\b[^\d]{0,20}$", re.IGNORECASE)
+_BOOK_INTENT = re.compile(r"(?:đặt|hẹn|book|xếp)\s*(?:cho\s+\w+\s+)?(?:lịch|hẹn)|muốn\s+(?:đi\s+)?(?:bảo\s+dưỡng|sửa|xem\s+xe|ký)",
+                          re.IGNORECASE)
 _MAI = re.compile(r"(?<!\w)mai(?!\w)")  # "mai" viết thường = ngày mai ("Mai" viết hoa có thể là tên người)
 _ADDRESS = re.compile(r"địa\s*chỉ\s*(?:là|:)\s*([^\n]{5,160})", re.IGNORECASE)
 _NOTE = re.compile(r"^\s*(?:ghi\s*chú|lưu\s*ý)\s*[:\-]?\s*(.+)$", re.IGNORECASE | re.DOTALL)
@@ -121,9 +142,10 @@ _RESCHEDULE = re.compile(r"(?:đổi|dời|chuyển|sang)\s+(?:lịch|hẹn|sang
 _BOOK = re.compile(r"(?:đặt|hẹn|book|xếp)\s*(?:cho\s+(?:bạn|anh|chị|em)\s+)?(?:lịch|lúc|vào|ngày)|lịch\s+(?:bảo\s+dưỡng|sửa|hẹn)",
                    re.IGNORECASE)
 _SERVICE = ((re.compile(r"ký\s+hợp\s+đồng", re.IGNORECASE), "CONTRACT_SIGN"),
-            (re.compile(r"xem\s+xe|showroom", re.IGNORECASE), "SHOWROOM_VISIT"),
-            (re.compile(r"bảo\s+dưỡng|thay\s+(?:dầu|nhớt)", re.IGNORECASE), "MAINTENANCE"),
-            (re.compile(r"sửa|kiểm\s+tra\s+lỗi", re.IGNORECASE), "REPAIR"))
+            (re.compile(r"xem\s+xe|lái\s+thử|showroom", re.IGNORECASE), "SHOWROOM_VISIT"),
+            (re.compile(r"bảo\s+dưỡng|bảo\s+trì|thay\s+(?:dầu|nhớt)|kiểm\s+tra\s+định\s+kỳ|định\s+kỳ", re.IGNORECASE),
+             "MAINTENANCE"),
+            (re.compile(r"sửa|hỏng|kiểm\s+tra\s+lỗi|\blỗi\b|va\s+chạm|đâm|móp|trầy", re.IGNORECASE), "REPAIR"))
 _WD = {"2": Weekday.THU_2, "3": Weekday.THU_3, "4": Weekday.THU_4, "5": Weekday.THU_5, "6": Weekday.THU_6,
        "7": Weekday.THU_7}
 _UNITS = {"tỷ": 1_000_000_000, "tỉ": 1_000_000_000, "triệu": 1_000_000, "tr": 1_000_000}
@@ -153,7 +175,11 @@ def _rule_time(text: str) -> str | None:
     if not m:
         return None
     hour, minute, part = int(m[1]), int(m[2] or 0), (m[3] or "").lower()
+    if not part and (before := _PART_BEFORE.search(text[:m.start()])):  # "chiều mai 2h", "tối 8 giờ"
+        part = before[1].lower()
     if part in ("chiều", "tối") and hour < 12:
+        hour += 12
+    elif part == "trưa" and 1 <= hour <= 4:
         hour += 12
     return f"{hour:02d}:{minute:02d}" if hour < 24 and minute < 60 else None
 
@@ -184,7 +210,7 @@ def _rule_drafts(messages: list[tuple[int, str, str]], appointments: list[dict])
             slots["date"] = when
         if hhmm := _rule_time(_PHONE.sub(" ", text)):
             slots["time"] = hhmm
-        name, phone, address = _NAME.search(text), _PHONE.search(text), _ADDRESS.search(text)
+        name, phone, address = (_NAME_STRICT if role == "staff" else _NAME).search(text), _PHONE.search(text), _ADDRESS.search(text)
         if name or phone or address:
             out.append((message_id, ActionDraft(
                 type="CUSTOMER_INFO", evidence=text, customer_name=name[1].strip() if name else None,
@@ -217,11 +243,74 @@ def _rule_drafts(messages: list[tuple[int, str, str]], appointments: list[dict])
             draft.time = draft.time or slots["time"]
             if draft.type == "BOOK_APPOINTMENT":
                 draft.customer_phone = draft.customer_phone or slots["phone"]
-    booked_phones = {d.customer_phone for _, d in out if d.type == "BOOK_APPOINTMENT" and d.customer_phone}
-    out = [(i, d) for i, d in out if not (d.type == "CUSTOMER_INFO" and not d.customer_name and not d.customer_address
-                                          and d.customer_phone in booked_phones)]  # SĐT đã nằm trong lịch đặt
     # lịch đổi/đặt vẫn thiếu ngày thì đề xuất vẫn hiện để nhân viên chọn; chỉ bỏ khi chẳng có gì để đề xuất
     return [(i, d) for i, d in out if d.type != "RESCHEDULE_APPOINTMENT" or d.date or d.time]
+
+
+def canon_service(value: str | None) -> str | None:
+    """Giá trị dịch vụ bất kỳ (mã chuẩn, hoặc lời như "bảo dưỡng xe") -> mã trong SERVICE_TYPES, không nhận ra thì None."""
+    value = (value or "").strip()
+    if value.upper() in SERVICE_TYPES:
+        return value.upper()
+    return next((kind for pattern, kind in _SERVICE if pattern.search(value)), None)
+
+
+def _backfill(drafts: list[tuple[int, ActionDraft]], convo: list[tuple[int, str, str]],
+              infer_booking: bool) -> list[tuple[int, ActionDraft]]:
+    """Điền chỗ trống bằng điều khách đã NÓI trong đợt hỗ trợ, độc lập với việc LLM có điền hay không:
+      - thẻ thông tin khách luôn có SĐT/tên/địa chỉ khách đã cung cấp (SĐT nằm trong lịch hẹn vẫn hiện ở thẻ khách);
+      - thẻ đặt lịch có đủ mục đích (service_type), ngày, giờ, SĐT; mục đích lấy từ lời khách gần nhất nhắc tới.
+    convo: (id, role, text) của tin khách + nhân viên theo thứ tự. infer_booking: không có LLM, nên khi khách nêu ý muốn
+    đặt lịch và nhân viên có phản hồi thì tạo luôn thẻ đặt lịch (LLM đã quyết định thì không tự thêm)."""
+    if not convo:
+        return drafts
+    today = local_today()
+    phone = name = address = service = when = hhmm = None
+    intent_id, phone_from_customer, details = None, False, []
+    for message_id, role, text in convo:
+        digits_free = _PHONE.sub(" ", text)
+        # Thông tin có thể do khách HOẶC nhân viên nói ("em ghi anh Vanh, số 09..."): đọc cả hai, tin gần nhất thắng.
+        # Riêng tên: nhân viên chỉ tính khi nói rõ "tên khách..." (tránh lấy tên chính nhân viên); SĐT của khách được ưu
+        # tiên hơn SĐT do nhân viên nhắn (có thể là hotline gara).
+        if m := _PHONE.search(text):
+            if role != "staff":
+                phone, phone_from_customer = m[1], True
+            elif not phone_from_customer:
+                phone = m[1]
+        if m := (_NAME_STRICT if role == "staff" else _NAME).search(text):
+            name = m[1].strip()
+        if m := _ADDRESS.search(text):
+            address = m[1].strip()
+        if kind := next((k for pattern, k in _SERVICE if pattern.search(text)), None):
+            service = kind
+        details.extend(d.strip() for d in _DETAIL.findall(text) if d.strip().lower() not in {x.lower() for x in details})
+        if role != "staff" and _BOOK_INTENT.search(text):
+            intent_id = message_id
+        if w := _rule_date(digits_free, today):
+            when = w
+        if t := _rule_time(digits_free):
+            hhmm = t
+    last_id = convo[-1][0]
+    out = list(drafts)
+    if infer_booking and intent_id is not None and not any(d.type in SCHEDULE_TYPES for _, d in out) and any(
+            r == "staff" and i > intent_id for i, r, _ in convo):
+        out.append((last_id, ActionDraft(type="BOOK_APPOINTMENT", evidence=next(t for i, _, t in convo if i == intent_id))))
+    for _, d in out:
+        if d.type == "BOOK_APPOINTMENT":
+            d.service_type = canon_service(d.service_type) or canon_service(d.service_detail) or service
+            d.date = d.date or when
+            d.time = d.time or hhmm
+            d.customer_phone = d.customer_phone or phone
+            if (not d.service_detail or _GENERIC_DETAIL.match(d.service_detail.strip())) and details:
+                d.service_detail = ", ".join(details)[:200]
+        elif d.type == "RESCHEDULE_APPOINTMENT":
+            d.date = d.date or when
+            d.time = d.time or hhmm
+    if phone or name or address:  # đứng ĐẦU danh sách để giá trị LLM (nếu có) ghi đè khi gộp, regex chỉ lấp chỗ trống
+        out.insert(0, (last_id, ActionDraft(type="CUSTOMER_INFO", evidence=" / ".join(
+            t for _, r, t in convo if r != "staff" and (phone and phone in t or name and name in t))[:500],
+            customer_name=name, customer_phone=phone, customer_address=address)))
+    return out
 
 
 # ---- kiểm tra + chuẩn hóa -----------------------------------------------------------------------------------------
@@ -281,15 +370,19 @@ def normalize_params(action_type: str, params: dict, appointments: list[dict], c
                 warnings.append("Giờ không hợp lệ (định dạng HH:MM)")
 
     if action_type == "BOOK_APPOINTMENT":
-        service = str(params.get("service_type") or "").upper()
+        service = canon_service(str(params.get("service_type") or ""))
         if service in SERVICE_TYPES:
             p["service_type"] = service
         else:
-            warnings.append("Chưa rõ loại dịch vụ, hãy chọn lại")
+            warnings.append("Chưa rõ khách muốn làm dịch vụ gì (bảo dưỡng, sửa chữa...), hãy chọn lại")
         when()
-        phone = normalize_phone(str(params.get("phone") or "")) or customer_phone
+        raw_phone = str(params.get("phone") or "").strip()
+        phone = normalize_phone(raw_phone) or (None if raw_phone else customer_phone)
         if phone:
             p["phone"] = phone
+        elif raw_phone:  # khách nêu số nhưng sai (thừa/thiếu số): giữ nguyên để nhân viên sửa, không im lặng bỏ mất
+            p["phone"] = raw_phone
+            warnings.append(f"Số điện thoại {raw_phone} không hợp lệ (cần 10 số), hãy kiểm tra lại với khách")
         else:
             warnings.append("Chưa có số điện thoại khách, hãy nhập")
         if detail := text("detail"):
@@ -327,7 +420,8 @@ def normalize_params(action_type: str, params: dict, appointments: list[dict], c
             if phone := normalize_phone(raw):
                 p["phone"] = phone
             else:
-                warnings.append("Số điện thoại không hợp lệ")
+                p["phone"] = raw
+                warnings.append(f"Số điện thoại {raw} không hợp lệ (cần 10 số), hãy kiểm tra lại với khách")
         if address := text("address", 200):
             p["address"] = address
         if not p:
@@ -346,9 +440,13 @@ def normalize_params(action_type: str, params: dict, appointments: list[dict], c
 def _draft_params(draft: ActionDraft, today: date) -> dict:
     day = resolve(draft.date, today) if draft.date else None
     base = {"date": day.isoformat() if day else None, "time": draft.time}
+    detail = draft.service_detail
+    if detail and (_GENERIC_DETAIL.match(detail.strip()) or detail.strip().lower() == SERVICE_LABEL.get(
+            canon_service(draft.service_type), "").lower()):
+        detail = None  # chỉ lặp lại tên dịch vụ thì không phải hạng mục cụ thể
     return {
         "BOOK_APPOINTMENT": {**base, "service_type": draft.service_type, "phone": draft.customer_phone,
-                             "detail": draft.service_detail},
+                             "detail": detail},
         "RESCHEDULE_APPOINTMENT": {**base, "appointment_id": draft.appointment_id, "reason": draft.reason},
         "CANCEL_APPOINTMENT": {"appointment_id": draft.appointment_id, "reason": draft.reason},
         "AGREED_PRICE": {"price_vnd": draft.price_vnd, "car_model": draft.car_model},
@@ -517,7 +615,8 @@ def analyze_ticket(ticket_id: int) -> list[dict]:
                       for d in plan.actions]
         else:
             drafts = _rule_drafts([(m.id, m.role, m.content) for m in msgs], appointments)
-        drafts = consolidate(drafts)
+        convo = [(m.id, m.role, m.content) for m in shown if m.role in ("user", "staff")]
+        drafts = consolidate(_backfill(drafts, convo, infer_booking=plan is None))
 
         decided_keys = {_key(r.action_type, r.params) for r in decided}
         decided_params = [r.params for r in decided if r.action_type == "CUSTOMER_INFO"]
@@ -528,10 +627,13 @@ def analyze_ticket(ticket_id: int) -> list[dict]:
         for _, draft in drafts:
             params, warnings = normalize_params(draft.type, _draft_params(draft, today), appointments, profile["phone"], today)
             if draft.type == "CUSTOMER_INFO":
-                params = _strip_known(params, profile, decided_params)
-                if not params:
+                if not _strip_known(params, profile, decided_params):
                     continue  # chỉ nhắc lại điều hồ sơ/thẻ đã duyệt đã có
-                warnings = []
+                warnings = [w for w in warnings if "Số điện thoại" in w]  # giữ cảnh báo SĐT sai, bỏ các cảnh báo còn lại
+            if draft.type == "HANDLING_NOTE" and params.get("topic") == "GENERAL" and (
+                    _PHONE.search(params.get("note", "")) or any(
+                        d.type in ("BOOK_APPOINTMENT", "CUSTOMER_INFO") for _, d in drafts) and _RECAP.search(params.get("note", ""))):
+                continue  # ghi chú chỉ kể lại hội thoại/lặp thông tin đã có ở thẻ khách và thẻ lịch
             if draft.type == "HANDLING_NOTE" and "note" in params and newest <= note_floor.get(params["topic"], 0):
                 continue  # không có diễn biến mới hơn ghi chú đã duyệt của chủ đề này
             if _key(draft.type, params) in decided_keys:

@@ -280,7 +280,7 @@ function openActions(data, { finishing = false } = {}) {
       if ((a.warnings || []).length) card.append(el("div", "warn", "Cần kiểm tra: " + a.warnings.join("; ")));
       const out = el("div"); card.append(out);
       const cx = el("div", "cx"), skip = el("button", "", "Bỏ đề xuất này"); skip.type = "button";
-      skip.onclick = async () => { try { await api(`/admin/staff-actions/${a.id}/dismiss`, { method: "POST" }); card.remove(); rows.splice(rows.findIndex(r => r.a === a), 1); sync(); } catch (e) { toast("Không bỏ được: " + e.message); } };
+      skip.onclick = async () => { try { await api(`/admin/staff-actions/${a.id}/dismiss`, { method: "POST" }); card.remove(); rows.splice(rows.findIndex(r => r.a === a), 1); sync(); if (rows.every(r => r.done)) dlg.close(); } catch (e) { toast("Không bỏ được: " + e.message); } };
       cx.append(skip); card.append(cx); card.classList.toggle("off", !cb.checked); cards.append(card);
       return { a, card, cb, out, done: false };
     });
@@ -289,17 +289,25 @@ function openActions(data, { finishing = false } = {}) {
     function sync() { const n = rows.filter(r => !r.done && r.cb.checked).length; ok.textContent = n ? `Duyệt ${n} mục đã chọn` : "Xong"; ok.disabled = dlgBusy; if (!rows.length) { foot.replaceChildren(ok); } }
     ok.onclick = async () => {
       const todo = rows.filter(r => !r.done && r.cb.checked); if (!todo.length) { dlg.close(); return; }
-      dlgBusy = true; ok.disabled = true; let fail = 0;
+      dlgBusy = true; ok.disabled = true; let fail = 0, applied = 0;
       for (const r of todo) {
         r.out.replaceChildren();
         try {
           const res = await api(`/admin/staff-actions/${r.a.id}/apply`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ params: collect(r.card) }) });
-          r.done = true; r.card.classList.add("done"); r.card.classList.remove("err"); r.out.append(el("div", "msg ok", res.message));
+          r.done = true; applied++; r.card.classList.add("done"); r.card.classList.remove("err"); r.out.append(el("div", "msg ok", res.message));
           r.card.querySelectorAll("input,select,textarea,button").forEach(i => i.disabled = true);
-        } catch (e) { fail++; r.card.classList.add("err"); r.out.append(el("div", "msg bad", e.message)); }
+        } catch (e) {
+          if (e.status === 409 && /đã được xử lý/.test(e.message)) {  // đã duyệt/bỏ ở nơi khác: coi như xong, không báo lỗi
+            r.done = true; r.card.classList.add("done"); r.out.append(el("div", "msg ok", "Mục này đã được xử lý trước đó."));
+            r.card.querySelectorAll("input,select,textarea,button").forEach(i => i.disabled = true);
+          } else { fail++; r.card.classList.add("err"); r.out.append(el("div", "msg bad", e.message)); }
+        }
       }
       dlgBusy = false; sync(); loadMsgs(true);
-      if (!fail) { setTimeout(() => dlg.close(), 900); } else { toast(`${fail} mục chưa áp dụng được, hãy sửa rồi duyệt lại.`); }
+      // Đóng NGAY khi không còn mục nào chờ xử lý; còn mục (bị lỗi, hoặc đang bỏ chọn) thì giữ hộp thoại để xử lý tiếp.
+      const left = rows.filter(r => !r.done).length;
+      if (fail) toast(`${fail} mục chưa áp dụng được, hãy sửa rồi duyệt lại.`);
+      else if (!left) { dlg.close(); if (applied) toast(`Đã duyệt ${applied} mục.`); }
     };
     later.onclick = () => dlg.close();
     foot.append(later, ok); form.append(head, cards, foot); dlg.append(form); document.body.append(dlg);
