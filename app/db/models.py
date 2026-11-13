@@ -285,7 +285,7 @@ class VehicleSpec(Base):
     gears_reverse: Mapped[int | None] = mapped_column(SmallInteger)
     tire_size: Mapped[str | None] = mapped_column(String(32))
     has_abs: Mapped[bool | None] = mapped_column(Boolean)
-    fuel_type: Mapped[str | None] = mapped_column(String(20))  # Diesel | Xăng (catalog.json; master CSV không có cột này)
+    fuel_type: Mapped[str | None] = mapped_column(String(20))  # Diesel | Xăng; master CSV không có cột này nên để NULL
     spec_extra: Mapped[dict | None] = mapped_column(JSONB)  # đuôi dài đã parse (trục, nhíp, phương án tải...)
     spec_raw: Mapped[dict | None] = mapped_column(JSONB)  # chuỗi gốc theo cột nguồn, để parse lại
     created_at: Mapped[datetime] = _created()

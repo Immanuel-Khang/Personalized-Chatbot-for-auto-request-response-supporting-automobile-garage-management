@@ -49,10 +49,17 @@ def _specs(s: VehicleSpec | None) -> dict:
     return {k: v for k, v in found.items() if v is not None}
 
 
+# Giá nguồn có thể là giá khung gầm hoặc kèm thùng; bot phải nói đúng phạm vi giá, không để khách hiểu là giá xe hoàn chỉnh.
+PRICE_BASIS_TEXT = {"CHASSIS": "giá xe chassis, chưa gồm thùng", "FLATBED": "giá xe thùng lửng", "TARP": "giá xe thùng mui bạt"}
+
+
 def _to_product(row: tuple[CatalogProduct, ProductPrice, VehicleSpec | None]) -> Product:
     p, price, spec = row
+    specs = _specs(spec)
+    if price.basis in PRICE_BASIS_TEXT:
+        specs["price_basis"] = PRICE_BASIS_TEXT[price.basis]
     return Product(id=p.id, kind=p.kind, name=p.name, list_price_vnd=price.amount_vnd,
-                   price_as_of=price.effective_date.isoformat(), specs=_specs(spec))
+                   price_as_of=price.effective_date.isoformat(), specs=specs)
 
 
 class DbProductService:

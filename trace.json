@@ -1,21 +1,30 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Structured interpretation unavailable: LLM unavailable",
+      "message_summary": "Khách hỏi giá và tổng tải của xe JAC N800 Plus E5.",
       "tasks": [
         {
-          "task_id": "task_d5decd8c",
-          "domain": "OTHER",
-          "action": "general_conversation",
-          "text": "Xin chào",
-          "relationship": "UNCLEAR",
+          "task_id": "t1",
+          "domain": "SALES",
+          "action": "product_specs",
+          "text": "Xe JAC N800 Plus E5 có giá bao nhiêu và tổng tải bao nhiều nhỉ?",
+          "relationship": "NEW_REQUEST",
           "referenced_interaction_id": null,
-          "requires_clarification": true,
-          "car_model": null,
-          "inquiry_only": false
+          "requires_clarification": false,
+          "car_model": "JAC N800 Plus E5",
+          "inquiry_only": true
         }
       ],
-      "slot_updates": [],
+      "slot_updates": [
+        {
+          "key": "car_model",
+          "operation": "SET",
+          "value": "JAC N800 Plus E5",
+          "evidence": "[REDACTED]",
+          "source_message_id": null,
+          "related_task_id": null
+        }
+      ],
       "presented_cars": [],
       "signals": {
         "wants_human": false,
@@ -27,11 +36,61 @@
       },
       "complexity": "LOW",
       "accepts_offer": null,
-      "uncertain": true
+      "uncertain": false
     },
-    "known_facts": {},
+    "known_facts": {
+      "car_list": {
+        "key": "car_list",
+        "value": [
+          "FUSO Canter FI170 thùng mui bạt",
+          "FUSO Canter FI170L thùng mui bạt",
+          "ISUZU Forward FRR90NE5 chassis",
+          "THACO Linker T2-13"
+        ],
+        "source": "INFERRED",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "intended_use": {
+        "key": "intended_use",
+        "value": "chở hàng",
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "service_detail": {
+        "key": "service_detail",
+        "value": "thùng mui bạt",
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "decided_price": {
+        "key": "decided_price",
+        "value": 965628000,
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "payload_tons": {
+        "key": "payload_tons",
+        "value": 3.8,
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "car_model": {
+        "key": "car_model",
+        "value": "JAC N800 Plus E5",
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      }
+    },
     "rejected_slots": [],
-    "proposed_slots": [],
+    "proposed_slots": [
+      "car_model"
+    ],
     "dropped_slots": [],
     "trace": [
       "preprocess"

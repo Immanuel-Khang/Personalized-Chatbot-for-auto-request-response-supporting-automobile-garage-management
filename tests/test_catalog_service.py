@@ -37,15 +37,16 @@ def _delete(*ids: int) -> None:
 
 
 def test_find_model_returns_contract_fields():
-    [p] = svc.find_model("Aumark-9T WB 3800")
-    assert p.name == "FOTON Aumark-9T (WB 3800)"
-    assert p.list_price_vnd == 555_000_000
+    [p] = svc.find_model("FUSO FI170L")
+    assert p.name == "FUSO FI170L"
+    assert p.list_price_vnd == 845_000_000
     assert p.price_as_of == "2026-10-18"
-    assert set(p.specs) == {"seats", "engine", "transmission", "fuel"}
+    assert p.specs["price_basis"] == "giá xe chassis, chưa gồm thùng"  # giá nguồn là giá khung gầm
+    assert p.specs["seats"] and p.specs["engine"]
 
 
 def test_budget_is_a_hard_limit_even_with_fallback():
-    found = svc.search("Aumark", limit=5, fallback=True, max_budget_vnd=400_000_000)
+    found = svc.search("FOTON", limit=5, fallback=True, max_budget_vnd=400_000_000)
     assert found and all(p.list_price_vnd <= 400_000_000 for p in found)
     assert svc.search("", limit=5, max_budget_vnd=1) == []
 
@@ -71,8 +72,8 @@ def test_aliases_are_searchable():
 
 def test_summary_counts_vehicles_only():
     summary = svc.vehicle_summary()
-    assert "PART" not in summary
-    assert summary.get("TRUCK", 0) >= 55
+    assert set(summary) == {"TRUCK"}
+    assert 40 <= summary["TRUCK"] <= 52  # 52 sản phẩm nạp từ CSV, một số chưa đủ điều kiện ACTIVE
 
 
 def test_price_above_int32_is_stored():
