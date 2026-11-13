@@ -233,6 +233,7 @@ class CatalogProduct(Base):
     model_id: Mapped[int | None] = mapped_column(ForeignKey("vehicle_models.id"), index=True)
     status: Mapped[str] = mapped_column(String(10), default="DRAFT", server_default="DRAFT")
     video_url: Mapped[str | None] = mapped_column(String(500))
+    sales_info: Mapped[dict | None] = mapped_column(JSONB)  # key selling points, benefits, use cases, FAQs
     created_at: Mapped[datetime] = _created()
     updated_at: Mapped[datetime] = _updated()
     spec: Mapped["VehicleSpec | None"] = relationship(uselist=False)

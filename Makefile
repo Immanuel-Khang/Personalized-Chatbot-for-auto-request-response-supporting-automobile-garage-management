@@ -1,8 +1,14 @@
-.PHONY: dev prod down logs clean
+.PHONY: dev prod down logs clean migrate
 
 # Chạy môi trường dev (build lại image và hiển thị log trực tiếp)
 dev:
-	docker compose -f docker-compose.dev.yml up --build
+	docker compose -f docker-compose.dev.yml up --build -d
+	@echo "Waiting for database to be ready..."
+	@sleep 3
+	@echo "Running migrations..."
+	@source .venv/bin/activate && alembic upgrade head
+	@echo "Development environment ready!"
+	docker compose -f docker-compose.dev.yml logs -f
 
 # Chạy môi trường prod (chạy ngầm ở chế độ daemon -d)
 prod:

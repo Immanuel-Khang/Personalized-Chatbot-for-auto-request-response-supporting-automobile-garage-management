@@ -15,8 +15,8 @@ from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
-from app.db.models import (Brand, CatalogProduct, CatalogSource, DataIssue, ProductPrice, ProductSource, VehicleModel,
-                           VehicleSpec)
+from app.db.models import (Brand, CatalogProduct, CatalogSource, DataIssue, ProductCompetitor, ProductPrice,
+                           ProductSource, VehicleModel, VehicleSpec)
 from app.db.session import SessionLocal
 
 BLANK = {"", "-", "--", "---"}
@@ -45,6 +45,8 @@ class Parsed:
     extra: dict = field(default_factory=dict)
     raw: dict = field(default_factory=dict)
     price: dict | None = None
+    sales_info: dict | None = None
+    competitors: list[dict] = field(default_factory=list)
     issues: list[Issue] = field(default_factory=list)
 
 
@@ -137,6 +139,62 @@ def parse_price(raw: str, issues: list[Issue]) -> dict | None:
     return price
 
 
+def parse_sales_info(row: dict[str, str]) -> dict | None:
+    """Parse sales/marketing columns (Key_Selling_Point, Customer_Benefit, etc.)."""
+    g = lambda col: clean(row.get(col))  # noqa: E731
+    info = {}
+
+    # Collect selling points
+    points = [p for i in range(1, 4) if (p := g(f"Key_Selling_Point_{i}"))]
+    if points:
+        info["selling_points"] = points
+
+    # Customer benefit and competitive advantage
+    if benefit := g("Customer_Benefit"):
+        info["customer_benefit"] = benefit
+    if advantage := g("Competitive_Advantage"):
+        info["competitive_advantage"] = advantage
+    if adv_over := g("Advantage_Over_Competitor"):
+        info["advantage_over_competitor"] = adv_over
+    if disadv := g("Disadvantage_Over_Competitor"):
+        info["disadvantage_over_competitor"] = disadv
+
+    # Use cases and suitability
+    if use_case := g("Primary_Use_Case"):
+        info["primary_use_case"] = use_case
+    if suitable := g("Suitable_For"):
+        info["suitable_for"] = suitable
+
+    # FAQs
+    faqs = []
+    for i in range(1, 4):
+        if q := g(f"FAQ_{i}_Question"):
+            faq = {"question": q}
+            if a := g(f"FAQ_{i}_Answer"):
+                faq["answer"] = a
+            faqs.append(faq)
+    if faqs:
+        info["faqs"] = faqs
+
+    # Target customer
+    if target := g("Target_Customer"):
+        info["target_customer"] = target
+
+    return info if info else None
+
+
+def parse_competitors(row: dict[str, str]) -> list[dict]:
+    """Parse competitor columns (Competitor_1/2/3)."""
+    g = lambda col: clean(row.get(col))  # noqa: E731
+    competitors = []
+
+    for i in range(1, 4):
+        if name := g(f"Competitor_{i}"):
+            competitors.append({"name": name})
+
+    return competitors
+
+
 def parse_row(line: int, row: dict[str, str]) -> Parsed:
     g = lambda col: clean(row.get(col))  # noqa: E731
     brand = " ".join((row["Brand"] or "").split()).upper()
@@ -190,6 +248,11 @@ def parse_row(line: int, row: dict[str, str]) -> Parsed:
             extra[key] = v
     if v := g("MSRP"):
         p.price = parse_price(v, iss)
+
+    # Parse sales/marketing data
+    p.sales_info = parse_sales_info(row)
+    p.competitors = parse_competitors(row)
+
     if not p.model:
         iss.append(Issue("model", "", "identity_missing", "dòng không có tên model; giữ DRAFT"))
     return p
@@ -277,13 +340,26 @@ def import_csv(path: Path, price_as_of: date, dry_run: bool = False) -> list[dic
                 name = f"{name} (dòng {p.line})"
             used_names.add(name)
             product = CatalogProduct(kind="TRUCK", name=name, brand_id=brand.id, model_id=model.id if model else None,
-                                     status="DRAFT")
+                                     status="DRAFT", sales_info=p.sales_info)
             db.add(product)
             db.flush()
             db.add(VehicleSpec(product_id=product.id, spec_extra=p.extra or None, spec_raw=p.raw,
                                **{k: v for k, v in p.spec.items() if v is not None}))
             if p.price:
                 db.add(ProductPrice(product_id=product.id, price_type="MSRP", effective_date=price_as_of, **p.price))
+
+            # Add competitor data
+            adv_over = p.sales_info.get("advantage_over_competitor") if p.sales_info else None
+            disadv = p.sales_info.get("disadvantage_over_competitor") if p.sales_info else None
+            for comp in p.competitors:
+                db.add(ProductCompetitor(
+                    product_id=product.id,
+                    competitor_name=comp["name"],
+                    advantage=adv_over,
+                    disadvantage=disadv,
+                    source=path.name
+                ))
+
             for line in (p.line, *dup_lines[p.line]):
                 db.add(ProductSource(product_id=product.id, source_id=source.id, sheet="csv", row_ref=f"line:{line}"))
             if dup_lines[p.line]:
