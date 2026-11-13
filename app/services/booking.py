@@ -1,12 +1,12 @@
 """
 [TRACK C] BookingService.
-Tạo: ghi 1 dòng appointments PENDING_APPROVAL, chưa gán slot (slot_id NULL), với appointment_date/start_time agent đã
-quy đổi; note chỉ chứa xe và yêu cầu riêng của khách. Đổi lịch: ghi ngày giờ mới, trả slot đã giữ và quay về
-PENDING_APPROVAL để nhân viên duyệt lại. Hủy: CANCELLED, trả slot đã giữ. Mọi thao tác của bot chỉ chạm lịch của đúng phiên chat (session_id).
+Tạo: còn chỗ thì bot tự xác nhận: ghi appointments CONFIRMED và giữ slot (booked_count) ngay trong transaction, không cần
+nhân viên duyệt. Chỉ khi chưa có giờ cụ thể mới để PENDING_APPROVAL (slot_id NULL) cho nhân viên chốt giờ. note chỉ chứa xe và
+yêu cầu riêng của khách. Đổi lịch: trả slot cũ, giữ slot khung mới và vẫn CONFIRMED (hết chỗ thì từ chối, lịch cũ giữ nguyên). Hủy: CANCELLED, trả slot đã giữ. Mọi thao tác của bot chỉ chạm lịch của đúng phiên chat (session_id).
 Nhân viên hủy/đổi lịch theo mã lịch qua staff_cancel_appointment / staff_reschedule_appointment (bot không gọi).
 Chống trùng/đầy: khi tạo hoặc đổi lịch có giờ cụ thể, kiểm tra khung giờ (lưới theo BookingConfig) ngay trong transaction, khóa theo ngày
 (pg_advisory_xact_lock) nên hai khách đặt cùng lúc không vượt sức chứa. Lịch PENDING_APPROVAL và CONFIRMED đều giữ chỗ.
-Nhân viên xác nhận thì kiểm tra lại theo số lịch đã CONFIRMED. Sức chứa và độ dài khung giờ chỉnh được ở trang admin (app_settings).
+Nhân viên xác nhận (chỉ còn dùng cho lịch chưa có giờ) thì kiểm tra lại theo số lịch đã CONFIRMED. Sức chứa và độ dài khung giờ chỉnh được ở trang admin (app_settings).
 """
 from datetime import date, datetime, time, timedelta, timezone
 
@@ -202,6 +202,25 @@ def slot_overview(day: date, slot_type: str = "SERVICE_BAY") -> dict:
                 "slot_minutes": cfg.slot_minutes, "windows": windows, "unscheduled": unscheduled or 0}
 
 
+def _take_slot(db: Session, cfg: BookingConfig, service_type: str, day: date, when: time) -> AppointmentSlot:
+    """Giữ một chỗ trong khung giờ chứa `when` (tạo slot nếu chưa có, tăng booked_count). Người gọi đã giữ khóa ngày
+    và đã kiểm tra còn chỗ bằng _conflict."""
+    slot_type, window = _slot_type(service_type), window_start(when, cfg)
+    capacity = cfg.capacity_for(slot_type)
+    starts = datetime.combine(day, window, tzinfo=LOCAL_TZ)
+    showroom = _showroom(db)
+    db.execute(pg_insert(AppointmentSlot).values(
+        showroom_id=showroom.id, slot_type=slot_type, starts_at=starts,
+        ends_at=starts + timedelta(minutes=cfg.slot_minutes), capacity=capacity, booked_count=0,
+    ).on_conflict_do_nothing(index_elements=["showroom_id", "slot_type", "starts_at"]))
+    slot = db.scalars(select(AppointmentSlot).where(
+        AppointmentSlot.showroom_id == showroom.id, AppointmentSlot.slot_type == slot_type,
+        AppointmentSlot.starts_at == starts).with_for_update()).one()
+    slot.capacity = max(capacity, slot.booked_count + 1)  # theo cấu hình hiện hành; không thấp hơn số đã giữ
+    slot.booked_count += 1
+    return slot
+
+
 class DbBookingService:
     def create_appointment(
         self, session_id: str, service_type: ServiceType, appointment_date: date, start_time: time | None,
@@ -216,15 +235,23 @@ class DbBookingService:
             if customer is None:
                 return BookingResult(ok=False, status="REJECTED", message="Số điện thoại chưa hợp lệ.")
             _lock_day(db, appointment_date)  # kiểm tra + ghi trong cùng khóa ngày: không vượt sức chứa khi đặt đồng thời
-            if refused := _conflict(db, _config(db), customer.id, service_type.value, appointment_date, start_time):
+            cfg = _config(db)
+            if refused := _conflict(db, cfg, customer.id, service_type.value, appointment_date, start_time):
                 return refused
+            # Còn chỗ -> bot tự xác nhận và giữ chỗ ngay (cùng transaction, đang giữ khóa ngày): không cần nhân viên duyệt.
+            # Chưa có giờ cụ thể thì chưa giữ chỗ được, để PENDING_APPROVAL cho nhân viên chốt giờ.
+            slot = _take_slot(db, cfg, service_type.value, appointment_date, start_time) if start_time else None
             row = Appointment(customer_id=customer.id, session_id=session_id, service_type=service_type.value,
-                              contact_phone=contact, status="PENDING_APPROVAL", appointment_date=appointment_date,
+                              contact_phone=contact, status="CONFIRMED" if slot else "PENDING_APPROVAL",
+                              slot_id=slot.id if slot else None, appointment_date=appointment_date,
                               start_time=start_time, note=detail)
             db.add(row)
             db.commit()
+            if slot:
+                return BookingResult(ok=True, appointment_id=row.id, status="CONFIRMED",
+                                     message="Đã đặt và xác nhận lịch hẹn.")
             return BookingResult(ok=True, appointment_id=row.id, status="PENDING_APPROVAL",
-                                 message="Lịch hẹn đang chờ nhân viên xác nhận.")
+                                 message="Lịch hẹn đang chờ nhân viên chốt giờ.")
 
     def available_windows(self, session_id: str, service_type: ServiceType | str, appointment_date: date,
                           period: str | None = None) -> dict:
@@ -278,15 +305,20 @@ class DbBookingService:
                 return refused
             assert row is not None
             _lock_day(db, appointment_date)
-            if refused := _conflict(db, _config(db), row.customer_id, row.service_type, appointment_date, start_time,
+            cfg = _config(db)
+            if refused := _conflict(db, cfg, row.customer_id, row.service_type, appointment_date, start_time,
                                     exclude_id=row.id):
                 return refused  # lịch cũ giữ nguyên (chưa trả slot)
             row.appointment_date, row.start_time = appointment_date, start_time
-            _release_slot(db, row)  # a staff-chosen slot no longer matches the new time
-            row.status = "PENDING_APPROVAL"
+            _release_slot(db, row)  # slot cũ không còn khớp giờ mới
+            if start_time is not None:  # còn chỗ -> tự xác nhận lại ở khung mới
+                row.slot_id, row.status = _take_slot(db, cfg, row.service_type, appointment_date, start_time).id, "CONFIRMED"
+            else:
+                row.status = "PENDING_APPROVAL"
             db.commit()
             return BookingResult(ok=True, appointment_id=row.id, status=row.status,
-                                 message="Lịch hẹn mới đang chờ nhân viên xác nhận.")
+                                 message="Đã đổi lịch hẹn." if row.status == "CONFIRMED"
+                                 else "Lịch hẹn mới đang chờ nhân viên chốt giờ.")
 
     def cancel_appointment(self, session_id: str, appointment_id: int) -> BookingResult:
         with SessionLocal() as db:
@@ -335,17 +367,7 @@ def confirm_appointment(appointment_id: int, start_time: time | None = None) -> 
         if len(confirmed) >= capacity:
             return BookingResult(ok=False, appointment_id=row.id, status="SLOT_FULL",
                                  message=f"Khung giờ này đã đủ chỗ ({len(confirmed)}/{capacity}).")
-        starts = datetime.combine(row.appointment_date, window, tzinfo=LOCAL_TZ)
-        showroom = _showroom(db)
-        db.execute(pg_insert(AppointmentSlot).values(
-            showroom_id=showroom.id, slot_type=slot_type, starts_at=starts,
-            ends_at=starts + timedelta(minutes=cfg.slot_minutes), capacity=capacity, booked_count=0,
-        ).on_conflict_do_nothing(index_elements=["showroom_id", "slot_type", "starts_at"]))
-        slot = db.scalars(select(AppointmentSlot).where(
-            AppointmentSlot.showroom_id == showroom.id, AppointmentSlot.slot_type == slot_type,
-            AppointmentSlot.starts_at == starts).with_for_update()).one()
-        slot.capacity = max(capacity, slot.booked_count + 1)  # theo cấu hình hiện hành; không thấp hơn số đã giữ
-        slot.booked_count += 1
+        slot = _take_slot(db, cfg, row.service_type, row.appointment_date, when)
         row.slot_id, row.start_time, row.status = slot.id, when, "CONFIRMED"
         db.commit()
         return BookingResult(ok=True, appointment_id=row.id, status="CONFIRMED", message="Đã xác nhận lịch hẹn.")

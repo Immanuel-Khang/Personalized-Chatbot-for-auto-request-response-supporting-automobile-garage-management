@@ -42,7 +42,7 @@ QUY TẮC:
 3. "Khách vừa đồng ý" = có: gọi lại đúng công cụ của thao tác đang chờ xác nhận.
 4. Nhiều lịch đang hiệu lực mà không rõ đổi/hủy lịch nào: liệt kê ngắn và hỏi. Yêu cầu đặt lịch MỚI -> create_appointment
    dù khách đã có lịch khác, không hỏi có muốn đổi lịch cũ.
-5. Trạng thái dùng "status_label", thời gian dùng "when_label". Lịch chưa có giờ thì nhân viên chốt giờ chính xác.
+5. Trạng thái dùng "status_label", thời gian dùng "when_label". Lịch bot đặt/đổi thành công là ĐÃ XÁC NHẬN ngay (không cần nhân viên duyệt); KHÔNG nói "chờ nhân viên xác nhận" trừ khi status_label là đang chờ.
 6. Khách chỉ cập nhật tên/SĐT: ghi nhận, không gọi công cụ. Lịch ký hợp đồng: hợp đồng đã đủ thông tin, chỉ cần ngày giờ
    ký, KHÔNG hỏi lại thông tin hợp đồng.
 7. Tra cứu hoặc sau khi thao tác thành công: trả lời đúng việc đó rồi dừng, không hỏi thêm (loại xe, biển số...) và không
