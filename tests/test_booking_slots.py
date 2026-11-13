@@ -6,7 +6,7 @@ from app.db.models import Appointment, AppointmentSlot, Message
 from app.db.session import SessionLocal
 from app.services.booking import DbBookingService
 from app.services.slots import BookingConfig, validate, window_start, work_windows
-from tests.test_admin_security import _book, _login, _manager, auth_on  # noqa: F401 - auth_on là fixture
+from tests.test_admin_security import _book, _book_auto, _login, _manager, auth_on  # noqa: F401 - auth_on là fixture
 
 DAY = date(2026, 12, 1)
 
@@ -129,3 +129,32 @@ def test_complete_confirmed_appointment(client, db_session, auth_on):
     assert client.post("/admin/appointments/999999/complete", headers=boss).status_code == 404
     assert not DbBookingService().cancel_appointment("sess-done-000001", appt).ok  # lịch DONE không hủy/đổi được
     assert not DbBookingService().reschedule_appointment("sess-done-000001", appt, DAY, time(10, 0)).ok
+
+
+# ---- bot tự xác nhận, không cần admin duyệt ----
+def test_bot_booking_is_confirmed_immediately_and_holds_the_slot(client, db_session, auth_on):
+    boss = _manager_headers(client, db_session)
+    _put(client, boss, slot_capacity=2, slot_minutes=60)
+    a = _book_auto("sess-auto-0000001", time(9, 0), "0912345671")
+    b = _book_auto("sess-auto-0000002", time(9, 30), "0912345672")
+    with SessionLocal() as db:
+        rows = [db.get(Appointment, i) for i in (a, b)]
+        assert all(r.status == "CONFIRMED" and r.slot_id is not None for r in rows)
+        assert db.get(AppointmentSlot, rows[0].slot_id).booked_count == 2
+    third = _book_as("sess-auto-0000003", time(9, 15), "0912345673")  # đủ 2/2 -> từ chối ngay, không cần ai duyệt
+    assert not third.ok and third.status == "SLOT_FULL"
+    DbBookingService().cancel_appointment("sess-auto-0000001", a)  # hủy trả chỗ
+    assert _book_auto("sess-auto-0000003", time(9, 15), "0912345673")
+
+
+def test_bot_reschedule_reconfirms_in_new_window(client, db_session, auth_on):
+    boss = _manager_headers(client, db_session)
+    _put(client, boss, slot_capacity=1, slot_minutes=60)
+    a = _book_auto("sess-auto-0000011", time(9, 0), "0912345681")
+    moved = DbBookingService().reschedule_appointment("sess-auto-0000011", a, DAY, time(10, 0))
+    assert moved.ok and moved.status == "CONFIRMED"
+    with SessionLocal() as db:
+        slots = db.query(AppointmentSlot).all()
+        assert sorted(s.booked_count for s in slots) == [0, 1]  # khung cũ đã trả chỗ, khung mới giữ chỗ
+        assert db.get(AppointmentSlot, db.get(Appointment, a).slot_id).booked_count == 1
+    assert _book_auto("sess-auto-0000012", time(9, 0), "0912345682")  # khung cũ trống lại

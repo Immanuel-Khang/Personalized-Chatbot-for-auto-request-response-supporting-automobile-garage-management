@@ -1,6 +1,6 @@
 """Nhóm B (TC04-TC07): đặt lịch, slot nhiều lượt, hủy, chỉ báo đã ghi nhận khi BookingService thành công.
 Thiết kế hiện tại: slot bắt buộc = service_type, when_text (văn bản tự do, không quy đổi ngày -> không phụ thuộc
-đồng hồ), phone. Lịch tạo ra luôn PENDING_APPROVAL; 'ngày mai' đã đủ when_text nên bot hỏi SĐT, không hỏi giờ."""
+đồng hồ), phone. Lịch tạo ra CONFIRMED ngay khi còn chỗ (bot tự xác nhận); 'ngày mai' đã đủ when_text nên bot hỏi SĐT, không hỏi giờ."""
 from unittest.mock import Mock
 
 from app.contracts.schemas import BookingResult
@@ -67,9 +67,9 @@ def test_tc05_known_phone_books_once_pending_approval(client):
     result = conv.say(TC05)
     assert not mentions(result["reply"], PHONE_ASK + DATE_ASK)
     [row] = conv.appointments()
-    assert row.status == "PENDING_APPROVAL" and row.service_type == "MAINTENANCE"
+    assert row.status == "CONFIRMED" and row.service_type == "MAINTENANCE"
     assert row.contact_phone == normalize_phone(phone)
-    assert BOOKED in result["reply"] and "chờ nhân viên xác nhận" in result["reply"]
+    assert BOOKED in result["reply"] and "chờ nhân viên xác nhận" not in result["reply"]
     assert _workflow(conv.state) is None and conv.customer_id() is not None
 
 
