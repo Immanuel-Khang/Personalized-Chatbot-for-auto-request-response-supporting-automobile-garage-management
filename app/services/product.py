@@ -42,11 +42,57 @@ def _haystack(p: CatalogProduct) -> str:
 
 
 def _specs(s: VehicleSpec | None) -> dict:
-    """Giữ đúng các khóa agent đang dùng (seats/engine/transmission/fuel); mục chưa biết thì bỏ, không điền 0/rỗng."""
+    """Trích xuất thông số kỹ thuật từ VehicleSpec; mục chưa biết thì bỏ, không điền 0/rỗng."""
     if s is None:
         return {}
-    found = {"seats": s.seats, "engine": s.engine_model, "transmission": s.gearbox_model, "fuel": s.fuel_type}
-    return {k: v for k, v in found.items() if v is not None}
+    # Thông số cơ bản
+    found = {
+        "seats": s.seats,
+        "vehicle_type": s.vehicle_type,
+        "assembly": s.assembly,
+        "wheel_formula": s.wheel_formula,
+        # Khối lượng và tải trọng
+        "curb_mass_kg": s.curb_mass_kg,
+        "payload_kg": s.payload_kg,
+        "gvm_kg": s.gvm_kg,
+        # Kích thước tổng thể
+        "wheelbase_mm": s.wheelbase_mm,
+        "length_mm": s.length_mm,
+        "width_mm": s.width_mm,
+        "height_mm": s.height_mm,
+        "dims_basis": s.dims_basis,
+        "ground_clearance_mm": s.ground_clearance_mm,
+        "turning_radius_m": float(s.turning_radius_m) if s.turning_radius_m else None,
+        # Kích thước thùng
+        "cargo_length_mm": s.cargo_length_mm,
+        "cargo_width_mm": s.cargo_width_mm,
+        "cargo_height_mm": s.cargo_height_mm,
+        # Động cơ
+        "engine": s.engine_model,
+        "power_kw": float(s.power_kw) if s.power_kw else None,
+        "power_rpm": s.power_rpm,
+        "torque_nm": float(s.torque_nm) if s.torque_nm else None,
+        "torque_rpm_min": s.torque_rpm_min,
+        "torque_rpm_max": s.torque_rpm_max,
+        "displacement_cc": s.displacement_cc,
+        "emission_standard": s.emission_standard,
+        "has_scr": s.has_scr,
+        "fuel_type": s.fuel_type,
+        "fuel_tank_l": s.fuel_tank_l,
+        # Hộp số
+        "transmission": s.gearbox_model,
+        "gears_forward": s.gears_forward,
+        "gears_reverse": s.gears_reverse,
+        # Khác
+        "tire_size": s.tire_size,
+        "has_abs": s.has_abs,
+    }
+    # Chỉ giữ các trường có giá trị
+    result = {k: v for k, v in found.items() if v is not None}
+    # Thêm spec_extra nếu có
+    if s.spec_extra:
+        result["spec_extra"] = s.spec_extra
+    return result
 
 
 # Giá nguồn có thể là giá khung gầm hoặc kèm thùng; bot phải nói đúng phạm vi giá, không để khách hiểu là giá xe hoàn chỉnh.
@@ -59,7 +105,7 @@ def _to_product(row: tuple[CatalogProduct, ProductPrice, VehicleSpec | None]) ->
     if price.basis in PRICE_BASIS_TEXT:
         specs["price_basis"] = PRICE_BASIS_TEXT[price.basis]
     return Product(id=p.id, kind=p.kind, name=p.name, list_price_vnd=price.amount_vnd,
-                   price_as_of=price.effective_date.isoformat(), specs=specs)
+                   price_as_of=price.effective_date.isoformat(), specs=specs, sales_info=p.sales_info)
 
 
 class DbProductService:

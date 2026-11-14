@@ -19,11 +19,24 @@ SALES_SYSTEM_PROMPT = """\
 Bạn là trợ lý tư vấn xe của xưởng Foton, thân thiện, trả lời tiếng Việt.
 1. Khách hỏi về xe, nêu tiêu chí (tải trọng, ngân sách, loại thùng...) hay tên xe: gọi tool tìm trước rồi tư vấn dựa
    trên kết quả tool; không rõ tool nào thì search_products với mô tả nhu cầu. Chỉ dùng thông tin khách đã cung cấp.
-2. Giá và thông số chỉ lấy từ tool, KHÔNG bịa. Thông số chỉ nêu mục có trong "specs", trả thẳng mục khách hỏi; mục
-   không có (kích thước thùng, tải trọng chi tiết...) thì nói dữ liệu hiện chưa có, nhân viên tư vấn sẽ xác nhận.
+2. Giá và thông số chỉ lấy từ tool, KHÔNG bịa. Thông số trong "specs" bao gồm:
+   - Cơ bản: seats (số chỗ), vehicle_type (loại xe), assembly (lắp ráp), wheel_formula (công thức bánh)
+   - Khối lượng: curb_mass_kg (khối lượng bản thân), payload_kg (tải trọng), gvm_kg (tổng khối lượng)
+   - Kích thước: wheelbase_mm (chiều dài cơ sở), length/width/height_mm, ground_clearance_mm, turning_radius_m
+   - Thùng: cargo_length/width/height_mm (kích thước thùng hàng)
+   - Động cơ: engine (mã động cơ), power_kw/power_rpm (công suất), torque_nm (mô-men xoắn), displacement_cc (dung tích),
+     emission_standard (tiêu chuẩn khí thải), fuel_type/fuel_tank_l (nhiên liệu)
+   - Hộp số: transmission (mã hộp số), gears_forward/gears_reverse (số cấp)
+   - Khác: tire_size (lốp), has_abs (phanh ABS)
+   Trả thẳng mục khách hỏi; mục không có trong specs thì nói dữ liệu hiện chưa có, nhân viên tư vấn sẽ xác nhận.
    KHÔNG khẳng định xe phù hợp khi dữ liệu không có thông số đó.
 3. Mẫu xe MỚI chưa giới thiệu trong lịch sử: giới thiệu ngắn gọn kèm giá niêm yết, ngày áp dụng giá và ưu điểm hợp nhu
    cầu khách. Mẫu ĐÃ giới thiệu: KHÔNG nhắc lại thông số/giá, chỉ trả lời đúng ý mới của khách.
+   - Nếu tool trả sales_info: ưu tiên dùng selling_points (điểm mạnh sản phẩm), customer_benefit (lợi ích cho khách),
+     primary_use_case (trường hợp sử dụng phù hợp) để giới thiệu xe hợp nhu cầu. KHÔNG nêu hết tất cả, chỉ chọn điểm
+     liên quan tới nhu cầu khách.
+   - Khách so sánh các mẫu hoặc hỏi xe này khác gì xe khác: dùng advantage_over_competitor (ưu thế cạnh tranh) nếu có.
+   - Khách hỏi câu thường gặp về xe (bảo hành, nhiên liệu, bảo trì...): kiểm tra faqs trong sales_info trước khi trả lời.
 4. KHÔNG hứa giảm giá, quà tặng hay cam kết. Chỉ tư vấn xe; KHÔNG hỏi ngày giờ hay số điện thoại đặt lịch.
 5. Khi chưa rõ khách muốn gì tiếp, hỏi một câu: tìm hiểu thêm về mẫu xe, đặt lịch đến xem trực tiếp hay làm hợp đồng.
 6. Khách nói muốn xem bao nhiêu mẫu ("3 xe", "top 5"): truyền đúng số đó vào limit và trả đúng chừng đó mẫu. Khách hỏi
@@ -60,6 +73,13 @@ PRODUCT_SEARCH_TOOLS = [
     _tool("find_by_model_name", "Tìm xe theo tên mẫu cụ thể ('FUSO Canter', 'ISUZU Forward'...); dùng cả khi khách hỏi "
           "thông số của một mẫu (mặc định 3 kết quả).",
           {"model_name": {"type": "string", "description": "Tên mẫu xe khách hỏi"}, **_LIMIT}, ["model_name"]),
+    _tool("find_by_price_range", "Tìm xe theo khoảng giá hoặc tìm xe đắt/rẻ nhất. Dùng khi khách hỏi 'xe đắt nhất', "
+          "'xe rẻ nhất', 'xe trong khoảng X-Y triệu'. Tìm đắt/rẻ nhất: để trống min/max, chọn sort_order (mặc định 5 kết quả).",
+          {"min_price_vnd": {"type": "number", "description": "Giá tối thiểu (VNĐ), bỏ trống nếu không giới hạn"},
+           "max_price_vnd": {"type": "number", "description": "Giá tối đa (VNĐ), bỏ trống nếu không giới hạn"},
+           "sort_order": {"type": "string", "enum": ["asc", "desc"],
+                         "description": "asc = rẻ nhất trước, desc = đắt nhất trước (mặc định desc)"},
+           **_LIMIT}),
     _tool("browse_catalog", "Danh sách TÊN xe trong catalog khi khách muốn xem tất cả / có mẫu nào / xe nổi bật "
           "(mặc định 5 mẫu). Chỉ trả tên; cần giá/thông số thì gọi find_by_model_name.", _LIMIT),
 ]
@@ -88,6 +108,32 @@ def _execute_tool(tool_name: str, tool_input: dict[str, Any]) -> dict[str, Any]:
         elif tool_name == "find_by_model_name":
             products = service.find_model(name=tool_input["model_name"], limit=_limit(tool_input, 3))
             note = None if products else f"Không tìm thấy mẫu '{tool_input['model_name']}'"
+        elif tool_name == "find_by_price_range":
+            min_price = tool_input.get("min_price_vnd")
+            max_price = tool_input.get("max_price_vnd")
+            sort_order = tool_input.get("sort_order", "desc")
+            limit = _limit(tool_input, 5)
+
+            # Lấy nhiều xe hơn để filter và sort
+            all_products = service.list_vehicles(limit=100)
+
+            # Filter theo khoảng giá
+            filtered = all_products
+            if min_price is not None:
+                filtered = [p for p in filtered if p.list_price_vnd >= min_price]
+            if max_price is not None:
+                filtered = [p for p in filtered if p.list_price_vnd <= max_price]
+
+            # Sort theo giá
+            reverse = (sort_order == "desc")
+            products = sorted(filtered, key=lambda p: p.list_price_vnd, reverse=reverse)[:limit]
+
+            note = None
+            if not products:
+                if min_price and max_price:
+                    note = f"Không có xe trong khoảng {fmt_vnd(min_price)} - {fmt_vnd(max_price)}"
+                else:
+                    note = "Không tìm thấy xe phù hợp"
         elif tool_name == "browse_catalog":
             products = service.list_vehicles(limit=_limit(tool_input, 5))
             note = ", ".join(f"{count} mẫu xe {'tải' if kind == 'TRUCK' else 'con'}"
@@ -102,7 +148,7 @@ def _execute_tool(tool_name: str, tool_input: dict[str, Any]) -> dict[str, Any]:
 
 def _product_to_dict(product: Product) -> dict:
     """Convert Product to dict for LLM."""
-    return {
+    result = {
         "id": product.id,
         "name": product.name,
         "list_price_vnd": product.list_price_vnd,
@@ -110,6 +156,9 @@ def _product_to_dict(product: Product) -> dict:
         "specs": product.specs or {},
         "kind": product.kind
     }
+    if product.sales_info:
+        result["sales_info"] = product.sales_info
+    return result
 
 
 def _viewed_products(names: list[str]) -> list[dict]:

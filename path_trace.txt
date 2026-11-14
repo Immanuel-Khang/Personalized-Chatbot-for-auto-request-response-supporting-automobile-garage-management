@@ -1,70 +1,70 @@
-SESSION : 358edba0-3fdd-4f42-9e15-211c7f201f3a
-USER MSG: Xe JAC N800 Plus E5 có giá bao nhiêu và tổng tải bao nhiều nhỉ?
+SESSION : fa4246a9-9ea4-425c-b77b-a6c27a181195
+USER MSG: Cho t cấu hình chi tiết xe FOTON AUMARK 9T (4500) nhé
 
-============================================================ input (4567ms) ============================================================
-USER TEXT : Xe JAC N800 Plus E5 có giá bao nhiêu và tổng tải bao nhiều nhỉ?
-mode      : HUMAN_PENDING  turn:34
-car_list  : [FUSO Canter FI170 thùng mui bạt, FUSO Canter FI170L thùng mui bạt, ISUZU Forward FRR90NE5 chassis, THACO Linker T2-13]
-history   : 36 msgs
+============================================================ input (0ms) ============================================================
+USER TEXT : Cho t cấu hình chi tiết xe FOTON AUMARK 9T (4500) nhé
+mode      : BOT  turn:18
+car_list  : [FUSO FI170]
+history   : 20 msgs
 --- OUT ---
-known_facts: car_list=[FUSO Canter FI170 thùng mui bạt, FUSO Canter FI170L thùng mui bạt, ISUZU Forward FRR90NE5 chassis, THACO Linker T2-13]  |  intended_use=chở hàng  |  service_detail=thùng mui bạt  |  decided_price=965628000  |  payload_tons=3.8
+known_facts: car_list=[FUSO FI170]  |  car_model=MIGHTY EX900XL  |  budget_vnd=1000000000
 
-============================================================ preprocess (3206ms) ============================================================
-USER TEXT : Xe JAC N800 Plus E5 có giá bao nhiêu và tổng tải bao nhiều nhỉ?
-car_list  : [FUSO Canter FI170 thùng mui bạt, FUSO Canter FI170L thùng mui bạt, ISUZU Forward FRR90NE5 chassis, THACO Linker T2-13]
+============================================================ preprocess (3718ms) ============================================================
+USER TEXT : Cho t cấu hình chi tiết xe FOTON AUMARK 9T (4500) nhé
+car_list  : [FUSO FI170]
 pending   : 0 open
 --- LLM INPUT ---
 SYSTEM: Bạn là Preprocessing Agent của trợ lý gara ô tô. Phân tích TIN NHẮN MỚI NHẤT của khách trong ngữ cảnh hội thoại (tóm tắt + các tin gần nhất) và CONVERSATION STATE, trả về đúng schema ConversationInter…
-USER  : Xe JAC N800 Plus E5 có giá bao nhiêu và tổng tải bao nhiều nhỉ?
-SUMMARY (803 chars):
-  - Khách muốn mua xe chở hàng, chọn thùng mui bạt; chưa nêu loại hàng, tải trọng hay ngân sách. - Khách chưa chốt mẫu; cần hỏi thêm hàng hóa, tải trọng và ngân sách. - Mẫu đã giới thiệu: FUSO Canter FI170 thùng mui bạt (809 triệu), FI170L thùng mui bạt (845 triệu; giá trước đó, chưa xác nhận hiện tại…
-HISTORY WINDOW (6 msgs, showing last 3):
-  [ai] FOTON AUMARK-7.5T có giá niêm yết 525 triệu đồng, áp dụng từ ngày 18/10/2026. Dữ liệu hiện có chưa nêu tải trọng chi tiết; bạn thường chở hàng nặng kh…
-  [user] Tải trong 3800, m ko đọc được à?
-  [ai] Mình xin lỗi, mình đã đọc được thông tin tải trọng 3.800 kg nhưng chưa phản hồi đúng ý bạn; mình chưa thể xác nhận thêm về thông số này nên đã ghi bổ …
+USER  : Cho t cấu hình chi tiết xe FOTON AUMARK 9T (4500) nhé
+SUMMARY (794 chars):
+  - Khách hỏi xe đắt nhất: bot nêu ISUZU FRR90NE5 giá 965.628.000 đồng (giá chassis, chưa gồm thùng), áp dụng từ 18/10/2026; chỉ cao nhất trong 5 mẫu đã tra, chưa xác nhận cao nhất trong 43 mẫu. - Khách muốn tìm phụ tùng nhưng chưa nêu mẫu xe hoặc tên phụ tùng; chưa có danh mục cụ thể để xác nhận. Bot…
+HISTORY WINDOW (8 msgs, showing last 3):
+  [ai] Mình tra được các mẫu sau trong khoảng 500 triệu–1 tỷ đồng. Giá áp dụng từ 18/10/2026:  - THACO Linker T2-7.5, DOTHANH IZ650, FOTON AUMARK-7.5T, THACO…
+  [user] Cho mình cấu hình chi tiết xe FOTON AUMARK-9T (4500) nhé
+  [ai] Cấu hình hiện có của FOTON AUMARK-9T (4500):  - Động cơ: ISF3.8s5168 - Hộp số: 6S600 - Số chỗ: 3  Dữ liệu hiện chưa có kích thước thùng và tải trọng c…
 --- OUT ---
-  tasks:     SALES:product_specs(car=JAC N800 Plus E5)
+  tasks:     SALES:product_specs(car=FOTON AUMARK-9T (4500))
   complexity:LOW  uncertain:False
-car_list  : [FUSO Canter FI170 thùng mui bạt, FUSO Canter FI170L thùng mui bạt, ISUZU Forward FRR90NE5 chassis, THACO Linker T2-13]
+car_list  : [FUSO FI170]
 route     : None  ()
 
 ============================================================ policy_guard (0ms) ============================================================
-  tasks:     SALES:product_specs(car=JAC N800 Plus E5)
+  tasks:     SALES:product_specs(car=FOTON AUMARK-9T (4500))
   complexity:LOW  uncertain:False
 --- OUT ---
 route     : router  ()
 
 ============================================================ router (0ms) ============================================================
-  tasks:     SALES:product_specs(car=JAC N800 Plus E5)
+  tasks:     SALES:product_specs(car=FOTON AUMARK-9T (4500))
   complexity:LOW  uncertain:False
 --- OUT ---
-route     : None  plan:[{'agent': 'sales', 'text': 'Xe JAC N800 Plus E5 có giá bao nhiêu và tổng tải bao nhiều nhỉ?', 'order': 0, 'task_ids': ['t1']}]
+route     : None  plan:[{'agent': 'sales', 'text': 'Cho t cấu hình chi tiết xe FOTON AUMARK 9T (4500) nhé', 'order': 0, 'task_ids': ['t1']}]
 
-============================================================ sales (5359ms) ============================================================
-task_text : Xe JAC N800 Plus E5 có giá bao nhiêu và tổng tải bao nhiều nhỉ?
+============================================================ sales (9777ms) ============================================================
+task_text : Cho t cấu hình chi tiết xe FOTON AUMARK 9T (4500) nhé
 task_ids  : ['t1']
-  tasks:     SALES:product_specs(car=JAC N800 Plus E5)
+  tasks:     SALES:product_specs(car=FOTON AUMARK-9T (4500))
   complexity:LOW  uncertain:False
 --- OUT ---
-  reply [sales]: JAC N800 Plus E5 có giá chassis 676.500.000 đồng, áp dụng từ ngày 18/10/2026; giá chưa gồm thùng. Tổng tải trọng chưa có…
-  allowed_amounts: ['676.500.000 đồng']
+  reply [sales]: Bổ sung cấu hình FOTON AUMARK-9T (4500) theo dữ liệu hiện có:  - Loại xe: ô tô tải, công thức bánh 4x2R - Tải trọng: 7.2…
+  allowed_amounts: ['809.000.000 đồng', '580.000.000 đồng']
 
 ============================================================ validation (0ms) ============================================================
-  [sales] JAC N800 Plus E5 có giá chassis 676.500.000 đồng, áp dụng từ ngày 18/10/2026; giá chưa gồm thùng. Tổng tải trọng chưa có…
+  [sales] Bổ sung cấu hình FOTON AUMARK-9T (4500) theo dữ liệu hiện có:  - Loại xe: ô tô tải, công thức bánh 4x2R - Tải trọng: 7.2…
 --- OUT ---
 route     : compose  feedback:
 
 ============================================================ compose (0ms) ============================================================
-  [sales] JAC N800 Plus E5 có giá chassis 676.500.000 đồng, áp dụng từ ngày 18/10/2026; giá chưa gồm thùng. Tổng tải trọng chưa có…
+  [sales] Bổ sung cấu hình FOTON AUMARK-9T (4500) theo dữ liệu hiện có:  - Loại xe: ô tô tải, công thức bánh 4x2R - Tải trọng: 7.2…
 --- OUT ---
-draft     : JAC N800 Plus E5 có giá chassis 676.500.000 đồng, áp dụng từ ngày 18/10/2026; giá chưa gồm thùng. Tổng tải trọng chưa có…
+draft     : Bổ sung cấu hình FOTON AUMARK-9T (4500) theo dữ liệu hiện có:  - Loại xe: ô tô tải, công thức bánh 4x2R - Tải trọng: 7.2…
 
 ============================================================ output_guard (0ms) ============================================================
-draft     : JAC N800 Plus E5 có giá chassis 676.500.000 đồng, áp dụng từ ngày 18/10/2026; giá chưa gồm thùng. Tổng tải trọng chưa có…
+draft     : Bổ sung cấu hình FOTON AUMARK-9T (4500) theo dữ liệu hiện có:  - Loại xe: ô tô tải, công thức bánh 4x2R - Tải trọng: 7.2…
 --- OUT ---
 needs_human: None  final:
 
 ============================================================ respond (0ms) ============================================================
-final     : Mình xin lỗi, mình đã đọc được thông tin tải trọng 3.800 kg nhưng chưa phản hồi đúng ý bạn; mình chưa thể xác nhận thêm …
+final     : Cấu hình hiện có của FOTON AUMARK-9T (4500):  - Động cơ: ISF3.8s5168 - Hộp số: 6S600 - Số chỗ: 3  Dữ liệu hiện chưa có k…
 --- OUT ---
-final_reply: JAC N800 Plus E5 có giá chassis 676.500.000 đồng, áp dụng từ ngày 18/10/2026; giá chưa gồm thùng. Tổng tải trọng chưa có…
+final_reply: Bổ sung cấu hình FOTON AUMARK-9T (4500) theo dữ liệu hiện có:  - Loại xe: ô tô tải, công thức bánh 4x2R - Tải trọng: 7.2…

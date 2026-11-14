@@ -55,6 +55,7 @@ class Product(BaseModel):
     list_price_vnd: int
     price_as_of: str  # ngày hiệu lực của giá, bắt buộc phải hiển thị khi báo giá
     specs: dict = {}
+    sales_info: Optional[dict] = None  # selling points, benefits, use cases, FAQs, competitors
 
 
 class ServiceRecord(BaseModel):

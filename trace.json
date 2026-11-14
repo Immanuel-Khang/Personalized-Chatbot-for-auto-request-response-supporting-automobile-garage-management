@@ -1,30 +1,21 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách hỏi giá và tổng tải của xe JAC N800 Plus E5.",
+      "message_summary": "Khách yêu cầu cấu hình chi tiết mẫu FOTON AUMARK 9T (4500), lặp lại yêu cầu cấu hình đã hỏi ở lượt ngay trước đó.",
       "tasks": [
         {
           "task_id": "t1",
           "domain": "SALES",
           "action": "product_specs",
-          "text": "Xe JAC N800 Plus E5 có giá bao nhiêu và tổng tải bao nhiều nhỉ?",
-          "relationship": "NEW_REQUEST",
+          "text": "Cho t cấu hình chi tiết xe FOTON AUMARK 9T (4500) nhé",
+          "relationship": "CONTINUE_TASK",
           "referenced_interaction_id": null,
           "requires_clarification": false,
-          "car_model": "JAC N800 Plus E5",
-          "inquiry_only": true
+          "car_model": "FOTON AUMARK-9T (4500)",
+          "inquiry_only": false
         }
       ],
-      "slot_updates": [
-        {
-          "key": "car_model",
-          "operation": "SET",
-          "value": "JAC N800 Plus E5",
-          "evidence": "[REDACTED]",
-          "source_message_id": null,
-          "related_task_id": null
-        }
-      ],
+      "slot_updates": [],
       "presented_cars": [],
       "signals": {
         "wants_human": false,
@@ -42,55 +33,29 @@
       "car_list": {
         "key": "car_list",
         "value": [
-          "FUSO Canter FI170 thùng mui bạt",
-          "FUSO Canter FI170L thùng mui bạt",
-          "ISUZU Forward FRR90NE5 chassis",
-          "THACO Linker T2-13"
+          "FUSO FI170"
         ],
         "source": "INFERRED",
         "updated_at_message_id": null,
         "confidence": null
       },
-      "intended_use": {
-        "key": "intended_use",
-        "value": "chở hàng",
-        "source": "USER_EXPLICIT",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "service_detail": {
-        "key": "service_detail",
-        "value": "thùng mui bạt",
-        "source": "USER_EXPLICIT",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "decided_price": {
-        "key": "decided_price",
-        "value": 965628000,
-        "source": "USER_EXPLICIT",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "payload_tons": {
-        "key": "payload_tons",
-        "value": 3.8,
-        "source": "USER_EXPLICIT",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
       "car_model": {
         "key": "car_model",
-        "value": "JAC N800 Plus E5",
+        "value": "MIGHTY EX900XL",
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "budget_vnd": {
+        "key": "budget_vnd",
+        "value": 1000000000,
         "source": "USER_EXPLICIT",
         "updated_at_message_id": null,
         "confidence": null
       }
     },
     "rejected_slots": [],
-    "proposed_slots": [
-      "car_model"
-    ],
+    "proposed_slots": [],
     "dropped_slots": [],
     "trace": [
       "preprocess"
