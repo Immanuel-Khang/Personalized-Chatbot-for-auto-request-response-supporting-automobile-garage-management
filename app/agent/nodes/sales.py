@@ -8,7 +8,7 @@ from typing import Any
 
 from app.agent.llm import generate_with_tools
 from app.agent.nodes.compose import STYLE_RULES
-from app.agent.state import AgentState, answer, fact_value
+from app.agent.state import AgentState, answer, catalog_row, fact_value, known_product, remember_products
 from app.contracts.schemas import Product
 from app.services import get_services
 from app.utils import fmt_vnd
@@ -42,8 +42,9 @@ Bạn là trợ lý tư vấn xe của xưởng Foton, thân thiện, trả lờ
 6. Khách nói muốn xem bao nhiêu mẫu ("3 xe", "top 5"): truyền đúng số đó vào limit và trả đúng chừng đó mẫu. Khách hỏi
    xe bán chạy/phổ biến/nổi bật: dữ liệu KHÔNG có số liệu bán hàng, nên gọi browse_catalog, nói rõ đây là một số mẫu trong
    danh mục chứ không phải xếp hạng bán chạy, và KHÔNG gọi mẫu nào là bán chạy nhất.
-7. browse_catalog chỉ trả TÊN xe: liệt kê tên, KHÔNG nêu giá hay thông số. Khi khách yêu cầu thông tin chi tiết/thông số
-   của các xe cụ thể: gọi find_by_model_name cho từng xe và nêu thông số của đúng các xe đó.
+7. browse_catalog trả tên, giá niêm yết và ngày áp dụng giá, KHÔNG có thông số: liệt kê tên kèm giá niêm yết (nói rõ
+   giá áp dụng từ ngày nào), KHÔNG nêu thông số. Khi khách yêu cầu thông tin chi tiết/thông số của các xe cụ thể: gọi
+   find_by_model_name cho từng xe và nêu thông số của đúng các xe đó.
 8. Trả lời gọn, tối đa khoảng 250 token (khoảng 120 từ): chỉ nêu điều khách hỏi, không lặp lại, không rào đón.
 """ + STYLE_RULES
 
@@ -80,8 +81,8 @@ PRODUCT_SEARCH_TOOLS = [
            "sort_order": {"type": "string", "enum": ["asc", "desc"],
                          "description": "asc = rẻ nhất trước, desc = đắt nhất trước (mặc định desc)"},
            **_LIMIT}),
-    _tool("browse_catalog", "Danh sách TÊN xe trong catalog khi khách muốn xem tất cả / có mẫu nào / xe nổi bật "
-          "(mặc định 5 mẫu). Chỉ trả tên; cần giá/thông số thì gọi find_by_model_name.", _LIMIT),
+    _tool("browse_catalog", "Danh sách xe trong catalog khi khách muốn xem tất cả / có mẫu nào / xe nổi bật "
+          "(mặc định 5 mẫu). Trả TÊN, giá niêm yết và ngày áp dụng giá; cần thông số thì gọi find_by_model_name.", _LIMIT),
 ]
 
 
@@ -138,7 +139,7 @@ def _execute_tool(tool_name: str, tool_input: dict[str, Any]) -> dict[str, Any]:
             products = service.list_vehicles(limit=_limit(tool_input, 5))
             note = ", ".join(f"{count} mẫu xe {'tải' if kind == 'TRUCK' else 'con'}"
                              for kind, count in service.vehicle_summary().items())
-            return {"products": [{"name": p.name} for p in products], "message": note}  # names only: lowest latency
+            return {"products": [catalog_row(p) for p in products], "message": note}  # no specs: lowest latency
         else:
             return {"error": f"Unknown tool: {tool_name}"}
     except Exception as e:
@@ -161,12 +162,18 @@ def _product_to_dict(product: Product) -> dict:
     return result
 
 
-def _viewed_products(names: list[str]) -> list[dict]:
-    """Catalog rows of the cars in car_list (the list the customer counts from). Read from the catalog each turn so
-    the data and the prices the output guard allows follow the list as it changes."""
+def _viewed_products(state: AgentState, names: list[str]) -> list[dict]:
+    """Catalog rows of the cars in car_list (the list the customer counts from). They come from the session's shared
+    catalog; only a car no agent has fetched yet (e.g. a list from before the catalog was shared) is read from the DB."""
     service = get_services().product
-    return [{"name": p.name, "list_price_vnd": p.list_price_vnd, "price_as_of": str(p.price_as_of)}
-            for name in names for p in service.find_model(name, limit=10) if p.name.casefold() == name.casefold()]
+    rows = []
+    for name in names:
+        row = known_product(state, name)
+        if row is None:
+            row = next((catalog_row(p) for p in service.find_model(name, limit=10) if p.name.casefold() == name.casefold()), None)
+        if row:
+            rows.append({key: row[key] for key in ("name", "list_price_vnd", "price_as_of")})
+    return rows
 
 
 # Contact, booking and deal data stay out; a car chosen for an earlier deal is not a fact about this request.
@@ -194,7 +201,7 @@ def sales(state: AgentState) -> dict:
                  if not cars else "") + "\n" + PURCHASE_INTEREST_NOTE
 
     viewed = fact_value(state.get("known_facts"), "car_list") or []
-    viewed_products = _viewed_products(viewed)
+    viewed_products = _viewed_products(state, viewed)
     viewed_line = (f"\nXe khách đã xem (có thể chưa liên quan tới tin nhắn này), dữ liệu catalog: "
                    f"{json.dumps(viewed_products, ensure_ascii=False)}\n" if viewed_products else "")
     context = (f"Tin nhắn của khách: {state.get('task_text') or state.get('user_text', '')}\n\n"
@@ -218,6 +225,8 @@ def sales(state: AgentState) -> dict:
     products = viewed_products + [p for call in result.get("tool_calls", [])
                                   for p in call.get("result", {}).get("products", [])]
     update = {"trace": ["sales"], "answers": [answer(state, "sales", reply)]}
-    if priced := [p["list_price_vnd"] for p in products if "list_price_vnd" in p]:  # browse results carry names only
+    if priced := [p["list_price_vnd"] for p in products if "list_price_vnd" in p]:
         update["allowed_amounts"] = [fmt_vnd(price) for price in priced]
+    # Share what the tools returned: contract (and any later agent) reads the price from state instead of the catalog.
+    update["catalog"] = remember_products(state, products)
     return update

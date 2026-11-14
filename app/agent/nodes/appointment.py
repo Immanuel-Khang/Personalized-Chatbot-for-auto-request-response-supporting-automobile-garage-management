@@ -47,6 +47,8 @@ QUY TẮC:
    ký, KHÔNG hỏi lại thông tin hợp đồng.
 7. Tra cứu hoặc sau khi thao tác thành công: trả lời đúng việc đó rồi dừng, không hỏi thêm (loại xe, biển số...) và không
    đề nghị việc khác. KHÔNG nhắc "proposal", mã lịch hay tên công cụ.
+8. "Ngày hẹn đã xác định" là ngày DUY NHẤT được dùng khi nói về ngày hẹn. Chưa xác định hoặc khách chưa nêu: KHÔNG tự
+   suy ngày (không "hôm nay", "ngày mai"), gọi create_appointment để hỏi đúng thông tin còn thiếu.
 """
 
 AVAILABILITY_PROMPT = """\
@@ -314,10 +316,10 @@ def appointment(state: AgentState) -> dict:
     if vehicle:
         known["xe"] = vehicle
     waiting_for = f"{confirmation.text} (thao tác: {confirmation.metadata.get('action')})" if confirmation else "không"
-    today = local_today()
+    # No "today" here: the code computes every date, and a model given today's date quoted it as the customer's.
     booked_day = (_fmt(resolved["date"], None) if resolved.get("status") == RESOLVED
                   else "chưa xác định, cần hỏi khách ngày cụ thể" if resolved else "khách chưa nêu")
-    context = (f"Hôm nay: {WEEKDAYS[today.weekday()]} {today:%d/%m/%Y}\nNgày hẹn đã xác định: {booked_day}\n"
+    context = (f"Ngày hẹn đã xác định: {booked_day}\n"
                f"Tin nhắn của khách: {state.get('user_text', '')}\n"
                f"Yêu cầu: {state.get('task_text') or state.get('user_text', '')}\n"
                f"Thông tin đặt lịch đã biết: {json.dumps(known, ensure_ascii=False)}\n"

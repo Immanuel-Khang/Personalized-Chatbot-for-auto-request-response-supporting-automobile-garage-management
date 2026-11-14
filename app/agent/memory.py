@@ -19,8 +19,9 @@ Bạn tóm tắt hội thoại giữa khách và trợ lý gara ô tô để cá
 Cập nhật BẢN TÓM TẮT CŨ bằng các TIN NHẮN MỚI; giữ mọi thông tin còn hiệu lực của bản cũ.
 Giữ: nhu cầu và tiêu chí của khách (loại xe, tải trọng, ngân sách, mục đích), các mẫu xe bot đã giới thiệu
 và khách quan tâm, thông tin khách cung cấp (tên, SĐT, địa chỉ, xe đang dùng, số km), lịch hẹn/hợp đồng đã đề
-xuất hoặc đã xác nhận (chỉ ghi "đã đặt" khi bot báo thành công), câu hỏi còn bỏ ngỏ, các yêu cầu đã bị hủy
-hoặc thay đổi. Bỏ lời chào, xã giao và nội dung bot trả lời dài dòng.
+xuất hoặc đã xác nhận (chỉ ghi "đã đặt" khi bot báo thành công; GHI ĐỦ loại lịch, ngày dd/mm/yyyy, giờ, xe, vì khách
+có thể nói "ngày như trên", "giờ đó" ở lượt sau), câu hỏi còn bỏ ngỏ, các yêu cầu đã bị hủy hoặc thay đổi.
+Bỏ lời chào, xã giao và nội dung bot trả lời dài dòng.
 Viết tiếng Việt, gạch đầu dòng ngắn, tối đa 12 dòng, không bịa thông tin. Chỉ trả về bản tóm tắt."""
 
 

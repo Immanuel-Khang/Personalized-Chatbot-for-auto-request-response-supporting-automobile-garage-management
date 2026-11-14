@@ -1,21 +1,30 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách yêu cầu cấu hình chi tiết mẫu FOTON AUMARK 9T (4500), lặp lại yêu cầu cấu hình đã hỏi ở lượt ngay trước đó.",
+      "message_summary": "Khách trả lời ngày giờ muốn đến ký hợp đồng bằng cách tham chiếu lịch đã nêu trước đó: “Ngày như trên nhé”.",
       "tasks": [
         {
           "task_id": "t1",
-          "domain": "SALES",
-          "action": "product_specs",
-          "text": "Cho t cấu hình chi tiết xe FOTON AUMARK 9T (4500) nhé",
-          "relationship": "CONTINUE_TASK",
-          "referenced_interaction_id": null,
+          "domain": "APPOINTMENT",
+          "action": "book_appointment",
+          "text": "Ngày như trên nhé",
+          "relationship": "ANSWER_TO_QUESTION",
+          "referenced_interaction_id": "appointment_285dc952",
           "requires_clarification": false,
-          "car_model": "FOTON AUMARK-9T (4500)",
+          "car_model": null,
           "inquiry_only": false
         }
       ],
-      "slot_updates": [],
+      "slot_updates": [
+        {
+          "key": "appointment_when",
+          "operation": "SET",
+          "value": "21/11/2026 lúc 8 giờ sáng",
+          "evidence": "[REDACTED]",
+          "source_message_id": null,
+          "related_task_id": "t1"
+        }
+      ],
       "presented_cars": [],
       "signals": {
         "wants_human": false,
@@ -30,10 +39,28 @@
       "uncertain": false
     },
     "known_facts": {
+      "customer_name": "[REDACTED]",
+      "customer_phone": "[REDACTED]",
+      "intended_use": {
+        "key": "intended_use",
+        "value": "xe tải",
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "budget_vnd": {
+        "key": "budget_vnd",
+        "value": 300000000,
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
       "car_list": {
         "key": "car_list",
         "value": [
-          "FUSO FI170"
+          "DAEHAN Tera Star Plus Chassis",
+          "THACO Towner TF230 (Thùng lửng)",
+          "DAEHAN Tera Star Chassis"
         ],
         "source": "INFERRED",
         "updated_at_message_id": null,
@@ -41,21 +68,52 @@
       },
       "car_model": {
         "key": "car_model",
-        "value": "MIGHTY EX900XL",
+        "value": "THACO Towner TF230 (Thùng lửng)",
+        "source": "INFERRED",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "decided_price": {
+        "key": "decided_price",
+        "value": 242000000,
         "source": "USER_EXPLICIT",
         "updated_at_message_id": null,
         "confidence": null
       },
-      "budget_vnd": {
-        "key": "budget_vnd",
-        "value": 1000000000,
+      "customer_address": "[REDACTED]",
+      "service_type": {
+        "key": "service_type",
+        "value": "CONTRACT_SIGN",
+        "source": "APPLICATION_VERIFIED",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "appointment_when": {
+        "key": "appointment_when",
+        "value": "21/11/2026 lúc 8 giờ sáng",
         "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "appointment_date": {
+        "key": "appointment_date",
+        "value": {
+          "text": "21/11/2026 lúc 8 giờ sáng",
+          "reference": "2026-11-14",
+          "status": "RESOLVED",
+          "date": "2026-11-21",
+          "time_status": "RESOLVED",
+          "time": "08:00"
+        },
+        "source": "APPLICATION_VERIFIED",
         "updated_at_message_id": null,
         "confidence": null
       }
     },
     "rejected_slots": [],
-    "proposed_slots": [],
+    "proposed_slots": [
+      "appointment_when"
+    ],
     "dropped_slots": [],
     "trace": [
       "preprocess"

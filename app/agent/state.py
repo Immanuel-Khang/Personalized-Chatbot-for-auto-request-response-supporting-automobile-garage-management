@@ -52,6 +52,9 @@ class AgentState(TypedDict, total=False):
     conversation_interpretation: ConversationInterpretation | None
     pending_interactions: list[PendingInteraction]
     known_facts: dict[str, KnownFact]
+    # Catalog rows (name, kind, list_price_vnd, price_as_of) any catalog tool returned in this session, keyed by
+    # casefolded name. Shared by every agent (and kept by the checkpoint) so none of them re-reads the catalog.
+    catalog: dict[str, dict]
     active_workflow: ActiveWorkflow | None
     # Current turn only: canonical slots the customer gave but that failed validation (e.g. a malformed phone).
     rejected_slots: list[str]
@@ -102,6 +105,40 @@ def answer(state: AgentState, agent: str, text: str = "", needs_human: bool = Fa
 # Load Context (nodes/input.py) turns checkpointed facts/pending/workflow into models, so nodes read attributes.
 def fact_value(facts: dict | None, key: str):
     return getattr((facts or {}).get(key), "value", None)
+
+
+def catalog_row(product) -> dict:
+    """The part of a catalog product every agent shares: identity and priced list entry (no specs)."""
+    return {"name": product.name, "kind": product.kind, "list_price_vnd": product.list_price_vnd,
+            "price_as_of": str(product.price_as_of)}
+
+
+def remember_products(state: AgentState, products: list) -> dict[str, dict]:
+    """The session's shared catalog with ``products`` added (newest data wins); returned for the node's state update."""
+    shared = dict(state.get("catalog") or {})
+    for product in products:
+        row = product if isinstance(product, dict) else catalog_row(product)
+        if row.get("name") and row.get("list_price_vnd") is not None:
+            shared[row["name"].casefold()] = {key: row[key] for key in ("name", "kind", "list_price_vnd", "price_as_of")
+                                              if key in row}
+    return shared
+
+
+def _base_name(name: str) -> str:
+    """'FUSO Canter FI170 (Thùng mui bạt)' -> 'fuso canter fi170' (catalog names carry a body-type suffix)."""
+    return re.sub(r"\s*\(.*?\)\s*", " ", name or "").strip().casefold()
+
+
+def known_product(state: AgentState, name: str | None) -> dict | None:
+    """The shared catalog row of the car called ``name``, if any agent has fetched it: the exact catalog name, or the
+    name without its body-type suffix when that matches exactly one car (FI170 never matches FI170L)."""
+    if not name:
+        return None
+    shared = state.get("catalog") or {}
+    if exact := shared.get(name.casefold()):
+        return exact
+    matches = [row for row in shared.values() if _base_name(row["name"]) == _base_name(name)]
+    return matches[0] if len(matches) == 1 else None
 
 
 # The bot always says "mình"/"shop" and calls the customer "bạn", whatever the customer calls themselves.

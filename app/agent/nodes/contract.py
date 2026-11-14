@@ -13,8 +13,9 @@ from app.agent.date_extraction import RESOLVED, sync_date_fact
 from app.agent.llm import generate
 from app.agent.nodes.appointment import appointment
 from app.agent.nodes.compose import STYLE_RULES
-from app.agent.state import AgentState, answer, fact_value, open_pending
+from app.agent.state import AgentState, answer, fact_value, known_product, open_pending
 from app.identity import is_full_name
+from app.utils import fmt_vnd
 from app.contracts.schemas import (
     ActiveWorkflow, FactSource, InteractionKind, InteractionStatus, KnownFact, PendingInteraction, ServiceType,
     WorkflowStatus,
@@ -67,6 +68,16 @@ def contract(state: AgentState) -> dict:
     if not is_full_name(str(collected.get("customer_name") or "")):
         collected.pop("customer_name", None)  # hợp đồng cần họ tên đầy đủ, không chỉ tên gọi
     present = {REQUIRED_FIELDS[key]: value for key, value in collected.items()}
+
+    # The car's list price comes from the session's shared catalog (filled by whichever agent fetched the car), never
+    # from a catalog call here. It is a reference for the agreed price, not a proposal.
+    listed = known_product(state, fact_value(facts, "car_model"))
+    price_note = ""
+    amounts: dict = {}
+    if listed:
+        price_note = (f"\n💰 Giá niêm yết {listed['name']}: {fmt_vnd(int(listed['list_price_vnd']))} (giá áp dụng từ "
+                      f"{listed['price_as_of']}). Chỉ nêu để khách tham khảo khi xin giá chốt; KHÔNG tự đặt hay đề xuất giá chốt.\n")
+        amounts = {"allowed_amounts": [fmt_vnd(int(listed["list_price_vnd"]))]}
     missing = [key for key in REQUIRED_FIELDS if key not in collected]
     workflow = state.get("active_workflow")
     if not workflow or workflow.workflow_type != "contract":
@@ -96,7 +107,7 @@ def contract(state: AgentState) -> dict:
         reply = generate(CONTRACT_SYSTEM_PROMPT,
                          f"Câu hỏi/tin nhắn của khách: {message}\n\n"
                          f"📋 THÔNG TIN ĐÃ CÓ: {json.dumps(present, ensure_ascii=False)}\n\n"
-                         f"⚠️ THÔNG TIN CÒN THIẾU: {labels}\n\n"
+                         f"⚠️ THÔNG TIN CÒN THIẾU: {labels}\n{price_note}\n"
                          "Hãy xin nốt các thông tin còn thiếu.",
                          history=state.get("history")) or (
             f"Để hoàn tất hợp đồng, mình cần thêm: {', '.join(labels)}.")
@@ -107,7 +118,7 @@ def contract(state: AgentState) -> dict:
         return {"answers": [answer(state, "contract", reply)],
                 "active_workflow": workflow.model_copy(update={"status": WorkflowStatus.WAITING_FOR_USER,
                                                                "collected_facts": collected}),
-                "pending_interactions": [*expired, question], "known_facts": facts, "trace": ["contract"]}
+                "pending_interactions": [*expired, question], "known_facts": facts, "trace": ["contract"], **amounts}
 
     # A signing time given in this message ("giá chốt 650 triệu, sáng thứ 6 tôi qua ký") is kept and booked now;
     # an older booking time is not the signing date.

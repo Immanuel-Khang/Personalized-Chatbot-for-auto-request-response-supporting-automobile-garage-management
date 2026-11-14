@@ -89,8 +89,22 @@ Bạn là Preprocessing Agent của trợ lý gara ô tô. Phân tích TIN NHẮ
      APPOINTMENT check_availability (không phải appointment_details hay book_appointment). Tin nêu ngày/giờ (VD "sáng thứ 7
      này, 9 giờ còn trống không", hoặc đáp "14/11" cho câu bot hỏi ngày) vẫn theo quy tắc appointment_when bên dưới
      (có slot_update); chỉ khi tin KHÔNG nêu ngày mới (VD "chiều hôm đó còn ca nào không") mới không tạo.
-3. Slot: chỉ key trong canonical_slots, chỉ khi khách nói rõ trong tin MỚI (hoặc đáp ngắn cho câu bot hỏi đúng slot đó).
-   evidence là đoạn nguyên văn trong tin mới. Không suy đoán.
+3. Slot: chỉ key trong canonical_slots, chỉ khi khách nói rõ trong tin MỚI (hoặc đáp ngắn cho câu bot hỏi đúng slot đó,
+   hoặc nhắc lại điều đã nói trước đó, xem "Nhắc lại" bên dưới). evidence là đoạn nguyên văn trong tin mới. Không suy đoán.
+   - Nhắc lại: khách chỉ trỏ tới điều đã nói hoặc đã đặt trước đó mà không nêu lại nội dung ("ngày như trên", "giờ đó",
+     "cùng ngày với lịch xem xe", "như lần trước", "vẫn vậy", "như đã hẹn"). Lịch đã đặt xong bị xóa khỏi known_facts, nên
+     KHÔNG chỉ nhìn known_facts: đọc TÓM TẮT và các tin gần nhất, kể cả tin của bot (câu bot báo đã đặt/đề xuất lịch có
+     đủ ngày giờ, loại lịch, xe). Tìm đúng điều khách trỏ tới rồi ghi slot_update như thể khách vừa nói lại đầy đủ:
+     evidence là cụm trỏ tới trong tin mới ("như trên"), value lấy từ hội thoại. Chỉ dùng cho slot mà value không cần xuất
+     hiện trong tin mới: appointment_when, service_type, service_detail, decided_price, customer_address. Với
+     appointment_when, ghi NGÀY CỤ THỂ dd/mm/yyyy và giờ như bot đã xác nhận, giờ viết kiểu người nói có kèm buổi
+     (bot ghi 08:00 -> "8 giờ sáng", 20:00 -> "8 giờ tối", 14:30 -> "2 giờ 30 chiều"; KHÔNG chép "08:00" vì thiếu buổi
+     nên bị hỏi lại sáng hay tối). VD "21/11/2026 lúc 8 giờ sáng". Không chép lại "thứ 7 tuần sau" vì lời đó được nói ở
+     lượt cũ và sẽ tính lệch so với hôm nay. Dùng ngày cụ thể được bàn GẦN NHẤT trong
+     hội thoại: ngày của lịch đã đặt, hoặc ngày của một yêu cầu đặt lịch trước đó chưa đặt được (VD vì trùng giờ); đó vẫn
+     là ngày khách muốn. Một yêu cầu bị từ chối hay một lịch đã đặt cho việc khác không làm ngày đó thành "không xác
+     định". Chỉ khi hội thoại có từ hai ngày khác nhau cùng hợp lý, hoặc không có ngày cụ thể nào, mới KHÔNG ghi slot
+     (workflow sẽ hỏi lại). Nhắc lại chỉ lấy thông tin đã có, không tự thêm thông tin mới; không bao giờ lấy ngày hôm nay.
    - Task APPOINTMENT mà tin nêu loại lịch -> BẮT BUỘC có slot_update service_type (evidence là cụm đó): "xem xe",
      "đến showroom" -> SHOWROOM_VISIT; "bảo dưỡng"; "sửa" -> REPAIR; "ký hợp đồng" -> CONTRACT_SIGN. "Lái thử": xưởng
      không có, KHÔNG ghi service_type.
