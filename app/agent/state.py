@@ -58,6 +58,9 @@ class AgentState(TypedDict, total=False):
     # Debug trace of slot extraction this turn: keys the model proposed, and "key: reason" for each one dropped.
     proposed_slots: list[str]
     dropped_slots: list[str]
+    # Shared context prepared by coordinator: pre-fetched data from DataHub for agents to use.
+    # NOT annotated with operator.add - each coordinator run overwrites this (not merged across parallel agents).
+    shared_context: dict
 
 
 # "Chào Khang," / "Xin chào bạn!" ở đầu câu trả lời

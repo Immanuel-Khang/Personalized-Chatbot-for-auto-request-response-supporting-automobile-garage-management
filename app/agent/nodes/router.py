@@ -115,6 +115,5 @@ def send_all(state: AgentState, plan: list[dict]) -> list[Send]:
 
 
 def dispatch(state: AgentState):
-    """Single specialist -> run it directly; several tasks -> Task Coordinator."""
-    plan = state.get("plan") or []
-    return "coordinator" if len(plan) > 1 else send_all(state, plan)
+    """ALL queries go through coordinator for data preparation and execution planning."""
+    return "coordinator"

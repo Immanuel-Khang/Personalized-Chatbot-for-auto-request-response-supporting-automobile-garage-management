@@ -61,12 +61,29 @@ def _asks(pending: list[PendingInteraction], missing: list[str]) -> int:
 def contract(state: AgentState) -> dict:
     facts = dict(state.get("known_facts") or {})
     interpretation = state.get("conversation_interpretation")
-    if not fact_value(facts, "car_model") and (vehicle := _chosen_vehicle(state)):
+    shared_context = state.get("shared_context", {}).get("contract", {})
+
+    # Use car_model from shared_context if coordinator inferred it, otherwise use existing logic
+    if shared_context.get("inferred_car_model") and not fact_value(facts, "car_model"):
+        vehicle = shared_context["inferred_car_model"]
         facts["car_model"] = KnownFact(key="car_model", value=vehicle, source=FactSource.INFERRED)
+    elif not fact_value(facts, "car_model") and (vehicle := _chosen_vehicle(state)):
+        facts["car_model"] = KnownFact(key="car_model", value=vehicle, source=FactSource.INFERRED)
+
     collected = {key: fact_value(facts, key) for key in REQUIRED_FIELDS if fact_value(facts, key) is not None}
     if not is_full_name(str(collected.get("customer_name") or "")):
         collected.pop("customer_name", None)  # hợp đồng cần họ tên đầy đủ, không chỉ tên gọi
     present = {REQUIRED_FIELDS[key]: value for key, value in collected.items()}
+
+    # Augment present info with MSRP from shared_context if available (for customer's reference)
+    msrp_info = ""
+    if shared_context.get("msrp"):
+        msrp_data = shared_context["msrp"]
+        from app.utils import fmt_vnd
+        msrp_info = f"\n💰 Giá niêm yết xe {msrp_data.get('product_name', '')}: {fmt_vnd(int(msrp_data['msrp_vnd']))}"
+        if msrp_data.get("price_as_of"):
+            msrp_info += f" (giá áp dụng từ {msrp_data['price_as_of']})"
+
     missing = [key for key in REQUIRED_FIELDS if key not in collected]
     workflow = state.get("active_workflow")
     if not workflow or workflow.workflow_type != "contract":
