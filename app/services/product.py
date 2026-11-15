@@ -109,6 +109,60 @@ def _to_product(row: tuple[CatalogProduct, ProductPrice, VehicleSpec | None]) ->
 
 
 class DbProductService:
+    def search_by_rag(self, query: str, limit: int = 3) -> list[Product]:
+        """Tìm xe theo mô tả nhu cầu bằng ngôn ngữ tự nhiên (semantic search qua RAG).
+        VD: 'xe rẻ và bền', 'tiết kiệm nhiên liệu', 'chở hàng nặng', 'phù hợp chạy đường dài'."""
+        from sqlalchemy import text
+        from app.db.session import engine
+        from app.rag.factory import build_embedder
+
+        embedder = build_embedder()
+        if not embedder:
+            return []
+
+        # Embed query
+        query_vec = embedder.embed_query(query)
+
+        # Search pgvector directly for product chunks only
+        from app.rag.pgstore import _lit
+        q = _lit(query_vec)
+        sql = """SELECT source, text, 1 - (embedding <=> CAST(:q AS vector)) AS score
+                 FROM rag_chunks
+                 WHERE namespace='products' AND kind='product' AND embedding IS NOT NULL
+                 ORDER BY embedding <=> CAST(:q AS vector)
+                 LIMIT :n"""
+
+        with engine.connect() as conn:
+            rows = conn.execute(text(sql), {"q": q, "n": limit * 3}).all()
+
+        # Extract product IDs from results (format: product_384.catalog)
+        product_ids = []
+        for row in rows:
+            source = row[0]
+            if source.startswith("product_") and ".catalog" in source:
+                try:
+                    product_id = int(source.split("_")[1].split(".")[0])
+                    product_ids.append(product_id)
+                except (ValueError, IndexError):
+                    continue
+
+        if not product_ids:
+            return []
+
+        # Fetch products from DB maintaining RAG order
+        with SessionLocal() as db:
+            rows = _base(db).filter(CatalogProduct.id.in_(product_ids)).all()
+            products_by_id = {row[0].id: _to_product(row) for row in rows}
+
+            # Return in RAG relevance order, up to limit
+            results = []
+            for pid in product_ids:
+                if pid in products_by_id:
+                    results.append(products_by_id[pid])
+                    if len(results) >= limit:
+                        break
+            return results
+
     def search(self, query: str = "", limit: int = 3, fallback: bool = True,
                max_budget_vnd: float | None = None) -> list[Product]:
         """Tìm xe theo từ trong tên (SQL ILIKE) và/hoặc ngân sách tối đa.

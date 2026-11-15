@@ -17,8 +17,10 @@ from app.utils import fmt_vnd
 
 SALES_SYSTEM_PROMPT = """\
 Bạn là trợ lý tư vấn xe của xưởng Foton, thân thiện, trả lời tiếng Việt.
-1. Khách hỏi về xe, nêu tiêu chí (tải trọng, ngân sách, loại thùng...) hay tên xe: gọi tool tìm trước rồi tư vấn dựa
-   trên kết quả tool; không rõ tool nào thì search_products với mô tả nhu cầu. Chỉ dùng thông tin khách đã cung cấp.
+1. Khách hỏi về xe:
+   - Mô tả nhu cầu bằng NGÔN NGỮ TỰ NHIÊN ('rẻ', 'bền', 'tiết kiệm', 'chạy đường dài'...): dùng search_by_description
+   - Nêu TÊN MẪU cụ thể ('FUSO', 'ISUZU'...) hoặc ngân sách: dùng search_products
+   - Tìm trước rồi tư vấn dựa trên kết quả tool. Chỉ dùng thông tin khách đã cung cấp.
 2. Giá và thông số chỉ lấy từ tool, KHÔNG bịa. Thông số trong "specs" bao gồm:
    - Cơ bản: seats (số chỗ), vehicle_type (loại xe), assembly (lắp ráp), wheel_formula (công thức bánh)
    - Khối lượng: curb_mass_kg (khối lượng bản thân), payload_kg (tải trọng), gvm_kg (tổng khối lượng)
@@ -65,9 +67,13 @@ def _tool(name: str, description: str, properties: dict | None = None, required:
 
 _LIMIT = {"limit": {"type": "integer", "description": "Số kết quả tối đa"}}
 PRODUCT_SEARCH_TOOLS = [
-    _tool("search_products", "Tìm xe theo mô tả nhu cầu ('chassis', 'thùng kín', 'mui bạt'...) và/hoặc ngân sách tối đa. "
+    _tool("search_by_description", "Tìm xe theo mô tả nhu cầu bằng ngôn ngữ tự nhiên (VD: 'xe rẻ và bền', 'tiết kiệm nhiên liệu', "
+          "'chở hàng nặng', 'phù hợp chạy đường dài'...). Dùng NGÔN NGỮ TỰ NHIÊN, không cần từ khóa chính xác (mặc định 3 kết quả).",
+          {"query": {"type": "string", "description": "Mô tả nhu cầu của khách bằng ngôn ngữ tự nhiên"},
+           **_LIMIT}, ["query"]),
+    _tool("search_products", "Tìm xe theo TÊN MẪU cụ thể ('FUSO', 'ISUZU', 'FI170'...) và/hoặc ngân sách tối đa. "
           "Có ngân sách thì truyền max_budget_vnd; kết quả không bao giờ vượt ngân sách (mặc định 3 kết quả).",
-          {"query": {"type": "string", "description": "Nhu cầu của khách; có thể bỏ trống nếu chỉ lọc theo ngân sách"},
+          {"query": {"type": "string", "description": "Tên mẫu xe; có thể bỏ trống nếu chỉ lọc theo ngân sách"},
            "max_budget_vnd": {"type": "number", "description": "Ngân sách tối đa (VNĐ), VD 500 triệu -> 500000000"},
            **_LIMIT}),
     _tool("find_by_model_name", "Tìm xe theo tên mẫu cụ thể ('FUSO Canter', 'ISUZU Forward'...); dùng cả khi khách hỏi "
@@ -100,7 +106,11 @@ def _execute_tool(tool_name: str, tool_input: dict[str, Any]) -> dict[str, Any]:
     """Run one product tool; every result is {"products": [...]} plus an optional message for the LLM."""
     service = get_services().product
     try:
-        if tool_name == "search_products":
+        if tool_name == "search_by_description":
+            query = tool_input["query"]
+            products = service.search_by_rag(query=query, limit=_limit(tool_input, 3))
+            note = None if products else f"Không tìm thấy xe phù hợp với '{query}'"
+        elif tool_name == "search_products":
             budget = tool_input.get("max_budget_vnd")
             products = service.search(query=tool_input.get("query") or "", limit=_limit(tool_input, 3),
                                       fallback=True, max_budget_vnd=budget)

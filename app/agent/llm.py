@@ -133,14 +133,23 @@ def generate_with_tools(system_prompt: str, user_message: str, tools: list[dict]
     try:
         # Bind tools to LLM
         llm_with_tools = llm.bind_tools(tools)
+        logger.info(f"generate_with_tools: bound {len(tools)} tools to LLM: {[t['name'] for t in tools]}")
 
         # Build initial messages
         messages = [SystemMessage(content=system_prompt), *_past(history), HumanMessage(content=user_message)]
+        logger.info(f"generate_with_tools: invoking LLM with {len(messages)} messages")
 
         tool_calls_made = []
 
         for turn in range(max_turns):
+            logger.info(f"generate_with_tools: turn {turn+1}/{max_turns}")
             response = llm_with_tools.invoke(messages)
+
+            # Log tool calls for debugging
+            if response.tool_calls:
+                logger.info(f"LLM called {len(response.tool_calls)} tools: {[tc['name'] for tc in response.tool_calls]}")
+            else:
+                logger.info("LLM made no tool calls, returning final response")
 
             # Check if LLM wants to call tools
             if not response.tool_calls:

@@ -12,6 +12,14 @@ from app.db.session import init_db
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Auto-run migrations on startup
+    from alembic import command
+    from alembic.config import Config
+    from pathlib import Path
+
+    alembic_cfg = Config(Path(__file__).parent.parent / "alembic.ini")
+    command.upgrade(alembic_cfg, "head")
+
     init_db()
     seed_catalog()
     yield

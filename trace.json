@@ -1,17 +1,17 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách yêu cầu cấu hình chi tiết mẫu FOTON AUMARK 9T (4500), lặp lại yêu cầu cấu hình đã hỏi ở lượt ngay trước đó.",
+      "message_summary": "Khách tiếp tục yêu cầu tìm xe rẻ và bền, không cung cấp mức ngân sách cụ thể.",
       "tasks": [
         {
           "task_id": "t1",
           "domain": "SALES",
-          "action": "product_specs",
-          "text": "Cho t cấu hình chi tiết xe FOTON AUMARK 9T (4500) nhé",
+          "action": "search_catalog",
+          "text": "tìm xe rẻ và bền",
           "relationship": "CONTINUE_TASK",
           "referenced_interaction_id": null,
           "requires_clarification": false,
-          "car_model": "FOTON AUMARK-9T (4500)",
+          "car_model": null,
           "inquiry_only": false
         }
       ],
@@ -29,31 +29,7 @@
       "accepts_offer": null,
       "uncertain": false
     },
-    "known_facts": {
-      "car_list": {
-        "key": "car_list",
-        "value": [
-          "FUSO FI170"
-        ],
-        "source": "INFERRED",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "car_model": {
-        "key": "car_model",
-        "value": "MIGHTY EX900XL",
-        "source": "USER_EXPLICIT",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "budget_vnd": {
-        "key": "budget_vnd",
-        "value": 1000000000,
-        "source": "USER_EXPLICIT",
-        "updated_at_message_id": null,
-        "confidence": null
-      }
-    },
+    "known_facts": {},
     "rejected_slots": [],
     "proposed_slots": [],
     "dropped_slots": [],
