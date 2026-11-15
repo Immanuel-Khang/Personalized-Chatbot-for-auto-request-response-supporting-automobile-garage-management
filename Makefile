@@ -2,7 +2,7 @@
 
 # Chạy môi trường dev (build lại image và hiển thị log trực tiếp)
 dev:
-	docker compose -f docker-compose.dev.yml up --build -d
+	docker compose -f docker-compose.dev.yml up --build
 	@echo "Waiting for database to be ready..."
 	@sleep 3
 	@echo "Running migrations..."

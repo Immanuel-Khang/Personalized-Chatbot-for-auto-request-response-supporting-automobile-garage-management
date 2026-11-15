@@ -1,30 +1,21 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách trả lời ngày giờ muốn đến ký hợp đồng bằng cách tham chiếu lịch đã nêu trước đó: “Ngày như trên nhé”.",
+      "message_summary": "Khách hỏi lại shop có xe nào rẻ và bền không.",
       "tasks": [
         {
           "task_id": "t1",
-          "domain": "APPOINTMENT",
-          "action": "book_appointment",
-          "text": "Ngày như trên nhé",
-          "relationship": "ANSWER_TO_QUESTION",
-          "referenced_interaction_id": "appointment_285dc952",
+          "domain": "SALES",
+          "action": "search_catalog",
+          "text": "shop có xe nào rẻ và bền không?",
+          "relationship": "CONTINUE_TASK",
+          "referenced_interaction_id": null,
           "requires_clarification": false,
           "car_model": null,
           "inquiry_only": false
         }
       ],
-      "slot_updates": [
-        {
-          "key": "appointment_when",
-          "operation": "SET",
-          "value": "21/11/2026 lúc 8 giờ sáng",
-          "evidence": "[REDACTED]",
-          "source_message_id": null,
-          "related_task_id": "t1"
-        }
-      ],
+      "slot_updates": [],
       "presented_cars": [],
       "signals": {
         "wants_human": false,
@@ -38,82 +29,9 @@
       "accepts_offer": null,
       "uncertain": false
     },
-    "known_facts": {
-      "customer_name": "[REDACTED]",
-      "customer_phone": "[REDACTED]",
-      "intended_use": {
-        "key": "intended_use",
-        "value": "xe tải",
-        "source": "USER_EXPLICIT",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "budget_vnd": {
-        "key": "budget_vnd",
-        "value": 300000000,
-        "source": "USER_EXPLICIT",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "car_list": {
-        "key": "car_list",
-        "value": [
-          "DAEHAN Tera Star Plus Chassis",
-          "THACO Towner TF230 (Thùng lửng)",
-          "DAEHAN Tera Star Chassis"
-        ],
-        "source": "INFERRED",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "car_model": {
-        "key": "car_model",
-        "value": "THACO Towner TF230 (Thùng lửng)",
-        "source": "INFERRED",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "decided_price": {
-        "key": "decided_price",
-        "value": 242000000,
-        "source": "USER_EXPLICIT",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "customer_address": "[REDACTED]",
-      "service_type": {
-        "key": "service_type",
-        "value": "CONTRACT_SIGN",
-        "source": "APPLICATION_VERIFIED",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "appointment_when": {
-        "key": "appointment_when",
-        "value": "21/11/2026 lúc 8 giờ sáng",
-        "source": "USER_EXPLICIT",
-        "updated_at_message_id": null,
-        "confidence": null
-      },
-      "appointment_date": {
-        "key": "appointment_date",
-        "value": {
-          "text": "21/11/2026 lúc 8 giờ sáng",
-          "reference": "2026-11-14",
-          "status": "RESOLVED",
-          "date": "2026-11-21",
-          "time_status": "RESOLVED",
-          "time": "08:00"
-        },
-        "source": "APPLICATION_VERIFIED",
-        "updated_at_message_id": null,
-        "confidence": null
-      }
-    },
+    "known_facts": {},
     "rejected_slots": [],
-    "proposed_slots": [
-      "appointment_when"
-    ],
+    "proposed_slots": [],
     "dropped_slots": [],
     "trace": [
       "preprocess"

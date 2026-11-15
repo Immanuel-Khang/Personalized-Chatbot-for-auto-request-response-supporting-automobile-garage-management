@@ -1,4 +1,5 @@
 """[TRACK A] ProductService: đọc catalog từ DB. SQL-side filtering – không load toàn bộ catalog vào bộ nhớ."""
+import logging
 import re
 
 from sqlalchemy import func, or_
@@ -7,6 +8,8 @@ from sqlalchemy.orm import Session
 from app.contracts.schemas import Product
 from app.db.models import CatalogProduct, ProductPrice, VehicleSpec
 from app.db.session import SessionLocal
+
+logger = logging.getLogger(__name__)
 
 # Loại sản phẩm là xe (catalog hiện chỉ có TRUCK, có thể thêm CAR); PART là phụ tùng
 VEHICLE_KINDS = ("CAR", "TRUCK")
@@ -109,6 +112,64 @@ def _to_product(row: tuple[CatalogProduct, ProductPrice, VehicleSpec | None]) ->
 
 
 class DbProductService:
+    def __init__(self) -> None:
+        self._retriever = None  # Lazy init để tránh lỗi khi DB chưa có pgvector
+
+    def _get_retriever(self):
+        """Lazy load ProductRetriever."""
+        if self._retriever is None:
+            try:
+                from app.config import settings
+                from app.db.session import engine
+                from app.rag.factory import build_embedder
+                from app.rag.product_retriever import ProductRetriever
+
+                embedder = build_embedder()
+                if embedder:
+                    self._retriever = ProductRetriever(engine, embedder)
+                    logger.info("ProductRetriever initialized with embedder: %s", embedder.name)
+                else:
+                    logger.warning("No embedder available, RAG search disabled")
+            except Exception as e:
+                logger.warning("Failed to initialize ProductRetriever: %s", e)
+        return self._retriever
+
+    def retrieve(self, query: str, k: int = 3, max_budget_vnd: float | None = None) -> list[Product]:
+        """Tìm sản phẩm theo ngôn ngữ tự nhiên bằng RAG.
+
+        Args:
+            query: Mô tả nhu cầu của khách (vd "xe chở hàng nặng đường đèo", "xe giao hàng trong thành phố")
+            k: Số sản phẩm tối đa trả về
+            max_budget_vnd: Ngân sách tối đa (VNĐ)
+
+        Returns:
+            List products xếp theo độ phù hợp với nhu cầu
+        """
+        retriever = self._get_retriever()
+        if not retriever:
+            # Fallback to keyword search
+            logger.info("RAG not available, falling back to keyword search")
+            return self.search(query, limit=k, max_budget_vnd=max_budget_vnd)
+
+        try:
+            product_ids = retriever.retrieve(query, k=k, max_budget_vnd=max_budget_vnd)
+            if not product_ids:
+                logger.info("No RAG results for query: %s", query)
+                return []
+
+            # Load full products by IDs
+            with SessionLocal() as db:
+                rows = (_base(db)
+                        .filter(CatalogProduct.id.in_(product_ids))
+                        .all())
+
+                # Preserve order from retriever
+                id_to_row = {r[0].id: r for r in rows}
+                return [_to_product(id_to_row[pid]) for pid in product_ids if pid in id_to_row]
+        except Exception as e:
+            logger.error("RAG search failed: %s, falling back to keyword search", e)
+            return self.search(query, limit=k, max_budget_vnd=max_budget_vnd)
+
     def search(self, query: str = "", limit: int = 3, fallback: bool = True,
                max_budget_vnd: float | None = None) -> list[Product]:
         """Tìm xe theo từ trong tên (SQL ILIKE) và/hoặc ngân sách tối đa.

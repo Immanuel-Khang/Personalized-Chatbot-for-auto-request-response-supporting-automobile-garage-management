@@ -54,6 +54,7 @@ def _model(cls, value):
 def load_context(state: AgentState) -> dict:
     pending = [_model(PendingInteraction, item) for item in state.get("pending_interactions") or []]
     facts = {key: _model(KnownFact, value) for key, value in (state.get("known_facts") or {}).items()}
+
     return {
         # Closed interactions have no further use; keeping them only grows the prompt.
         "pending_interactions": [item for item in pending if item.status == InteractionStatus.OPEN],

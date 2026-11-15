@@ -180,6 +180,18 @@ def parse_sales_info(row: dict[str, str]) -> dict | None:
     if target := g("Target_Customer"):
         info["target_customer"] = target
 
+    # Description fields (5 new columns at the end of CSV)
+    if suitable_use := g("Suitable_Use"):
+        info["suitable_use"] = suitable_use
+    if route_type := g("Route_Type"):
+        info["route_type"] = route_type
+    if cargo_weight := g("Cargo_Weight"):
+        info["cargo_weight"] = cargo_weight
+    if cost_est := g("On_Road_Cost_Est"):
+        info["on_road_cost_est"] = cost_est
+    if durability := g("Durability_Note"):
+        info["durability_note"] = durability
+
     return info if info else None
 
 

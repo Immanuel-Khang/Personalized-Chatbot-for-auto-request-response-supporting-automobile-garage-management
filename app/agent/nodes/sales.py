@@ -16,9 +16,11 @@ from app.utils import fmt_vnd
 
 
 SALES_SYSTEM_PROMPT = """\
-Bạn là trợ lý tư vấn xe của xưởng Foton, thân thiện, trả lời tiếng Việt.
-1. Khách hỏi về xe, nêu tiêu chí (tải trọng, ngân sách, loại thùng...) hay tên xe: gọi tool tìm trước rồi tư vấn dựa
-   trên kết quả tool; không rõ tool nào thì search_products với mô tả nhu cầu. Chỉ dùng thông tin khách đã cung cấp.
+Bạn là trợ lý tư vấn xe, trả lời tiếng Việt.
+
+QUY TẮC BẮT BUỘC:
+Khi khách hỏi về xe (dù tiêu chí mơ hồ như "rẻ", "bền", "tốt"), BẮT BUỘC gọi search_by_natural_language TRƯỚC.
+Tool này hiểu ngôn ngữ tự nhiên - KHÔNG BAO GIỜ trả lời trước khi gọi tool.
 2. Giá và thông số chỉ lấy từ tool, KHÔNG bịa. Thông số trong "specs" bao gồm:
    - Cơ bản: seats (số chỗ), vehicle_type (loại xe), assembly (lắp ráp), wheel_formula (công thức bánh)
    - Khối lượng: curb_mass_kg (khối lượng bản thân), payload_kg (tải trọng), gvm_kg (tổng khối lượng)
@@ -66,9 +68,16 @@ def _tool(name: str, description: str, properties: dict | None = None, required:
 
 _LIMIT = {"limit": {"type": "integer", "description": "Số kết quả tối đa"}}
 PRODUCT_SEARCH_TOOLS = [
-    _tool("search_products", "Tìm xe theo mô tả nhu cầu ('chassis', 'thùng kín', 'mui bạt'...) và/hoặc ngân sách tối đa. "
-          "Có ngân sách thì truyền max_budget_vnd; kết quả không bao giờ vượt ngân sách (mặc định 3 kết quả).",
-          {"query": {"type": "string", "description": "Nhu cầu của khách; có thể bỏ trống nếu chỉ lọc theo ngân sách"},
+    _tool("search_by_natural_language", "Tìm xe theo ngôn ngữ tự nhiên bằng AI (RAG). Tool này hiểu cả tiêu chí mơ hồ như "
+          "'rẻ', 'bền', 'tốt', 'nhanh', 'tiết kiệm' và các mô tả chi tiết như 'xe giao hàng trong thành phố', "
+          "'xe chở hàng nặng đường đèo'. GỌI TOOL NÀY TRƯỚC khi trả lời khách - dữ liệu sales_info chứa thông tin về "
+          "độ bền, tiết kiệm, ưu điểm phù hợp với query. Có thể kết hợp với ngân sách (mặc định 3 kết quả).",
+          {"query": {"type": "string", "description": "Mô tả nhu cầu của khách - có thể là tiêu chí đơn giản như 'rẻ', 'bền' hoặc chi tiết như 'xe giao hàng nội đô'"},
+           "max_budget_vnd": {"type": "number", "description": "Ngân sách tối đa (VNĐ), không bắt buộc"},
+           **_LIMIT}, ["query"]),
+    _tool("search_products", "Tìm xe theo từ khóa đơn giản ('chassis', 'thùng kín', 'mui bạt'...) và/hoặc ngân sách tối đa. "
+          "Dùng khi khách chỉ nêu từ khóa kỹ thuật hoặc chỉ có ngân sách (mặc định 3 kết quả).",
+          {"query": {"type": "string", "description": "Từ khóa tìm kiếm; có thể bỏ trống nếu chỉ lọc theo ngân sách"},
            "max_budget_vnd": {"type": "number", "description": "Ngân sách tối đa (VNĐ), VD 500 triệu -> 500000000"},
            **_LIMIT}),
     _tool("find_by_model_name", "Tìm xe theo tên mẫu cụ thể ('FUSO Canter', 'ISUZU Forward'...); dùng cả khi khách hỏi "
@@ -99,9 +108,25 @@ def _limit(tool_input: dict[str, Any], default: int) -> int:
 
 def _execute_tool(tool_name: str, tool_input: dict[str, Any]) -> dict[str, Any]:
     """Run one product tool; every result is {"products": [...]} plus an optional message for the LLM."""
+    import logging
+    logger = logging.getLogger(__name__)
+
     service = get_services().product
     try:
-        if tool_name == "search_products":
+        if tool_name == "search_by_natural_language":
+            query = tool_input.get("query", "")
+            budget = tool_input.get("max_budget_vnd")
+            # Fix: Only use budget if it's a positive number, otherwise None
+            budget = budget if budget and budget > 0 else None
+            logger.info(f"[TOOL CALLED] search_by_natural_language: query='{query}', budget={budget}")
+            products = service.retrieve(query=query, k=_limit(tool_input, 3), max_budget_vnd=budget)
+            logger.info(f"[TOOL RESULT] Found {len(products)} products")
+            note = None
+            if not products:
+                note = f"Không tìm thấy xe phù hợp với nhu cầu '{query}'"
+                if budget:
+                    note += f" trong ngân sách {fmt_vnd(budget)}"
+        elif tool_name == "search_products":
             budget = tool_input.get("max_budget_vnd")
             products = service.search(query=tool_input.get("query") or "", limit=_limit(tool_input, 3),
                                       fallback=True, max_budget_vnd=budget)
@@ -204,8 +229,33 @@ def sales(state: AgentState) -> dict:
     viewed_products = _viewed_products(state, viewed)
     viewed_line = (f"\nXe khách đã xem (có thể chưa liên quan tới tin nhắn này), dữ liệu catalog: "
                    f"{json.dumps(viewed_products, ensure_ascii=False)}\n" if viewed_products else "")
-    context = (f"Tin nhắn của khách: {state.get('task_text') or state.get('user_text', '')}\n\n"
-               f"Thông tin đã biết về khách:\n{_format_known_facts(state)}\n{viewed_line}{note}")
+
+    # Build user message - keep it simple to help LLM focus on tool calling
+    facts_text = _format_known_facts(state)
+    user_message = state.get('task_text') or state.get('user_text', '')
+
+    context_parts = [f"Tin nhắn của khách: {user_message}"]
+
+    # Add explicit instruction to call tool if user is asking about products
+    # Check if query contains product-related keywords
+    query_lower = user_message.lower()
+    product_keywords = ['xe', 'rẻ', 'bền', 'tốt', 'nhanh', 'tiết kiệm', 'chở', 'tải', 'giao hàng']
+    if any(kw in query_lower for kw in product_keywords):
+        context_parts.append(f"\n\n[INSTRUCTION] Khách hỏi về xe. GỌI TOOL search_by_natural_language với query=\"{user_message}\" TRƯỚC KHI trả lời.")
+
+    # Only add facts if they exist
+    if facts_text != "Chưa có thông tin về nhu cầu khách.":
+        context_parts.append(f"\n\nThông tin đã biết về khách:\n{facts_text}")
+
+    # Only add viewed products if they exist
+    if viewed_line:
+        context_parts.append(viewed_line)
+
+    # Only add note if there are specific cars or purchase interest
+    if note:
+        context_parts.append(note)
+
+    context = "".join(context_parts)
     result = generate_with_tools(
         system_prompt=SALES_SYSTEM_PROMPT,
         user_message=context,
