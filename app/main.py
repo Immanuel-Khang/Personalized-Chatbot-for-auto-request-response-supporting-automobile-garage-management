@@ -28,6 +28,18 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Xuong xe AI Agent", lifespan=lifespan)
 app.include_router(chat.router)
 app.include_router(admin.router)
+
+
+@app.get("/health", include_in_schema=False)
+def health() -> dict:
+    """Trạng thái app + độ khớp chỉ mục RAG sản phẩm. Lệch (degraded) = bot sẽ nói 'chưa lọc ra được mẫu nào'."""
+    from app.db.session import SessionLocal
+    from app.rag.product_indexer import check_product_index
+    with SessionLocal() as db:
+        idx = check_product_index(db)
+    return {"status": "ok" if idx["in_sync"] else "degraded", "product_index": idx}
+
+
 WEB_DIR = Path(__file__).resolve().parents[1] / "web"
 
 

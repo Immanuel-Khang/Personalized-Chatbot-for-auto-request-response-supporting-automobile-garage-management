@@ -1,4 +1,4 @@
-.PHONY: dev prod down logs clean migrate
+.PHONY: dev prod down logs clean migrate seed
 
 # Chạy môi trường dev (build lại image và hiển thị log trực tiếp)
 dev:
@@ -27,3 +27,7 @@ logs:
 clean:
 	docker compose -f docker-compose.dev.yml down -v
 	docker compose -f docker-compose.prod.yml down -v
+
+# Đưa danh mục xe + chỉ mục RAG về đúng dữ liệu chuẩn (data/catalog_master_refined.csv). Mọi người chạy lệnh này để DB giống nhau.
+seed:
+	docker compose -f docker-compose.dev.yml exec web python -m app.manage bootstrap-catalog

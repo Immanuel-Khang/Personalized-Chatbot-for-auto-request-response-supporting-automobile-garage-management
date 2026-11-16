@@ -19,6 +19,7 @@ from app.db.models import (
     Brand, CatalogProduct, CatalogSource, ProductPrice, ProductSource, VehicleModel, VehicleSpec, DataIssue
 )
 from app.db.session import SessionLocal
+from app.db.sku import slugify_sku
 
 
 def parse_int(val: str) -> int | None:
@@ -198,6 +199,7 @@ def import_csv(csv_path: str, effective_date: date | None = None) -> None:
                 product_name += f" {version}"
 
             product = CatalogProduct(
+                sku=slugify_sku(row.get("Product_ID", "")) or slugify_sku(product_name),
                 kind="TRUCK",
                 name=product_name,
                 brand_id=brand.id,

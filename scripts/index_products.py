@@ -14,14 +14,13 @@ def main():
     print("Building RAG components...")
     embedder = build_embedder()
     if not embedder:
-        print("Error: No embedder configured. Set OPENAI_API_KEY or use EMBEDDING_PROVIDER=hash")
-        return 1
+        print("Cảnh báo: không có embedder (thiếu OPENAI_API_KEY hoặc EMBEDDING_PROVIDER=none) -> chỉ lưu chunk cho BM25, không có vector")
 
     # Create store with 'products' namespace, not default 'knowledge'
     from app.db.session import engine
     from app.rag.pgstore import PgVectorStore
     store = PgVectorStore(engine, namespace='products')
-    print(f"Using embedder: {embedder.name}")
+    print(f"Using embedder: {embedder.name if embedder else 'none (BM25-only)'}")
     print(f"Using store: {store.__class__.__name__} (namespace: {store.ns})")
 
     db = SessionLocal()

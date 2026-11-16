@@ -18,6 +18,7 @@ from pathlib import Path
 from app.db.models import (Brand, CatalogProduct, CatalogSource, DataIssue, ProductCompetitor, ProductPrice,
                            ProductSource, VehicleModel, VehicleSpec)
 from app.db.session import SessionLocal
+from app.db.sku import slugify_sku
 
 BLANK = {"", "-", "--", "---"}
 BRAND_ALIASES = {"ĐÔ THÀNH": "DOTHANH"}
@@ -320,6 +321,7 @@ def import_csv(path: Path, price_as_of: date, dry_run: bool = False) -> list[dic
         brands: dict[str, Brand] = {b.name: b for b in db.query(Brand)}
         models: dict[tuple, VehicleModel] = {}
         used_names = {n for (n,) in db.query(CatalogProduct.name)}
+        used_skus = {k for (k,) in db.query(CatalogProduct.sku) if k}
         now = datetime.now(timezone.utc)
         for p in unique:
             brand = brands.get(p.brand)
@@ -343,7 +345,12 @@ def import_csv(path: Path, price_as_of: date, dry_run: bool = False) -> list[dic
             if name in used_names:
                 name = f"{name} (dòng {p.line})"
             used_names.add(name)
-            product = CatalogProduct(kind="TRUCK", name=name, brand_id=brand.id, model_id=model.id if model else None,
+            # sku ổn định: Product_ID của CSV nếu có, không thì suy từ tên (không phụ thuộc id tự tăng của máy)
+            sku = slugify_sku(p.raw.get("Product_ID", "")) or slugify_sku(name) or f"ROW-{p.line}"
+            if sku in used_skus:
+                sku = f"{sku}-{p.line}"
+            used_skus.add(sku)
+            product = CatalogProduct(sku=sku, kind="TRUCK", name=name, brand_id=brand.id, model_id=model.id if model else None,
                                      status="DRAFT", sales_info=p.sales_info)
             db.add(product)
             db.flush()
@@ -372,7 +379,7 @@ def import_csv(path: Path, price_as_of: date, dry_run: bool = False) -> list[dic
             for i in p.issues:
                 db.add(DataIssue(product_id=product.id, field=i.field, raw_value=i.raw, code=i.code, note=i.note,
                                  resolution=i.resolution, resolved_at=now if i.resolution else None))
-            summary.append({"id": product.id, "name": name, "line": p.line, "spec": p.spec, "price": p.price,
+            summary.append({"id": product.id, "sku": sku, "name": name, "line": p.line, "spec": p.spec, "price": p.price,
                             "open_issues": [i for i in p.issues if not i.resolution]})
         db.rollback() if dry_run else db.commit()
     return summary

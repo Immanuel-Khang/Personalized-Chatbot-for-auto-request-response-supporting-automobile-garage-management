@@ -2,6 +2,7 @@
   python -m app.manage create-manager <username> <password> [--role manager|sales_admin|technician]
   python -m app.manage unlock <username>      # mở khóa tài khoản bị khóa do nhập sai mật khẩu
   python -m app.manage list-managers
+  python -m app.manage bootstrap-catalog      # xóa sạch danh mục xe + chỉ mục RAG, nạp lại từ data/catalog_master_refined.csv
 Docker: docker compose -f docker-compose.dev.yml exec web python -m app.manage create-manager an 'mat-khau' --role manager"""
 import argparse
 from datetime import datetime, timezone
@@ -9,6 +10,29 @@ from datetime import datetime, timezone
 from app.auth import hash_password
 from app.db.models import Manager
 from app.db.session import SessionLocal, init_db
+
+
+def bootstrap_catalog() -> None:
+    """Đưa danh mục xe về trạng thái chuẩn giống hệt nhau trên mọi máy: xóa catalog (RESTART IDENTITY) + rag_chunks
+    namespace products, nạp CSV seed, bật ACTIVE, dựng lại chỉ mục. Không đụng lịch hẹn, khách hàng, tài khoản."""
+    from sqlalchemy import text
+
+    from app.db.seed import SEED_CSV, SEED_PRICE_AS_OF
+    from app.db.catalog_activate import activate
+    from app.db.catalog_import import import_csv
+    from app.rag.product_indexer import ensure_product_index
+
+    with SessionLocal() as db:
+        db.execute(text("TRUNCATE data_issues, product_sources, product_prices, product_media, product_competitors, "
+                        "vehicle_specs, products, vehicle_models, brands, catalog_sources RESTART IDENTITY CASCADE"))
+        db.execute(text("DELETE FROM rag_chunks WHERE namespace='products'"))
+        db.commit()
+    import_csv(SEED_CSV, SEED_PRICE_AS_OF)
+    with SessionLocal() as db:
+        activate(db)
+        db.commit()
+    print("Index:", ensure_product_index())
+    print(f"Đã nạp lại danh mục từ {SEED_CSV.name}")
 
 
 def main() -> None:
@@ -19,9 +43,13 @@ def main() -> None:
     c.add_argument("password")
     c.add_argument("--role", default="manager", choices=("manager", "sales_admin", "technician"))
     sub.add_parser("list-managers")
+    sub.add_parser("bootstrap-catalog")
     sub.add_parser("unlock").add_argument("username")
     args = ap.parse_args()
     init_db()
+    if args.cmd == "bootstrap-catalog":
+        bootstrap_catalog()
+        return
     with SessionLocal() as db:
         if args.cmd == "list-managers":
             for m in db.query(Manager).order_by(Manager.id):

@@ -226,6 +226,8 @@ class CatalogProduct(Base):
     __tablename__ = "products"
     __table_args__ = (_in("kind", PRODUCT_KINDS), _in("status", PRODUCT_STATUSES), Index(None, "kind", "status"))
     id: Mapped[int] = mapped_column(primary_key=True)
+    # Khóa ổn định giữa các máy (id tự tăng thì không). Dùng để nối products <-> rag_chunks (source product_<sku>.catalog).
+    sku: Mapped[str | None] = mapped_column(String(120), unique=True)
     kind: Mapped[str] = mapped_column(String(10))
     name: Mapped[str] = mapped_column(String(200))
     aliases: Mapped[list[str]] = mapped_column(ARRAY(String), default=list, server_default="{}")

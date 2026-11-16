@@ -146,42 +146,44 @@ class DbProductService:
         vector: list[str] = []
         try:
             if embedder := build_embedder():
+                # Chỉ so vector cùng model: hash và openai nằm ở hai không gian khác nhau, so lẫn là vô nghĩa
                 sql = """SELECT source, 1 - (embedding <=> CAST(:q AS vector)) AS sim FROM rag_chunks
                          WHERE namespace='products' AND kind='product' AND embedding IS NOT NULL
+                           AND embedding_model = :m
                          ORDER BY embedding <=> CAST(:q AS vector) LIMIT :n"""
                 with engine.connect() as conn:
-                    rows = conn.execute(text(sql), {"q": _lit(embedder.embed_query(query)), "n": settings.rag_candidates}).all()
+                    rows = conn.execute(text(sql), {"q": _lit(embedder.embed_query(query)), "n": settings.rag_candidates,
+                                                    "m": embedder.name}).all()
                 vector = [r[0] for r in rows if r[1] >= settings.rag_min_vector_sim]
         except Exception:
             logger.warning("product vector search failed, BM25-only", exc_info=True)
 
         fused = rrf([bm25, vector], [settings.rag_weight_bm25, settings.rag_weight_vector], settings.rag_rrf_k)
 
-        # Extract product IDs from results (source format: product_384.catalog), best first
-        product_ids = []
+        # Chunk đặt tên product_<sku>.catalog; nối về products bằng sku (ổn định giữa các máy), không dùng id tự tăng
+        from app.rag.product_indexer import sku_from_source
+        ranked: list[str] = []
         for source, _score in sorted(fused.items(), key=lambda x: x[1], reverse=True):
-            if source.startswith("product_") and ".catalog" in source:
-                try:
-                    product_ids.append(int(source.split("_")[1].split(".")[0]))
-                except (ValueError, IndexError):
-                    continue
-
-        if not product_ids:
+            if (key := sku_from_source(source)) and key not in ranked:
+                ranked.append(key)
+        if not ranked:
             return []
 
-        # Fetch products from DB maintaining RAG order
-        with SessionLocal() as db:
-            rows = _base(db).filter(CatalogProduct.id.in_(product_ids)).all()
-            products_by_id = {row[0].id: _to_product(row) for row in rows}
+        def _id_key(k: str) -> int | None:  # "id12": dòng chưa có sku (dữ liệu mẫu), xem product_indexer
+            return int(k[2:]) if re.fullmatch(r"id\d+", k) else None
 
-            # Return in RAG relevance order, up to limit
-            results = []
-            for pid in product_ids:
-                if pid in products_by_id:
-                    results.append(products_by_id[pid])
-                    if len(results) >= limit:
-                        break
-            return results
+        sku_keys = [k for k in ranked if _id_key(k) is None]
+        id_keys = [i for k in ranked if (i := _id_key(k)) is not None]
+        with SessionLocal() as db:
+            cond = [CatalogProduct.sku.in_(sku_keys)] if sku_keys else []
+            if id_keys:
+                cond.append(CatalogProduct.id.in_(id_keys))
+            rows = _base(db).filter(or_(*cond)).all()
+            by_key = {}
+            for row in rows:
+                by_key[row[0].sku or f"id{row[0].id}"] = _to_product(row)
+            # Trả theo thứ tự liên quan của RAG, tối đa limit
+            return [by_key[k] for k in ranked if k in by_key][:limit]
 
     def search(self, query: str = "", limit: int = 3, fallback: bool = True,
                max_budget_vnd: float | None = None) -> list[Product]:
