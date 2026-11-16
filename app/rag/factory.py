@@ -26,7 +26,19 @@ def _hash_dim() -> int:
     return 512
 
 
+_embedders: dict[tuple, Embedder | None] = {}
+
+
 def build_embedder() -> Embedder | None:
+    """Một embedder cho mỗi cấu hình: client OpenAI (kết nối HTTP) và cache câu hỏi được dùng lại giữa các lượt chat."""
+    key = (settings.embedding_provider, settings.embedding_model, settings.openai_api_key,
+           settings.rag_vector_store, settings.rag_cache_dir)
+    if key not in _embedders:
+        _embedders[key] = _build_embedder()
+    return _embedders[key]
+
+
+def _build_embedder() -> Embedder | None:
     provider = settings.embedding_provider
     inner: Embedder
     if provider == "openai":

@@ -81,12 +81,25 @@ def syn(old: dict, dur: str, fuel: str) -> list[str]:
     return list(dict.fromkeys(out))
 
 
+HEAVY_TONNES = 7.0  # "chở hàng nặng" chỉ đúng với xe có tải trọng từ mức này; xe nhẹ hơn ghi "chở hàng tải vừa"
+
+
+def cargo_use(uses: str, tonnes: float | None) -> str:
+    """Nhãn "Phù hợp làm" phải khớp tải trọng thật: nguồn gán 'chở hàng nặng' cho xe 3-4 tấn và bỏ sót xe 7-9 tấn."""
+    if tonnes is None:
+        return uses
+    if tonnes < HEAVY_TONNES:
+        return uses.replace("chở hàng nặng", "chở hàng tải vừa")
+    return uses if "chở hàng nặng" in uses else f"chở hàng nặng, {uses}" if uses else "chở hàng nặng"
+
+
 def build(row: dict, old: dict) -> str:
     dur, why, fuel, est = assess(row, old)
     kw, hp, rpm = power(row)
     brand, model = clean(row.get("Brand")).upper(), clean(row.get("Model")) or clean(row.get("Version"))
     kind = "xe sát xi (chassis), cần đóng thùng riêng" if re.search(r"sát xi|chassis", clean(row.get("Vehicle Type")), re.I) else "xe tải có thùng"
     t = re.search(r"([\d.,]+)\s*tấn", clean(row.get("Cargo_Weight")))
+    old["uses"] = cargo_use(old["uses"], float(t.group(1).replace(",", ".")) if t and re.fullmatch(r"\d+(?:[.,]\d+)?", t.group(1)) else None)
     gvm = clean(row.get("Gross Vehicle Mass"))
     gears = re.search(r"(\d+)\s*số tiến", clean(row.get("Transmission Type")))
     bk = [b.strip().lower().removeprefix("phanh ") for b in clean(row.get("Brake System Front – Rear")).split("/")]

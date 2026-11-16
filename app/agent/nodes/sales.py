@@ -219,6 +219,7 @@ def sales(state: AgentState) -> dict:
         tool_executor=_execute_tool,
         history=state.get("history"),
         max_turns=3,
+        reasoning_effort="medium",
     )
     if result.get("error"):
         # Internal errors never reach the customer.

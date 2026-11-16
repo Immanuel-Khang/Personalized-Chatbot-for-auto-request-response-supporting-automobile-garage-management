@@ -1,65 +1,71 @@
-SESSION : livetest-f815e9bccb47
-USER MSG: Bên bạn có bán tàu vũ trụ không?
+SESSION : e6288691-dfeb-4d4a-bda3-438ae2323468
+USER MSG: 8 giờ sáng
 
 ============================================================ input (0ms) ============================================================
-USER TEXT : Bên bạn có bán tàu vũ trụ không?
-mode      : BOT  turn:None
-car_list  : []
-history   : 0 msgs
+USER TEXT : 8 giờ sáng
+mode      : BOT  turn:8
+car_list  : [HINO XZU720]
+history   : 10 msgs
 --- OUT ---
-known_facts: (none)
+known_facts: intended_use=vận chuyển đường dài  |  car_list=[HINO XZU720]  |  car_model=HINO XZU720  |  service_type=SHOWROOM_VISIT  |  appointment_when=Thứ 7 lúc 8 giờ  |  customer_name=[REDACTED]  |  customer_phone=[REDACTED]  |  appointment_date={text=Thứ 7 lúc 8 giờ, reference=2026-11-16, status=RESOLVED, date=2026-11-21…}
 
-============================================================ preprocess (2126ms) ============================================================
-USER TEXT : Bên bạn có bán tàu vũ trụ không?
-car_list  : []
-pending   : 0 open
+============================================================ preprocess (6683ms) ============================================================
+USER TEXT : 8 giờ sáng
+car_list  : [HINO XZU720]
+pending   : 1 open
 --- LLM INPUT ---
+[Call 1]
 SYSTEM: Bạn là Preprocessing Agent của trợ lý gara ô tô. Phân tích TIN NHẮN MỚI NHẤT của khách trong ngữ cảnh hội thoại (tóm tắt + các tin gần nhất) và CONVERSATION STATE, trả về đúng schema ConversationInter…
-USER  : Bên bạn có bán tàu vũ trụ không?
+USER  : 8 giờ sáng
+HISTORY WINDOW (10 msgs, showing last 3):
+  [ai] Mình ghi nhận bạn muốn đến showroom xem HINO XZU720. Bạn cho mình xin ngày và giờ hẹn, họ tên đầy đủ và số điện thoại nhé?
+  [user] Thứ 7 lúc 8 giờ, Dương Định KHang, 0386764983
+  [ai] Bạn đã cung cấp lịch xem HINO XZU720 vào thứ Bảy, 21/11/2026, lúc 8 giờ. Bạn muốn hẹn lúc 8 giờ sáng hay 8 giờ tối?
+[Call 2]
+SYSTEM: Extract the date and the time of day from the Vietnamese message. Return components only. NEVER calculate the final date.  Reference date and weekday are provided in the user message. Calendar weeks r…
+USER  : Today: 2026-11-16 (Monday) Timezone: Asia/Ho_Chi_Minh Expression: Thứ 7 lúc 8 giờ sáng
 --- OUT ---
-  tasks:     OTHER:general_conversation(car=None)
+  tasks:     APPOINTMENT:book_appointment(car=HINO XZU720)
   complexity:LOW  uncertain:False
+car_list  : [HINO XZU720]
 route     : None  ()
 
 ============================================================ policy_guard (0ms) ============================================================
-  tasks:     OTHER:general_conversation(car=None)
+  tasks:     APPOINTMENT:book_appointment(car=HINO XZU720)
   complexity:LOW  uncertain:False
 --- OUT ---
 route     : router  ()
 
 ============================================================ router (0ms) ============================================================
-  tasks:     OTHER:general_conversation(car=None)
+  tasks:     APPOINTMENT:book_appointment(car=HINO XZU720)
   complexity:LOW  uncertain:False
 --- OUT ---
-route     : None  plan:[{'agent': 'conversation', 'text': 'Bên bạn có bán tàu vũ trụ không?', 'order': 0, 'task_ids': ['t1']}]
+route     : None  plan:[{'agent': 'appointment', 'text': '8 giờ sáng', 'order': 0, 'task_ids': ['t1']}]
 
-============================================================ conversation (3249ms) ============================================================
-task_text : Bên bạn có bán tàu vũ trụ không?
+============================================================ appointment (4868ms) ============================================================
+task_text : 8 giờ sáng
 task_ids  : ['t1']
-  tasks:     OTHER:general_conversation(car=None)
+  tasks:     APPOINTMENT:book_appointment(car=HINO XZU720)
   complexity:LOW  uncertain:False
---- LLM INPUT ---
-SYSTEM: Bạn là trợ lý thân thiện của xưởng Foton. Nhiệm vụ của bạn: 1. Luôn chào lại ngắn gọn khi khách chào. Nếu chưa biết tên khách, hỏi lịch sự "Bạn có thể cho mình biết họ tên để thuận tiện xưng hô được k…
-USER  : Tin nhắn chưa thuộc chủ đề nào bạn xử lý được. Nếu đó là câu nói tiếp chủ đề trước thì trả lời theo ngữ cảnh; nếu chưa rõ ý thì hỏi lại; nếu ngoài phạm vi thì hướng dẫn lịch sự các chủ đề bạn hỗ trợ. …
 --- OUT ---
-  reply [conversation]: Bên mình không bán tàu vũ trụ bạn ạ. Mình có thể hỗ trợ tư vấn xe Foton, báo giá hoặc đặt lịch dịch vụ tại xưởng.
+  reply [appointment]: [REDACTED]
 
 ============================================================ validation (0ms) ============================================================
-  [conversation] Bên mình không bán tàu vũ trụ bạn ạ. Mình có thể hỗ trợ tư vấn xe Foton, báo giá hoặc đặt lịch dịch vụ tại xưởng.
+  [appointment] [REDACTED]
 --- OUT ---
 route     : compose  feedback:
 
 ============================================================ compose (0ms) ============================================================
-  [conversation] Bên mình không bán tàu vũ trụ bạn ạ. Mình có thể hỗ trợ tư vấn xe Foton, báo giá hoặc đặt lịch dịch vụ tại xưởng.
+  [appointment] [REDACTED]
 --- OUT ---
-draft     : Bên mình không bán tàu vũ trụ bạn ạ. Mình có thể hỗ trợ tư vấn xe Foton, báo giá hoặc đặt lịch dịch vụ tại xưởng.
+draft     : [REDACTED]
 
 ============================================================ output_guard (0ms) ============================================================
-draft     : Bên mình không bán tàu vũ trụ bạn ạ. Mình có thể hỗ trợ tư vấn xe Foton, báo giá hoặc đặt lịch dịch vụ tại xưởng.
+draft     : [REDACTED]
 --- OUT ---
 needs_human: None  final:
 
 ============================================================ respond (0ms) ============================================================
-final     : 
+final     : Bạn đã cung cấp lịch xem HINO XZU720 vào thứ Bảy, 21/11/2026, lúc 8 giờ. Bạn muốn hẹn lúc 8 giờ sáng hay 8 giờ tối?
 --- OUT ---
-final_reply: Bên mình không bán tàu vũ trụ bạn ạ. Mình có thể hỗ trợ tư vấn xe Foton, báo giá hoặc đặt lịch dịch vụ tại xưởng.
+final_reply: [REDACTED]

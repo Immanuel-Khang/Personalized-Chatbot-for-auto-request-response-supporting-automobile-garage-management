@@ -1,21 +1,30 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách hỏi gara có bán tàu vũ trụ không.",
+      "message_summary": "Khách bổ sung rằng giờ hẹn là 8 giờ sáng, trả lời câu hỏi làm rõ của bot.",
       "tasks": [
         {
           "task_id": "t1",
-          "domain": "OTHER",
-          "action": "general_conversation",
-          "text": "Bên bạn có bán tàu vũ trụ không?",
-          "relationship": "NEW_REQUEST",
-          "referenced_interaction_id": null,
+          "domain": "APPOINTMENT",
+          "action": "book_appointment",
+          "text": "8 giờ sáng",
+          "relationship": "ANSWER_TO_QUESTION",
+          "referenced_interaction_id": "appointment_65dc1f13",
           "requires_clarification": false,
-          "car_model": null,
-          "inquiry_only": true
+          "car_model": "HINO XZU720",
+          "inquiry_only": false
         }
       ],
-      "slot_updates": [],
+      "slot_updates": [
+        {
+          "key": "appointment_when",
+          "operation": "CORRECT",
+          "value": "Thứ 7 lúc 8 giờ sáng",
+          "evidence": "[REDACTED]",
+          "source_message_id": null,
+          "related_task_id": "t1"
+        }
+      ],
       "presented_cars": [],
       "signals": {
         "wants_human": false,
@@ -29,9 +38,65 @@
       "accepts_offer": null,
       "uncertain": false
     },
-    "known_facts": {},
+    "known_facts": {
+      "intended_use": {
+        "key": "intended_use",
+        "value": "vận chuyển đường dài",
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "car_list": {
+        "key": "car_list",
+        "value": [
+          "HINO XZU720"
+        ],
+        "source": "INFERRED",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "car_model": {
+        "key": "car_model",
+        "value": "HINO XZU720",
+        "source": "INFERRED",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "service_type": {
+        "key": "service_type",
+        "value": "SHOWROOM_VISIT",
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "appointment_when": {
+        "key": "appointment_when",
+        "value": "Thứ 7 lúc 8 giờ sáng",
+        "source": "USER_CORRECTED",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "customer_name": "[REDACTED]",
+      "customer_phone": "[REDACTED]",
+      "appointment_date": {
+        "key": "appointment_date",
+        "value": {
+          "text": "Thứ 7 lúc 8 giờ sáng",
+          "reference": "2026-11-16",
+          "status": "RESOLVED",
+          "date": "2026-11-21",
+          "time_status": "RESOLVED",
+          "time": "08:00"
+        },
+        "source": "APPLICATION_VERIFIED",
+        "updated_at_message_id": null,
+        "confidence": null
+      }
+    },
     "rejected_slots": [],
-    "proposed_slots": [],
+    "proposed_slots": [
+      "appointment_when"
+    ],
     "dropped_slots": [],
     "trace": [
       "preprocess"

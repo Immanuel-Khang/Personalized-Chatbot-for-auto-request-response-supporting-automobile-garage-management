@@ -105,7 +105,7 @@ def generate_structured(system: str, user: str, output_schema: type[T],
 
 def generate_with_tools(system_prompt: str, user_message: str, tools: list[dict],
                        tool_executor: callable, history: list[dict] | None = None,
-                       max_turns: int = 5) -> dict:
+                       max_turns: int = 5, reasoning_effort: str | None = None) -> dict:
     """
     Call LLM with tool-calling capability. The LLM can call tools multiple times.
 
@@ -116,6 +116,7 @@ def generate_with_tools(system_prompt: str, user_message: str, tools: list[dict]
         tool_executor: Function that executes tools: tool_executor(tool_name, tool_input) -> result_dict
         history: Conversation history
         max_turns: Maximum number of LLM turns (to prevent infinite loops)
+        reasoning_effort: Optional reasoning effort for every call of this loop (none|low|medium|high...); None = model default
 
     Returns:
         {
@@ -132,7 +133,8 @@ def generate_with_tools(system_prompt: str, user_message: str, tools: list[dict]
 
     try:
         # Bind tools to LLM
-        llm_with_tools = llm.bind_tools(tools)
+        extra = {"reasoning_effort": reasoning_effort} if reasoning_effort else {}
+        llm_with_tools = llm.bind_tools(tools).bind(**extra)
         logger.info(f"generate_with_tools: bound {len(tools)} tools to LLM: {[t['name'] for t in tools]}")
 
         # Build initial messages
@@ -194,7 +196,7 @@ def generate_with_tools(system_prompt: str, user_message: str, tools: list[dict]
 
         # Out of tool rounds: one last call with tools disabled, so the model answers from the results it has
         # instead of the turn ending without a reply.
-        response = llm.bind_tools(tools, tool_choice="none").invoke(messages)
+        response = llm.bind_tools(tools, tool_choice="none").bind(**extra).invoke(messages)
         content = response.content
         final_text = content if isinstance(content, str) else "".join(
             part.get("text", "") if isinstance(part, dict) else str(part) for part in content)
