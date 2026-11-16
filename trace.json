@@ -1,18 +1,18 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách tiếp tục yêu cầu tìm xe rẻ và bền, không cung cấp mức ngân sách cụ thể.",
+      "message_summary": "Khách hỏi gara có bán tàu vũ trụ không.",
       "tasks": [
         {
           "task_id": "t1",
-          "domain": "SALES",
-          "action": "search_catalog",
-          "text": "tìm xe rẻ và bền",
-          "relationship": "CONTINUE_TASK",
+          "domain": "OTHER",
+          "action": "general_conversation",
+          "text": "Bên bạn có bán tàu vũ trụ không?",
+          "relationship": "NEW_REQUEST",
           "referenced_interaction_id": null,
           "requires_clarification": false,
           "car_model": null,
-          "inquiry_only": false
+          "inquiry_only": true
         }
       ],
       "slot_updates": [],

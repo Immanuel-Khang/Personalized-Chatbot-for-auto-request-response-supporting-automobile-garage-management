@@ -1,5 +1,6 @@
 """Index product sales_info into RAG for natural language search."""
 import hashlib
+import re
 from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
@@ -42,7 +43,9 @@ def extract_product_chunks(db: Session) -> list[Chunk]:
         if not p.sales_info or "summary" not in p.sales_info:
             continue
 
-        summary = p.sales_info["summary"].strip()
+        # Câu "Không hợp: ..." không đưa vào chỉ mục: nếu không, 'xe chở hàng nặng' sẽ khớp xe nhẹ có ghi "Không hợp: hàng nặng".
+        # Bản đầy đủ vẫn nằm trong products.sales_info cho agent đọc.
+        summary = re.sub(r"\s*Không hợp:[^.]*\.", "", p.sales_info["summary"]).strip()
         if not summary:
             continue
 

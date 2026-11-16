@@ -144,6 +144,10 @@ def parse_sales_info(row: dict[str, str]) -> dict | None:
     g = lambda col: clean(row.get(col))  # noqa: E731
     info = {}
 
+    # Natural-language summary used for RAG/semantic product search
+    if summary := g("Summary_For_Search"):
+        info["summary"] = summary
+
     # Collect selling points
     points = [p for i in range(1, 4) if (p := g(f"Key_Selling_Point_{i}"))]
     if points:

@@ -3,7 +3,7 @@ import os
 # Phải đặt TRƯỚC khi import app. Test chạy trên DB Postgres riêng, bị xóa sạch mỗi lần chạy.
 # Dùng 127.0.0.1 thay vì localhost: localhost thử IPv6 (::1) trước và chờ hết timeout mới sang IPv4.
 os.environ["DATABASE_URL"] = os.getenv(
-    "TEST_DATABASE_URL", "postgresql+psycopg://garage:garage@127.0.0.1:5432/garage_test?connect_timeout=5")
+    "TEST_DATABASE_URL", "postgresql+psycopg://garage:garage@127.0.0.1:5433/garage_test?connect_timeout=5")
 # LLM_PROVIDER is configured by the environment so local integration runs can
 # use the real provider; CI/test runs can explicitly set it to "none".
 os.environ.setdefault("LLM_PROVIDER", "none")  # tests run rule-based unless explicitly enabled

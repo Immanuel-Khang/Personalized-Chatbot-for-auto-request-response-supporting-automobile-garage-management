@@ -7,7 +7,7 @@ sys.stdout.reconfigure(encoding='utf-8') if hasattr(sys.stdout, 'reconfigure') e
 
 # Set environment before importing app
 os.environ['LLM_PROVIDER'] = 'openai'
-os.environ['DATABASE_URL'] = 'postgresql+psycopg://garage:garage@127.0.0.1:5432/garage?connect_timeout=5'
+os.environ['DATABASE_URL'] = 'postgresql+psycopg://garage:garage@127.0.0.1:5433/garage?connect_timeout=5'
 os.environ['EMBEDDING_PROVIDER'] = 'none'
 
 from fastapi.testclient import TestClient

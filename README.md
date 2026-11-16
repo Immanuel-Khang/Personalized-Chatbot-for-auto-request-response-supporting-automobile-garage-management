@@ -42,7 +42,7 @@ Once started, access the services:
 - **Admin:** http://localhost:8000/admin
 - **Appointments (admin):** http://localhost:8000/appointments.html
 - **Interactive API Docs (Swagger):** http://localhost:8000/docs
-- **PostgreSQL Database:** `localhost:5432` (`garage` / `garage`)
+- **PostgreSQL Database:** `localhost:5433` (`garage` / `garage`)
 
 #### Production Mode (Background daemon)
 Runs Uvicorn with multiple workers in detached mode:

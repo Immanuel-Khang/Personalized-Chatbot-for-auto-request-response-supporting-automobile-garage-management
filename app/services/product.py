@@ -1,5 +1,7 @@
 """[TRACK A] ProductService: đọc catalog từ DB. SQL-side filtering – không load toàn bộ catalog vào bộ nhớ."""
+import logging
 import re
+from collections import Counter
 
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
@@ -7,6 +9,8 @@ from sqlalchemy.orm import Session
 from app.contracts.schemas import Product
 from app.db.models import CatalogProduct, ProductPrice, VehicleSpec
 from app.db.session import SessionLocal
+
+logger = logging.getLogger(__name__)
 
 # Loại sản phẩm là xe (catalog hiện chỉ có TRUCK, có thể thêm CAR); PART là phụ tùng
 VEHICLE_KINDS = ("CAR", "TRUCK")
@@ -113,36 +117,52 @@ class DbProductService:
         """Tìm xe theo mô tả nhu cầu bằng ngôn ngữ tự nhiên (semantic search qua RAG).
         VD: 'xe rẻ và bền', 'tiết kiệm nhiên liệu', 'chở hàng nặng', 'phù hợp chạy đường dài'."""
         from sqlalchemy import text
+        from app.config import settings
         from app.db.session import engine
+        from app.rag.bm25 import BM25Index
         from app.rag.factory import build_embedder
+        from app.rag.fusion import rrf
+        from app.rag.pgstore import _lit
+        from app.rag.text import content_words
 
-        embedder = build_embedder()
-        if not embedder:
+        if not query.strip():
+            return []
+        with engine.connect() as conn:
+            docs = conn.execute(text("SELECT source, index_text FROM rag_chunks WHERE namespace='products' AND kind='product'")).all()
+        if not docs:
             return []
 
-        # Embed query
-        query_vec = embedder.embed_query(query)
+        # Nhánh từ khóa (BM25, cùng bộ chuẩn hóa tiếng Việt với knowledge RAG): chỉ giữ chunk khớp đủ RAG_MIN_KEYWORD_HITS từ
+        sources = [d[0] for d in docs]
+        index = BM25Index([d[1] for d in docs])
+        # Từ có trong >60% sản phẩm ('xe', 'máy', 'tải'...) không phân biệt được xe nào nên không tính là khớp từ khóa
+        common = {w for w, df in Counter(w for s in index.doc_sets for w in s).items() if df > 0.6 * len(docs)}
+        q_words = content_words(query) - common
+        need = min(settings.rag_min_keyword_hits, len(q_words))
+        bm25 = [sources[i] for i, _s, _h in index.search(query, settings.rag_candidates)
+                if need and len(q_words & index.doc_sets[i]) >= need]
 
-        # Search pgvector directly for product chunks only
-        from app.rag.pgstore import _lit
-        q = _lit(query_vec)
-        sql = """SELECT source, text, 1 - (embedding <=> CAST(:q AS vector)) AS score
-                 FROM rag_chunks
-                 WHERE namespace='products' AND kind='product' AND embedding IS NOT NULL
-                 ORDER BY embedding <=> CAST(:q AS vector)
-                 LIMIT :n"""
+        # Nhánh vector (pgvector): chỉ giữ chunk có cosine >= RAG_MIN_VECTOR_SIM. Lỗi/không có embedder -> chỉ dùng BM25
+        vector: list[str] = []
+        try:
+            if embedder := build_embedder():
+                sql = """SELECT source, 1 - (embedding <=> CAST(:q AS vector)) AS sim FROM rag_chunks
+                         WHERE namespace='products' AND kind='product' AND embedding IS NOT NULL
+                         ORDER BY embedding <=> CAST(:q AS vector) LIMIT :n"""
+                with engine.connect() as conn:
+                    rows = conn.execute(text(sql), {"q": _lit(embedder.embed_query(query)), "n": settings.rag_candidates}).all()
+                vector = [r[0] for r in rows if r[1] >= settings.rag_min_vector_sim]
+        except Exception:
+            logger.warning("product vector search failed, BM25-only", exc_info=True)
 
-        with engine.connect() as conn:
-            rows = conn.execute(text(sql), {"q": q, "n": limit * 3}).all()
+        fused = rrf([bm25, vector], [settings.rag_weight_bm25, settings.rag_weight_vector], settings.rag_rrf_k)
 
-        # Extract product IDs from results (format: product_384.catalog)
+        # Extract product IDs from results (source format: product_384.catalog), best first
         product_ids = []
-        for row in rows:
-            source = row[0]
+        for source, _score in sorted(fused.items(), key=lambda x: x[1], reverse=True):
             if source.startswith("product_") and ".catalog" in source:
                 try:
-                    product_id = int(source.split("_")[1].split(".")[0])
-                    product_ids.append(product_id)
+                    product_ids.append(int(source.split("_")[1].split(".")[0]))
                 except (ValueError, IndexError):
                     continue
 
