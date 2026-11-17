@@ -12,7 +12,7 @@ import uuid
 from langgraph.types import Overwrite
 
 from app.agent.state import AgentState
-from app.contracts.schemas import InteractionKind, InteractionStatus, PendingInteraction
+from app.contracts.schemas import FactSource, InteractionKind, InteractionStatus, KnownFact, PendingInteraction
 
 MAX_ATTEMPTS = 1
 CLAIMS = ("đã xác nhận lịch", "đã đặt lịch", "đã ghi nhận lịch hẹn", "hợp đồng đã được tạo", "đã ký hợp đồng")
@@ -36,7 +36,8 @@ def validation(state: AgentState) -> dict:
     attempts = state.get("validation_attempts", 0)
     if (feedback := _missing_info(state)) and attempts < MAX_ATTEMPTS:
         return {**update, "validation_feedback": feedback, "validation_attempts": attempts + 1,
-                "answers": Overwrite([]), "allowed_amounts": Overwrite([]), "route": "retry"}
+                "answers": Overwrite([]), "allowed_amounts": Overwrite([]), "route": "retry",
+                "dispatched": Overwrite([]), "wave": [], "prior_results": []}  # the scheduler starts over
 
     answers = []
     for item in state.get("answers") or []:
@@ -44,6 +45,14 @@ def validation(state: AgentState) -> dict:
             item = {**item, "text": "", "needs_human": True, "handover_reason": "VALIDATION: unconfirmed action claim"}
         answers.append(item)
     update.update(answers=Overwrite(answers), route="compose", validation_feedback=None)
+
+    # The cars the reply presents become the list the customer counts from ("xe số 2"). Parallel agents cannot write
+    # known_facts themselves, so it is written once here, in the order the customer reads them.
+    shown = sorted((a for a in answers if not a.get("needs_human")), key=lambda a: a.get("order", 0))
+    if cars := list(dict.fromkeys(car for a in shown for car in a.get("cars") or [])):
+        facts = dict(state.get("known_facts") or {})
+        facts["car_list"] = KnownFact(key="car_list", value=cars, source=FactSource.INFERRED)
+        update["known_facts"] = facts
 
     if deferred := state.get("deferred_workflow"):
         offer = PendingInteraction(

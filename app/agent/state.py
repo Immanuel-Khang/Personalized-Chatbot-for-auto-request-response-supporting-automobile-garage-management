@@ -34,6 +34,11 @@ class AgentState(TypedDict, total=False):
     task_text: str
     task_order: int
     task_ids: list[str]
+    # Task Coordinator (nodes/coordinator.py): agents already sent this turn, the plan items of the wave being run,
+    # and the shared context = answers of the agents that finished in earlier waves, which later waves read.
+    dispatched: Annotated[list[str], operator.add]
+    wave: list[dict]
+    prior_results: list[dict]
     # Second writer requested in the same turn; validation turns it into an open offer.
     deferred_workflow: dict | None
     # Result Validation -> Preprocessing loop (at most once per turn).
@@ -91,12 +96,29 @@ def clean_reply(state: AgentState, text: str) -> str:
 
 
 def answer(state: AgentState, agent: str, text: str = "", needs_human: bool = False,
-           handover_reason: str | None = None, executed: bool = False) -> dict:
+           handover_reason: str | None = None, executed: bool = False, cars: list[str] | None = None) -> dict:
     """Phần trả lời của một specialist, đã làm sạch (clean_reply): một task thì gửi thẳng cho khách,
     nhiều task thì compose ghép theo task_order.
-    executed=True chỉ khi service xác nhận hành động (đặt lịch/hợp đồng) thành công trong lượt này."""
+    executed=True chỉ khi service xác nhận hành động (đặt lịch/hợp đồng) thành công trong lượt này.
+    cars: tên các xe mà câu trả lời này thực sự giới thiệu cho khách, theo thứ tự xuất hiện (validation ghi vào car_list)."""
     return {"agent": agent, "order": state.get("task_order", 0), "text": clean_reply(state, text) if text else text,
-            "needs_human": needs_human, "handover_reason": handover_reason, "executed": executed}
+            "needs_human": needs_human, "handover_reason": handover_reason, "executed": executed,
+            "cars": list(cars or [])}
+
+
+PRIOR_RESULTS_HEADER = (
+    "KẾT QUẢ CÁC VIỆC KHÁC TRONG CÙNG TIN NHẮN (đã làm xong trước việc của bạn, khách CHƯA đọc; hệ thống sẽ ghép "
+    "chúng vào cùng một tin nhắn). Nếu việc của bạn tùy thuộc vào kết quả này (VD khách chỉ muốn đến xem xe nếu có "
+    "xe phù hợp), hãy dựa vào đúng kết quả đó, và chỉ làm phần việc của bạn: đừng nhắc lại nội dung đã có, đừng mâu "
+    "thuẫn với nó, đừng nói là chưa có thông tin mà kết quả đã có.")
+
+
+def prior_block(state: AgentState) -> str:
+    """Shared context of the turn as a prompt section; empty when no earlier agent finished (first wave)."""
+    results = [item for item in state.get("prior_results") or [] if (item.get("text") or "").strip()]
+    if not results:
+        return ""
+    return f"\n{PRIOR_RESULTS_HEADER}\n" + "\n".join(f"- ({item['agent']}): {item['text'].strip()}" for item in results) + "\n"
 
 
 # Load Context (nodes/input.py) turns checkpointed facts/pending/workflow into models, so nodes read attributes.

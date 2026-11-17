@@ -2,7 +2,9 @@
 [TRACK B] Cổng gọi LLM duy nhất. Nodes gọi generate() / generate_structured().
 Trả None nghĩa là "không có LLM, dùng fallback rule-based".
 """
+import json
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from typing import TypeVar, cast
 
 from pydantic import BaseModel, SecretStr
@@ -105,7 +107,7 @@ def generate_structured(system: str, user: str, output_schema: type[T],
 
 def generate_with_tools(system_prompt: str, user_message: str, tools: list[dict],
                        tool_executor: callable, history: list[dict] | None = None,
-                       max_turns: int = 5) -> dict:
+                       max_turns: int = 5, parallel_tools: bool = False) -> dict:
     """
     Call LLM with tool-calling capability. The LLM can call tools multiple times.
 
@@ -116,6 +118,8 @@ def generate_with_tools(system_prompt: str, user_message: str, tools: list[dict]
         tool_executor: Function that executes tools: tool_executor(tool_name, tool_input) -> result_dict
         history: Conversation history
         max_turns: Maximum number of LLM turns (to prevent infinite loops)
+        parallel_tools: run the tool calls of one LLM turn concurrently; only for executors that are
+            read-only and share no state between calls
 
     Returns:
         {
@@ -170,27 +174,18 @@ def generate_with_tools(system_prompt: str, user_message: str, tools: list[dict]
             # Execute each tool call
             messages.append(response)
 
-            for tool_call in response.tool_calls:
-                tool_name = tool_call["name"]
-                tool_input = tool_call["args"]
+            calls = response.tool_calls
+            if parallel_tools and len(calls) > 1:
+                # Independent calls the model asked for in one turn run together; results keep the call order.
+                with ThreadPoolExecutor(max_workers=len(calls)) as pool:
+                    results = list(pool.map(lambda call: tool_executor(call["name"], call["args"]), calls))
+            else:
+                results = [tool_executor(call["name"], call["args"]) for call in calls]
 
-                # Execute tool
-                tool_result = tool_executor(tool_name, tool_input)
-
-                # Record the tool call
-                tool_calls_made.append({
-                    "name": tool_name,
-                    "input": tool_input,
-                    "result": tool_result
-                })
-
-                # Add tool result to messages
-                import json
-                tool_message = ToolMessage(
-                    content=json.dumps(tool_result, ensure_ascii=False),
-                    tool_call_id=tool_call["id"]
-                )
-                messages.append(tool_message)
+            for tool_call, tool_result in zip(calls, results):
+                tool_calls_made.append({"name": tool_call["name"], "input": tool_call["args"], "result": tool_result})
+                messages.append(ToolMessage(content=json.dumps(tool_result, ensure_ascii=False),
+                                            tool_call_id=tool_call["id"]))
 
         # Out of tool rounds: one last call with tools disabled, so the model answers from the results it has
         # instead of the turn ending without a reply.

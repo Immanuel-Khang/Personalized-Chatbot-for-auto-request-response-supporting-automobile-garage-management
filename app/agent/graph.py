@@ -1,7 +1,8 @@
 """LangGraph assembly (matches the documented architecture):
 input -> preprocess -> policy_guard -> {human_handover | router}
-router -> one specialist directly, or coordinator -> several specialists (parallel, max one writer)
-specialists -> validation -> {preprocess (missing info, once) | compose} -> output_guard
+router -> one specialist directly, or coordinator -> several specialists in waves: independent tasks in parallel (max one
+writer); a task that depends on another runs in a later wave and reads the earlier answers from the shared context
+specialists -> (coordinator while a wave is left) -> validation -> {preprocess (missing info, once) | compose} -> output_guard
 output_guard -> {respond | human_handover}; human_handover -> respond -> END.
 Save: messages go to the DB in app/conversation.py; workflow state (facts, pending, workflow) is the
 LangGraph checkpoint, stored in Postgres so it survives restarts.
@@ -19,7 +20,7 @@ from app.agent.nodes.appointment import appointment
 from app.agent.nodes.compose import compose
 from app.agent.nodes.contract import contract
 from app.agent.nodes.conversation import conversation
-from app.agent.nodes.coordinator import coordinate, coordinator
+from app.agent.nodes.coordinator import coordinate, coordinator, next_step
 from app.agent.nodes.human_handover import human_handover
 from app.agent.nodes.input import load_context
 from app.agent.nodes.knowledge import knowledge
@@ -56,9 +57,10 @@ def build_graph():
     g.add_conditional_edges("policy_guard", lambda s: s["route"],
                             {"human": "human_handover", "router": "router"})
     g.add_conditional_edges("router", dispatch, [*SPECIALISTS, "coordinator"])
-    g.add_conditional_edges("coordinator", coordinate, list(SPECIALISTS))
+    g.add_conditional_edges("coordinator", coordinate, list(SPECIALISTS))  # every task that is ready, in parallel
     for name in SPECIALISTS:
-        g.add_edge(name, "validation")  # runs once all parallel branches of the superstep finish
+        # runs once all parallel branches of the superstep finish; later waves go back through the coordinator
+        g.add_conditional_edges(name, next_step, ["coordinator", "validation"])
     g.add_conditional_edges("validation", lambda s: "preprocess" if s.get("route") == "retry" else "compose",
                             {"preprocess": "preprocess", "compose": "compose"})
     g.add_edge("compose", "output_guard")

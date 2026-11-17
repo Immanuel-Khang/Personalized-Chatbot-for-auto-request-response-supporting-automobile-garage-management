@@ -1,79 +1,69 @@
-SESSION : khach_test_A0
-USER MSG: có mẫu xe nào dưới 500 triệu không tôi muốn xem trực tiếp
+SESSION : e6288691-dfeb-4d4a-bda3-438ae2323468
+USER MSG: Được rồi minh muốn xem xe này
 
 ============================================================ input (0ms) ============================================================
-USER TEXT : có mẫu xe nào dưới 500 triệu không tôi muốn xem trực tiếp
-mode      : BOT  turn:0
-car_list  : []
-history   : 2 msgs
+USER TEXT : Được rồi minh muốn xem xe này
+mode      : BOT  turn:30
+car_list  : [HYUNDAI NEW MIGHTY N250L, KIA K200, THACO Linker T2-5.0]
+history   : 32 msgs
 --- OUT ---
-known_facts: intended_use=phù hợp vận chuyển đường dài
+known_facts: intended_use=chạy trong phố  |  car_list=[HYUNDAI NEW MIGHTY N250L, KIA K200, THACO Linker T2-5.0]  |  customer_name=[REDACTED]  |  customer_phone=[REDACTED]  |  service_type=SHOWROOM_VISIT
 
-============================================================ preprocess (2496ms) ============================================================
-USER TEXT : có mẫu xe nào dưới 500 triệu không tôi muốn xem trực tiếp
-car_list  : []
-pending   : 0 open
+============================================================ preprocess (3061ms) ============================================================
+USER TEXT : Được rồi minh muốn xem xe này
+car_list  : [HYUNDAI NEW MIGHTY N250L, KIA K200, THACO Linker T2-5.0]
+pending   : 1 open
 --- LLM INPUT ---
 SYSTEM: Bạn là Preprocessing Agent của trợ lý gara ô tô. Phân tích TIN NHẮN MỚI NHẤT của khách trong ngữ cảnh hội thoại (tóm tắt + các tin gần nhất) và CONVERSATION STATE, trả về đúng schema ConversationInter…
-USER  : có mẫu xe nào dưới 500 triệu không tôi muốn xem trực tiếp
-HISTORY WINDOW (2 msgs, showing last 2):
-  [user] chào bạn, tìm cho tôi các mẫu xe giá vừa phải , độ bền cao ,phù hợp vận chuyển đường dài
-  [ai] Dưới đây là 3 mẫu xe sát xi (chassis) giá vừa phải đến cao, thiên về độ bền và phù hợp chạy tuyến đường dài (chủ yếu dùng để đóng thùng riêng):  - HIN…
+USER  : Được rồi minh muốn xem xe này
+SUMMARY (803 chars):
+  - Khách cần xe giá vừa phải/tầm trung, bền, phù hợp chạy đường dài; chưa nêu ngân sách cụ thể hoặc tải trọng. - Đã giới thiệu THACO LINKER T2-12 (3800): 539 triệu; tiết kiệm nhiên liệu, độ bền trung bình. - Đã giới thiệu HINO FC9JJTC: 871 triệu; bền, hợp tuyến dài nhưng giá cao, hao nhiên liệu. - Đã…
+HISTORY WINDOW (8 msgs, showing last 3):
+  [ai] Trong các mẫu tìm được, HYUNDAI NEW MIGHTY N250L có mức tiêu hao nhiên liệu trung bình và phù hợp giao hàng nội thành, nhưng không được đánh giá là ti…
+  [user] Cho mình thông tin đầy đủ của mẫu thứ nhất
+  [ai] HYUNDAI NEW MIGHTY N250L là xe sát xi tải, cần đóng thùng riêng; phù hợp giao hàng nội thành và quãng liên tỉnh ngắn. Động cơ dầu, mức tiêu hao nhiên …
 --- OUT ---
-  tasks:     SALES:SALES search_catalog(car=None); APPOINTMENT:APPOINTMENT book_appointment(car=None)
+  tasks:     APPOINTMENT:book_appointment(car=HYUNDAI NEW MIGHTY N250L)
   complexity:LOW  uncertain:False
+car_list  : [HYUNDAI NEW MIGHTY N250L, KIA K200, THACO Linker T2-5.0]
 route     : None  ()
 
 ============================================================ policy_guard (0ms) ============================================================
-  tasks:     SALES:SALES search_catalog(car=None); APPOINTMENT:APPOINTMENT book_appointment(car=None)
+  tasks:     APPOINTMENT:book_appointment(car=HYUNDAI NEW MIGHTY N250L)
   complexity:LOW  uncertain:False
 --- OUT ---
 route     : router  ()
 
 ============================================================ router (0ms) ============================================================
-  tasks:     SALES:SALES search_catalog(car=None); APPOINTMENT:APPOINTMENT book_appointment(car=None)
+  tasks:     APPOINTMENT:book_appointment(car=HYUNDAI NEW MIGHTY N250L)
   complexity:LOW  uncertain:False
 --- OUT ---
-route     : None  plan:[{'agent': 'sales', 'text': 'có mẫu xe nào dưới 500 triệu không', 'order': 0, 'task_ids': ['t1']}, {'agent': 'appointment', 'text': 'tôi muốn xem trực tiếp', 'order': 1, 'task_ids': ['t2']}]
+route     : None  plan:[{'agent': 'appointment', 'text': 'muốn xem xe này', 'order': 0, 'task_ids': ['t1']}]
 
-============================================================ coordinator (0ms) ============================================================
---- OUT ---
-
-============================================================ appointment (2620ms) ============================================================
-task_text : tôi muốn xem trực tiếp
-task_ids  : ['t2']
-  tasks:     SALES:SALES search_catalog(car=None); APPOINTMENT:APPOINTMENT book_appointment(car=None)
-  complexity:LOW  uncertain:False
---- OUT ---
-  reply [appointment]: Dưới 500 triệu bên mình hiện chưa có thông tin mẫu xe để mình hẹn lịch xem trực tiếp ngay trong hệ thống.  Bạn cho mình …
-
-============================================================ sales (4522ms) ============================================================
-task_text : có mẫu xe nào dưới 500 triệu không
+============================================================ appointment (5177ms) ============================================================
+task_text : muốn xem xe này
 task_ids  : ['t1']
-  tasks:     SALES:SALES search_catalog(car=None); APPOINTMENT:APPOINTMENT book_appointment(car=None)
+  tasks:     APPOINTMENT:book_appointment(car=HYUNDAI NEW MIGHTY N250L)
   complexity:LOW  uncertain:False
 --- OUT ---
-  reply [sales]: Dưới 500 triệu bên mình hiện có một số mẫu xe tải “giá vừa phải” nhưng lưu ý: các xe này tải trọng khoảng dưới 1,2 tấn, …
-  allowed_amounts: ['202.000.000 đồng', '207.000.000 đồng', '212.000.000 đồng', '220.000.000 đồng', '225.000.000 đồng']
+  reply [appointment]: Mình ghi nhận bạn muốn xem HYUNDAI NEW MIGHTY N250L. Bạn muốn đến showroom vào ngày nào và lúc mấy giờ?
 
 ============================================================ validation (0ms) ============================================================
-  [sales] Dưới 500 triệu bên mình hiện có một số mẫu xe tải “giá vừa phải” nhưng lưu ý: các xe này tải trọng khoảng dưới 1,2 tấn, …
-  [appointment] Dưới 500 triệu bên mình hiện chưa có thông tin mẫu xe để mình hẹn lịch xem trực tiếp ngay trong hệ thống.  Bạn cho mình …
+  [appointment] Mình ghi nhận bạn muốn xem HYUNDAI NEW MIGHTY N250L. Bạn muốn đến showroom vào ngày nào và lúc mấy giờ?
 --- OUT ---
 route     : compose  feedback:
 
 ============================================================ compose (0ms) ============================================================
-  [sales] Dưới 500 triệu bên mình hiện có một số mẫu xe tải “giá vừa phải” nhưng lưu ý: các xe này tải trọng khoảng dưới 1,2 tấn, …
-  [appointment] Dưới 500 triệu bên mình hiện chưa có thông tin mẫu xe để mình hẹn lịch xem trực tiếp ngay trong hệ thống.  Bạn cho mình …
+  [appointment] Mình ghi nhận bạn muốn xem HYUNDAI NEW MIGHTY N250L. Bạn muốn đến showroom vào ngày nào và lúc mấy giờ?
 --- OUT ---
-draft     : Dưới 500 triệu bên mình hiện có một số mẫu xe tải “giá vừa phải” nhưng lưu ý: các xe này tải trọng khoảng dưới 1,2 tấn, …
+draft     : Mình ghi nhận bạn muốn xem HYUNDAI NEW MIGHTY N250L. Bạn muốn đến showroom vào ngày nào và lúc mấy giờ?
 
 ============================================================ output_guard (0ms) ============================================================
-draft     : Dưới 500 triệu bên mình hiện có một số mẫu xe tải “giá vừa phải” nhưng lưu ý: các xe này tải trọng khoảng dưới 1,2 tấn, …
+draft     : Mình ghi nhận bạn muốn xem HYUNDAI NEW MIGHTY N250L. Bạn muốn đến showroom vào ngày nào và lúc mấy giờ?
 --- OUT ---
 needs_human: None  final:
 
 ============================================================ respond (0ms) ============================================================
-final     : Dưới đây là 3 mẫu xe sát xi (chassis) giá vừa phải đến cao, thiên về độ bền và phù hợp chạy tuyến đường dài (chủ yếu dùn…
+final     : HYUNDAI NEW MIGHTY N250L là xe sát xi tải, cần đóng thùng riêng; phù hợp giao hàng nội thành và quãng liên tỉnh ngắn. Độ…
 --- OUT ---
-final_reply: Dưới 500 triệu bên mình hiện có một số mẫu xe tải “giá vừa phải” nhưng lưu ý: các xe này tải trọng khoảng dưới 1,2 tấn, …
+final_reply: Mình ghi nhận bạn muốn xem HYUNDAI NEW MIGHTY N250L. Bạn muốn đến showroom vào ngày nào và lúc mấy giờ?

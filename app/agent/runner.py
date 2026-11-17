@@ -20,6 +20,7 @@ def run_turn(session_id: str, customer_id: int | None, text: str, negotiation_ac
         "draft_reply": "", "needs_human": False, "handover_reason": None,
         "set_mode": None, "route": "", "route_reason": None, "safety": False,
         "plan": [], "task_ids": [], "deferred_workflow": None,
+        "dispatched": Overwrite([]), "wave": [], "prior_results": [],
         "validation_feedback": None, "validation_attempts": 0,
     })
     return get_graph().invoke(turn_input, config)

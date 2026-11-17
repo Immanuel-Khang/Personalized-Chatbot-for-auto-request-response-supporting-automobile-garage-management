@@ -1,7 +1,7 @@
 """Answer technical, maintenance, and service questions from trusted sources."""
 from app.agent.llm import generate
 from app.agent.nodes.compose import STYLE_RULES
-from app.agent.state import AgentState, answer, fact_value
+from app.agent.state import AgentState, answer, fact_value, prior_block
 from app.config import settings
 from app.contracts.schemas import Intent
 from app.services import get_services
@@ -51,7 +51,7 @@ def knowledge(state: AgentState) -> dict:
     full_context = context + extra_context
     body = generate(
         KNOWLEDGE_SYSTEM_PROMPT,
-        f"Câu hỏi: {question}\n\nTài liệu:\n{full_context}",
+        f"Câu hỏi: {question}\n\nTài liệu:\n{full_context}{prior_block(state)}",
         history=state.get("history"),
     ) or (extra_context if extra_context else f"Theo tài liệu của xưởng: {chunks[0].text}")
 

@@ -2,7 +2,7 @@
 và truy vấn thông tin từ hội thoại. Chỉ đọc, không ghi dữ liệu."""
 from app.agent.llm import generate
 from app.agent.nodes.compose import STYLE_RULES
-from app.agent.state import PRONOUN_RULE, AgentState, answer, fact_value, open_pending
+from app.agent.state import PRONOUN_RULE, AgentState, answer, fact_value, open_pending, prior_block
 from app.config import settings
 from app.contracts.schemas import Intent
 from app.services import get_services
@@ -117,6 +117,7 @@ def conversation(state: AgentState) -> dict:
         {profile_text}
 
         Tin nhắn mới của khách: {question}
+        {prior_block(state)}
     """
 
     system_prompt = CONVERSATION_SYSTEM_PROMPT.format(

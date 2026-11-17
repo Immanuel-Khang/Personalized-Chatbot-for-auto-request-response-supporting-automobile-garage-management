@@ -14,7 +14,7 @@ from app.agent.date_extraction import (NEEDS_PERIOD, OUT_OF_RANGE, RESOLVED, ext
                                        period_of, sync_date_fact)
 from app.agent.llm import generate_with_tools
 from app.agent.nodes.compose import STYLE_RULES
-from app.agent.state import AgentState, answer, fact_value, open_pending
+from app.agent.state import AgentState, answer, fact_value, open_pending, prior_block
 from app.config import settings
 from app.contracts.schemas import (
     ActiveWorkflow, BookingResult, InteractionKind, InteractionStatus, PendingInteraction, ServiceType,
@@ -43,7 +43,9 @@ QUY TẮC:
 4. Nhiều lịch đang hiệu lực mà không rõ đổi/hủy lịch nào: liệt kê ngắn và hỏi. Yêu cầu đặt lịch MỚI -> create_appointment
    dù khách đã có lịch khác, không hỏi có muốn đổi lịch cũ.
 5. Trạng thái dùng "status_label", thời gian dùng "when_label". Lịch bot đặt/đổi thành công là ĐÃ XÁC NHẬN ngay (không cần nhân viên duyệt); KHÔNG nói "chờ nhân viên xác nhận" trừ khi status_label là đang chờ.
-6. Khách chỉ cập nhật tên/SĐT: ghi nhận, không gọi công cụ. Lịch ký hợp đồng: hợp đồng đã đủ thông tin, chỉ cần ngày giờ
+6. Khách chỉ cập nhật tên/SĐT khi KHÔNG có việc đặt lịch đang dở: ghi nhận, không gọi công cụ. Nếu mục "Đang hỏi khách"
+   có nội dung (bạn đã hỏi thông tin còn thiếu để đặt lịch) và khách vừa trả lời, gọi create_appointment ngay để lấy
+   đề xuất xác nhận, không dừng ở việc ghi nhận. Lịch ký hợp đồng: hợp đồng đã đủ thông tin, chỉ cần ngày giờ
    ký, KHÔNG hỏi lại thông tin hợp đồng.
 7. Tra cứu hoặc sau khi thao tác thành công: trả lời đúng việc đó rồi dừng, không hỏi thêm (loại xe, biển số...) và không
    đề nghị việc khác. KHÔNG nhắc "proposal", mã lịch hay tên công cụ.
@@ -181,7 +183,7 @@ def appointment(state: AgentState) -> dict:
     vehicle, detail = _booking_detail(state, facts)
     # Date and hour both come from the customer's words (date_extraction): the LLM only reads components, the code
     # computes. The customer gives the exact hour too, so staff do not have to call back for it.
-    resolved = sync_date_fact(facts) or {}
+    resolved = dict(sync_date_fact(facts) or {})
     results: list[tuple[str, dict]] = []
     done: dict[str, dict] = {}  # executed writes; a repeated call must not write twice
     proposal: dict = {}
@@ -276,6 +278,9 @@ def appointment(state: AgentState) -> dict:
         if name == "cancel_appointment":
             return confirm_or_run(name, {"appointment_id": appointment_id}, same_id, info,
                                   lambda a: booking.cancel_appointment(session_id, a["appointment_id"]))
+        if resolved.get("status") != RESOLVED and resolved.get("time_status") == RESOLVED and info.get("appointment_date"):
+            # "Đổi sang 14 giờ" / "cùng ngày": only the hour changes, the day stays the appointment's own day.
+            resolved.update(status=RESOLVED, date=str(info["appointment_date"]))
         if isinstance(deduced := when(), dict):
             return deduced
         args = {"appointment_id": appointment_id, "date": deduced[0], "time": deduced[1]}
@@ -314,14 +319,19 @@ def appointment(state: AgentState) -> dict:
     if vehicle:
         known["xe"] = vehicle
     waiting_for = f"{confirmation.text} (thao tác: {confirmation.metadata.get('action')})" if confirmation else "không"
+    asked = next((item for item in mine if item.kind == InteractionKind.QUESTION), None)
+    asking = (asked.text or "đã hỏi thông tin còn thiếu để đặt lịch") if asked else "không"
     today = local_today()
     booked_day = (_fmt(resolved["date"], None) if resolved.get("status") == RESOLVED
                   else "chưa xác định, cần hỏi khách ngày cụ thể" if resolved else "khách chưa nêu")
     context = (f"Hôm nay: {WEEKDAYS[today.weekday()]} {today:%d/%m/%Y}\nNgày hẹn đã xác định: {booked_day}\n"
                f"Tin nhắn của khách: {state.get('user_text', '')}\n"
-               f"Yêu cầu: {state.get('task_text') or state.get('user_text', '')}\n"
+               f"Yêu cầu của bạn (chỉ làm phần này; các phần khác của tin nhắn do bộ phận khác trả lời, KHÔNG trả lời "
+               f"thay): {state.get('task_text') or state.get('user_text', '')}\n"
                f"Thông tin đặt lịch đã biết: {json.dumps(known, ensure_ascii=False)}\n"
-               f"Xác nhận đang chờ: {waiting_for}\nKhách vừa đồng ý xác nhận: {'có' if approved else 'không'}")
+               f"Đang hỏi khách: {asking}\n"
+               f"Xác nhận đang chờ: {waiting_for}\nKhách vừa đồng ý xác nhận: {'có' if approved else 'không'}"
+               f"{prior_block(state)}")
     only_availability = _availability_only(state)
     system = (AVAILABILITY_PROMPT if only_availability else SYSTEM_PROMPT.format(hotline=settings.hotline)) + STYLE_RULES
     tools = [t for t in TOOLS if (t["name"] == "check_availability") == only_availability]

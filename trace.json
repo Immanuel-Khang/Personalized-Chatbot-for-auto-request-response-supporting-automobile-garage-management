@@ -1,39 +1,29 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách hỏi có mẫu xe dưới 500 triệu không và muốn xem trực tiếp.",
+      "message_summary": "Khách đồng ý và muốn đến xem HYUNDAI NEW MIGHTY N250L tại showroom.",
       "tasks": [
         {
           "task_id": "t1",
-          "domain": "SALES",
-          "action": "SALES search_catalog",
-          "text": "có mẫu xe nào dưới 500 triệu không",
-          "relationship": "NEW_REQUEST",
-          "referenced_interaction_id": null,
-          "requires_clarification": false,
-          "car_model": null,
-          "inquiry_only": false
-        },
-        {
-          "task_id": "t2",
           "domain": "APPOINTMENT",
-          "action": "APPOINTMENT book_appointment",
-          "text": "tôi muốn xem trực tiếp",
+          "action": "book_appointment",
+          "text": "muốn xem xe này",
           "relationship": "NEW_REQUEST",
           "referenced_interaction_id": null,
           "requires_clarification": false,
-          "car_model": null,
-          "inquiry_only": false
+          "car_model": "HYUNDAI NEW MIGHTY N250L",
+          "inquiry_only": false,
+          "depends_on": []
         }
       ],
       "slot_updates": [
         {
-          "key": "budget_vnd",
+          "key": "service_type",
           "operation": "SET",
-          "value": 500000000,
+          "value": "SHOWROOM_VISIT",
           "evidence": "[REDACTED]",
           "source_message_id": null,
-          "related_task_id": null
+          "related_task_id": "t1"
         }
       ],
       "presented_cars": [],
@@ -46,28 +36,48 @@
         "note": null
       },
       "complexity": "LOW",
-      "accepts_offer": null,
+      "accepts_offer": true,
       "uncertain": false
     },
     "known_facts": {
       "intended_use": {
         "key": "intended_use",
-        "value": "phù hợp vận chuyển đường dài",
+        "value": "chạy trong phố",
+        "source": "USER_CORRECTED",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "car_list": {
+        "key": "car_list",
+        "value": [
+          "HYUNDAI NEW MIGHTY N250L",
+          "KIA K200",
+          "THACO Linker T2-5.0"
+        ],
+        "source": "INFERRED",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "customer_name": "[REDACTED]",
+      "customer_phone": "[REDACTED]",
+      "service_type": {
+        "key": "service_type",
+        "value": "SHOWROOM_VISIT",
         "source": "USER_EXPLICIT",
         "updated_at_message_id": null,
         "confidence": null
       },
-      "budget_vnd": {
-        "key": "budget_vnd",
-        "value": 500000000,
-        "source": "USER_EXPLICIT",
+      "car_model": {
+        "key": "car_model",
+        "value": "HYUNDAI NEW MIGHTY N250L",
+        "source": "INFERRED",
         "updated_at_message_id": null,
         "confidence": null
       }
     },
     "rejected_slots": [],
     "proposed_slots": [
-      "budget_vnd"
+      "service_type"
     ],
     "dropped_slots": [],
     "trace": [

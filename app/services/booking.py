@@ -311,6 +311,7 @@ class DbBookingService:
                 return refused  # lịch cũ giữ nguyên (chưa trả slot)
             row.appointment_date, row.start_time = appointment_date, start_time
             _release_slot(db, row)  # slot cũ không còn khớp giờ mới
+            row.status = "PENDING_APPROVAL"  # CONFIRMED bắt buộc có slot; truy vấn trong _take_slot sẽ autoflush dòng này
             if start_time is not None:  # còn chỗ -> tự xác nhận lại ở khung mới
                 row.slot_id, row.status = _take_slot(db, cfg, row.service_type, appointment_date, start_time).id, "CONFIRMED"
             else:

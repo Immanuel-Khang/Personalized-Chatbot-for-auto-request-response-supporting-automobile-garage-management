@@ -8,7 +8,7 @@ from typing import Any
 
 from app.agent.llm import generate_with_tools
 from app.agent.nodes.compose import STYLE_RULES
-from app.agent.state import AgentState, answer, fact_value
+from app.agent.state import AgentState, answer, fact_value, prior_block
 from app.contracts.schemas import Product
 from app.services import get_services
 from app.utils import fmt_vnd
@@ -174,6 +174,17 @@ def _product_to_dict(product: Product) -> dict:
     return result
 
 
+def _presented(reply: str, products: list[dict]) -> list[str]:
+    """Names of the catalog cars this reply names, in the order the customer reads them ('xe số 2' counts from here)."""
+    def squash(value: str) -> str:  # catalog names can repeat the brand ("THACO THACO TF230"); the reply says it once
+        words = value.casefold().split()
+        return " ".join(word for index, word in enumerate(words) if index == 0 or word != words[index - 1])
+
+    text = squash(reply)
+    found = {p["name"]: text.find(squash(p["name"])) for p in products if p.get("name")}
+    return [name for name, at in sorted(found.items(), key=lambda item: item[1]) if at >= 0]
+
+
 def _viewed_products(names: list[str]) -> list[dict]:
     """Catalog rows of the cars in car_list (the list the customer counts from). Read from the catalog each turn so
     the data and the prices the output guard allows follow the list as it changes."""
@@ -211,7 +222,7 @@ def sales(state: AgentState) -> dict:
     viewed_line = (f"\nXe khách đã xem (có thể chưa liên quan tới tin nhắn này), dữ liệu catalog: "
                    f"{json.dumps(viewed_products, ensure_ascii=False)}\n" if viewed_products else "")
     context = (f"Tin nhắn của khách: {state.get('task_text') or state.get('user_text', '')}\n\n"
-               f"Thông tin đã biết về khách:\n{_format_known_facts(state)}\n{viewed_line}{note}")
+               f"Thông tin đã biết về khách:\n{_format_known_facts(state)}\n{viewed_line}{note}{prior_block(state)}")
     result = generate_with_tools(
         system_prompt=SALES_SYSTEM_PROMPT,
         user_message=context,
@@ -219,6 +230,7 @@ def sales(state: AgentState) -> dict:
         tool_executor=_execute_tool,
         history=state.get("history"),
         max_turns=3,
+        parallel_tools=True,  # the product tools are read-only lookups
     )
     if result.get("error"):
         # Internal errors never reach the customer.
@@ -228,9 +240,14 @@ def sales(state: AgentState) -> dict:
         reply = result.get("final_response", "Xin lỗi, mình chưa thể tư vấn được ạ.")
 
     # Prices the reply may quote: the cars the tools returned plus the cars in car_list (checked by the output guard).
-    products = viewed_products + [p for call in result.get("tool_calls", [])
-                                  for p in call.get("result", {}).get("products", [])]
-    update = {"trace": ["sales"], "answers": [answer(state, "sales", reply)]}
+    calls = result.get("tool_calls", [])
+    searched = [p for call in calls for p in call.get("result", {}).get("products", [])]
+    products = viewed_products + searched
+    # Only a search/browse result is a list the customer counts from ("xe số 2"). Looking up cars they already
+    # named or pointed at (price, specs, comparison) leaves car_list as it was, so "xe số 1" keeps its meaning.
+    listed = [p for call in calls if call.get("name") != "find_by_model_name"
+              for p in call.get("result", {}).get("products", [])]
+    update = {"trace": ["sales"], "answers": [answer(state, "sales", reply, cars=_presented(reply, listed))]}
     if priced := [p["list_price_vnd"] for p in products if "list_price_vnd" in p]:  # browse results carry names only
         update["allowed_amounts"] = [fmt_vnd(price) for price in priced]
     return update

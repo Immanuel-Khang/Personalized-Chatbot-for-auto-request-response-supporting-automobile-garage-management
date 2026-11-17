@@ -196,6 +196,18 @@ class TaskInterpretation(BaseModel):
                     "('mẫu số 2' -> tên xe thứ 2 trong danh sách); None nếu task không nói về xe nào")
     inquiry_only: bool = Field(
         default=False, description="Asks about a service/procedure without asking to start that workflow")
+    depends_on: list[str] = Field(
+        default_factory=list,
+        description="task_id của các task KHÁC trong tin này mà task này cần KẾT QUẢ của chúng trước khi làm "
+                    "(VD đặt lịch xem xe chỉ khi tìm được xe); để trống nếu task độc lập, khi đó chạy song song")
+
+
+class CarChoice(BaseModel):
+    """Which car a dependent task refers to, judged after the task it depends on has produced its list."""
+    car_model: Optional[str] = Field(
+        default=None,
+        description="Tên xe (đúng như trong danh sách ứng viên) mà yêu cầu của khách chỉ tới; None nếu khách không "
+                    "chọn một xe cụ thể hoặc không thể xác định chắc chắn")
 
 
 class ConversationInterpretation(BaseModel):

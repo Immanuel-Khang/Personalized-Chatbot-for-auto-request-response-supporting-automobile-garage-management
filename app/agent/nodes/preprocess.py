@@ -66,6 +66,13 @@ Bạn là Preprocessing Agent của trợ lý gara ô tô. Phân tích TIN NHẮ
 
 1. Task: mỗi yêu cầu riêng biệt là một task, theo thứ tự xuất hiện; chỉ phân tích yêu cầu MỚI, không lặp task cũ.
    "Tìm xe số 1 và đặt lịch xem xe" = SALES product_detail + APPOINTMENT book_appointment.
+   - task_id đặt là t1, t2... theo thứ tự. depends_on: task_id của task KHÁC trong cùng tin mà task này cần biết KẾT
+     QUẢ của nó để làm đúng: có điều kiện ("có xe dưới 500 triệu không, nếu có tôi muốn đến xem"), hoặc nói về/đặt
+     lịch cho đúng thứ task kia vừa tìm ra ("tìm xe X rồi đặt lịch xem xe đó", "xe nào rẻ nhất, mình muốn qua xem"),
+     hoặc chỉ nói nối tiếp chủ đề của task kia mà không tự đủ nghĩa ("... có mẫu nào dưới 500 triệu không? Mình vẫn
+     muốn đến xem" -> "đến xem" nói về các xe mà task trước trả lời).
+     Hai việc không cần kết quả của nhau ("tìm xe tải 2 tấn và cho hỏi bảo dưỡng bao nhiêu km") thì depends_on để
+     trống để chạy song song. Chỉ ghi khi thật sự cần kết quả.
    - Xem xe tại showroom là APPOINTMENT. Thông số/giá của một mẫu trong catalog ("động cơ của FUSO Canter FI170",
      "xe số 2 hộp số mấy cấp") là SALES product_specs; KNOWLEDGE chỉ cho câu hỏi kỹ thuật chung, sửa chữa, an toàn.
    - Chọn một xe trong danh sách bot vừa đưa ("mình chọn mẫu đầu", "lấy xe số 2") cũng là SALES purchase_interest,
@@ -112,9 +119,14 @@ Bạn là Preprocessing Agent của trợ lý gara ô tô. Phân tích TIN NHẮ
      cũng là danh sách một phần tử), ghi TÊN TỪNG XE theo thứ tự các dòng/mục, vì khách đếm "mẫu số N" theo đó; dòng ghi hai xe ("FUSO FI170 và FI170L") là hai phần tử
      liên tiếp; xe chỉ nhắc trong câu dẫn ("Ngoài X, gồm:") thì KHÔNG ghi. VD "Ngoài ISUZU A, gồm: - FUSO B và FUSO C -
      THACO D" -> ["FUSO B", "FUSO C", "THACO D"]. Tin đó không đưa xe nào -> để trống (danh sách cũ được giữ).
+     Chỉ danh sách bot ĐƯA RA để khách chọn (kết quả tìm/gợi ý) mới tính. Tin chỉ trả lời về vài xe cụ thể khách vừa
+     hỏi theo số thứ tự hay tên (giá, thông số, so sánh) KHÔNG phải danh sách mới: để trống presented_cars, khách
+     vẫn đếm "xe số N" theo danh sách gần nhất đã đưa ra để chọn (car_list).
    - Tham chiếu "xe số 1", "mẫu thứ ba", "nó", "xe đó": đặt car_model của task liên quan là TÊN XE khách chỉ, BẰNG CÁCH
      ĐẾM trong presented_cars vừa ghi (nếu trống thì car_list trong CONVERSATION STATE); mỗi task lấy đúng xe nó nói
-     tới. VD "xe số 2" với ["FUSO B", "FUSO C"] -> "FUSO C". Không có xe đó hoặc không xác định duy nhất -> null.
+     tới. VD "xe số 2" với ["FUSO B", "FUSO C"] -> "FUSO C". Khách chỉ xe bằng đặc điểm ("rẻ nhất", "đắt nhất",
+     "tải nặng nhất") thì so sánh các xe đó theo nội dung tin gần nhất của bot (giá, tải trọng...) rồi chọn xe phù hợp.
+     Không có xe đó hoặc không xác định duy nhất -> null.
    - car_model của task chỉ khi TIN MỚI nêu tên xe, đếm số thứ tự, hoặc "xe này/nó" mà tin gần nhất của bot nói về
      đúng MỘT xe. Tin mới bắt đầu việc mới mà không nêu xe ("muốn mua xe", "đặt lịch bảo dưỡng"), hoặc "xe này" khi
      bot vừa đưa NHIỀU xe, hoặc khi tin gần nhất của bot không nói về xe nào -> null.
@@ -278,8 +290,12 @@ def _resolve_references(state: AgentState, interpretation: ConversationInterpret
     known = {*interpretation.presented_cars, *_car_list(state)}
     # car_list can be empty although the customer already chose a car (the bot's list was never captured); a car
     # that exists in the catalog under exactly that name is just as safe to pass on as one from the list.
+    ids = {task.task_id for task in interpretation.tasks}
     tasks = [task.model_copy(update={"car_model": task.car_model if task.car_model in known
-                                     or _is_catalog_car(task.car_model) else None})
+                                     or _is_catalog_car(task.car_model) else None,
+                                     # only real, other tasks of this message can be waited for
+                                     "depends_on": [dep for dep in dict.fromkeys(task.depends_on)
+                                                    if dep in ids and dep != task.task_id]})
              for task in interpretation.tasks]
     return interpretation.model_copy(update={"tasks": tasks})
 
