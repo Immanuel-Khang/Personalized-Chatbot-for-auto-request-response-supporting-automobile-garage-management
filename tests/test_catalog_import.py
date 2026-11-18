@@ -5,6 +5,13 @@ from decimal import Decimal
 from app.db.models import Brand, CatalogProduct, CatalogSource, ProductPrice, VehicleModel, VehicleSpec
 
 
+@pytest.fixture(autouse=True)
+def _seeded_catalog(db_session):
+    """db_session wipes every table, so re-seed the catalog (empty tables -> import_csv + activate)."""
+    from app.db.seed import seed_catalog
+    seed_catalog()
+
+
 def test_import_csv_creates_brands(db_session):
     """Verify brands are created from CSV."""
     brands = db_session.query(Brand).all()
