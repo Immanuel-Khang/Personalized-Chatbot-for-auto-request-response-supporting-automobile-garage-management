@@ -24,7 +24,7 @@ class FakeLLM:
         self.calls.append(list(messages))
         return AIMessage(content=self.reply)
 
-    def with_structured_output(self, schema):
+    def with_structured_output(self, schema, **kwargs):
         fake = self
 
         class _Structured:

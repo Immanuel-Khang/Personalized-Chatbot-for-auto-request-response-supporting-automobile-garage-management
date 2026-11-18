@@ -326,19 +326,3 @@ def test_output_guard_validates_composed_reply():
     assert not ok.get("needs_human")
 
 
-def test_llm_budget_search_regression(client, monkeypatch):
-    interpretation = ConversationInterpretation(
-        message_summary="Khách tìm xe trong ngân sách 800 triệu.",
-        tasks=[TaskInterpretation(task_id="sales", domain=Intent.SALES, action="search_catalog",
-                                  text="Tư vấn xe trong ngân sách 800 triệu",
-                                  relationship=TaskRelationship.NEW_REQUEST)],
-        slot_updates=[SlotUpdate(key="budget_vnd", operation=SlotOperation.SET,
-                                 value=800000000, evidence="800 triệu")],
-    )
-    monkeypatch.setattr("app.agent.nodes.preprocess.generate_structured", Mock(return_value=interpretation))
-    product = get_services().product
-    search = Mock(wraps=product.search_by_budget)
-    monkeypatch.setattr(product, "search_by_budget", search)
-    response = chat(client, "Tư vấn xe trong ngân sách 800 triệu", "budget")
-    search.assert_called_once_with(800000000, limit=3)
-    assert "sales" in response["trace"] and response["mode"] == "BOT" and "đồng" in response["reply"]

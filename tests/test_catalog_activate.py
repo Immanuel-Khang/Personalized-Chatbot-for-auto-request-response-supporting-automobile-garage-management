@@ -15,7 +15,7 @@ def _seeded():
 def test_seed_activates_only_products_with_a_trusted_price():
     with SessionLocal() as db:
         by_status = {s: db.query(CatalogProduct).filter_by(status=s).count() for s in ("ACTIVE", "DRAFT")}
-        assert by_status["ACTIVE"] + by_status["DRAFT"] == 52
+        assert by_status["ACTIVE"] + by_status["DRAFT"] == 56  # refined CSV: 45 ACTIVE + 11 DRAFT
         assert ready_drafts(db) == []  # seed đã bật mọi sản phẩm đủ điều kiện
         for p in db.query(CatalogProduct).filter_by(status="ACTIVE"):
             price = db.query(ProductPrice).filter_by(product_id=p.id, is_current=True).one()

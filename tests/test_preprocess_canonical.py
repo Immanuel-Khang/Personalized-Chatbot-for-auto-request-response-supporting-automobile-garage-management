@@ -107,7 +107,6 @@ def test_trace_safe_serializes_canonical_result_and_redacts_personal_data():
     assert set(parsed) == {"conversation_interpretation", "known_facts", "trace"}
     assert parsed["conversation_interpretation"]["tasks"][0]["action"] == "show_catalog"
     assert parsed["known_facts"]["customer_phone"] == "[REDACTED]"
-    assert "entity_id" in parsed["conversation_interpretation"]["tasks"][0]
     assert _trace_safe({"customer_phone": "0901234567", "evidence": "My number 0901234567"}) == {
         "customer_phone": "[REDACTED]", "evidence": "[REDACTED]"
     }
@@ -217,12 +216,11 @@ def test_non_fact_task_output_remains_canonical():
 def test_redaction_keeps_non_sensitive_catalog_data():
     task = TaskInterpretation(
         task_id="task_3", domain=Intent.SALES, action="show_catalog", text="Danh sách xe",
-        relationship=TaskRelationship.NEW_REQUEST, entity_id=12, entity_type="PRODUCT",
+        relationship=TaskRelationship.NEW_REQUEST, car_model="Xe A",
     )
     result = _trace_safe(ConversationInterpretation(message_summary="Catalog", tasks=[task]))
 
-    assert result["tasks"][0]["entity_id"] == 12
-    assert result["tasks"][0]["entity_type"] == "PRODUCT"
+    assert result["tasks"][0]["car_model"] == "Xe A"
 
 
 def test_test_drive_is_not_a_service_type():
