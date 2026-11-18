@@ -11,6 +11,13 @@ os.environ.setdefault("LLM_PROVIDER", "none")  # tests run rule-based unless exp
 os.environ["EMBEDDING_PROVIDER"] = "none"
 os.environ["ADMIN_AUTH_REQUIRED"] = "false"  # test admin API không đăng nhập
 
+# Temporary skip list: conversation tests that need an LLM/FakeLLM (see tests/needs_llm.txt).
+NEEDS_LLM = set()
+_needs_llm_file = os.path.join(os.path.dirname(__file__), "needs_llm.txt")
+if os.path.exists(_needs_llm_file):
+    with open(_needs_llm_file, encoding="utf-8") as _fh:
+        NEEDS_LLM = {line.strip() for line in _fh if line.strip() and not line.startswith("#")}
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
@@ -45,6 +52,8 @@ from app.db import models  # noqa: E402, F401 - Import to register models
 # Reset schema mỗi lần chạy rồi dựng bằng Alembic (giống production): lifespan của app gọi
 # `alembic upgrade head` lần nữa sẽ là no-op. create_all không ghi alembic_version -> CREATE TABLE trùng.
 with engine.begin() as conn:
+    assert engine.url.database and engine.url.database.endswith("_test"), \
+    f"Từ chối DROP SCHEMA trên DB {engine.url.database!r}"
     conn.execute(text("DROP SCHEMA public CASCADE; CREATE SCHEMA public"))
 init_db()
 
@@ -67,3 +76,12 @@ def db_session():
         yield db
     finally:
         db.close()
+
+
+def pytest_collection_modifyitems(config, items):
+    if os.environ.get("LLM_PROVIDER") != "none":
+        return
+    skip = pytest.mark.skip(reason="Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)")
+    for item in items:
+        if item.nodeid in NEEDS_LLM:
+            item.add_marker(skip)

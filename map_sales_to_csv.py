@@ -7,7 +7,7 @@ from typing import Any
 
 EXTRACTED_JSON = Path("data/sales_data_extracted.json")
 INPUT_CSV = Path("GarageChatbotDocs/CKD_MASTER_PRODUCT_DATABASE.csv")
-OUTPUT_CSV = Path("data/catalog_master_with_sales.csv  # (file trung gian, không seed)")
+OUTPUT_CSV = Path("data/catalog_master_with_sales.csv")  # intermediate file, not seeded
 
 
 def load_extracted_data() -> dict:
