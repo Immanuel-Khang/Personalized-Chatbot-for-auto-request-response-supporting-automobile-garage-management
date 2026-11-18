@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from app.agent.graph import get_graph
+from app.agent.nodes.preprocess import _resolve_references, _validated_updates
 from app.agent.nodes.router import WRITERS
 from app.db.models import Appointment, ChatSession, HandoverTicket, ProductPrice
 from app.db.session import SessionLocal
@@ -96,3 +97,11 @@ def supported_amounts() -> set[str]:
 def unsupported_amounts(reply: str) -> list[str]:
     known = supported_amounts()
     return [a for a in AMOUNT.findall(reply) if a.replace(".", "") not in known]
+
+
+def validate_interpretation(state, interpretation):
+    """Equivalent of the old preprocess.validate_interpretation (now split into two private functions)."""
+    state = {"known_facts": {}, **state}
+    applied = _resolve_references(state, interpretation)
+    updates = _validated_updates(state, applied, rejected=[])
+    return applied.model_copy(update={"slot_updates": updates})

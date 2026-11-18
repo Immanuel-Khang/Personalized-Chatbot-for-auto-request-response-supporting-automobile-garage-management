@@ -1,10 +1,10 @@
 import json
 from types import SimpleNamespace
 
-from app.agent.nodes.preprocess import _apply_interpretation, _canonical_value, _trace_safe, validate_interpretation
+from app.agent.nodes.preprocess import _apply_interpretation, _canonical_value, _trace_safe
+from tests.conversation_helpers import validate_interpretation
 from app.contracts.schemas import (
     ConversationInterpretation,
-    EntityReference,
     FactSource,
     Intent,
     KnownFact,
@@ -30,43 +30,37 @@ def test_canonical_interpretation_keeps_explicit_catalog_action():
     interpretation = ConversationInterpretation(
         message_summary="Khách muốn xem danh sách xe.",
         tasks=[_task()],
-        catalog_request=True,
     )
 
     assert interpretation.tasks[0].action == "show_catalog"
-    assert interpretation.catalog_request
 
 
-SHOWN = [{"entity_type": "PRODUCT", "entity_id": 11, "name": "Xe A"},
-         {"entity_type": "PRODUCT", "entity_id": 22, "name": "Xe B"}]
+CAR_LIST = KnownFact(key="car_list", value=["Xe A", "Xe B"], source=FactSource.INFERRED)
 
 
-def _ref_interpretation(position, entity_id=None):
+def _car_interpretation(car_model, presented=()):
+    task = _task(action="product_detail", text="xe thứ 2").model_copy(update={"car_model": car_model})
     return ConversationInterpretation(
-        message_summary="Khách hỏi xe trong danh sách.",
-        tasks=[_task(action="product_detail", text="xe thứ 2")],
-        references=[EntityReference(mention="xe thứ 2", position=position, entity_id=entity_id)],
+        message_summary="Khách hỏi xe trong danh sách.", tasks=[task], presented_cars=list(presented),
     )
 
 
-def test_product_ordinal_resolves_against_last_displayed_list():
-    state = {"user_text": "Xe thứ 2 giá bao nhiêu", "selected_entities": SHOWN}
-    applied = validate_interpretation(state, _ref_interpretation(2))
-    assert applied.references[0].entity_id == 22 and not applied.references[0].ambiguous
-    assert applied.tasks[0].entity_id == 22 and applied.tasks[0].entity_type == "PRODUCT"
+def test_car_model_from_last_presented_list_is_kept():
+    state = {"user_text": "Xe thứ 2 giá bao nhiêu", "known_facts": {"car_list": CAR_LIST}}
+    applied = validate_interpretation(state, _car_interpretation("Xe B"))
+    assert applied.tasks[0].car_model == "Xe B"
 
 
-def test_product_reference_without_displayed_history_requires_clarification():
-    state = {"user_text": "Tôi muốn xem xe số 1", "selected_entities": []}
-    applied = validate_interpretation(state, _ref_interpretation(1, entity_id=99))
-    assert applied.references[0].entity_id is None and applied.product_reference_ambiguous
-    assert applied.tasks[0].entity_id is None
+def test_car_model_from_current_presented_cars_is_kept():
+    state = {"user_text": "Xe thứ 2 giá bao nhiêu", "known_facts": {}}
+    applied = validate_interpretation(state, _car_interpretation("Xe B", presented=["Xe A", "Xe B"]))
+    assert applied.tasks[0].car_model == "Xe B"
 
 
-def test_conflicting_position_and_id_is_ambiguous():
-    state = {"user_text": "xe thứ 2", "selected_entities": SHOWN}
-    applied = validate_interpretation(state, _ref_interpretation(2, entity_id=11))
-    assert applied.references[0].ambiguous and applied.tasks[0].entity_id is None
+def test_hallucinated_car_model_is_dropped():
+    state = {"user_text": "Xe thứ 2 giá bao nhiêu", "known_facts": {"car_list": CAR_LIST}}
+    applied = validate_interpretation(state, _car_interpretation("Xe Không Tồn Tại 999"))
+    assert applied.tasks[0].car_model is None
 
 
 def test_slot_updates_require_current_message_evidence_and_apply_corrections():

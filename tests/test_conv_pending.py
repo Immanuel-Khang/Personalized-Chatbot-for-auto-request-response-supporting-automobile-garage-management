@@ -1,12 +1,12 @@
 """Short replies and profile persistence under canonical conversation state."""
 import uuid
 
-from app.agent.nodes.appointment import PHONE_INVALID
 from app.db.models import ChatSession, Customer
 from app.db.session import SessionLocal
 from app.identity import get_or_create_session, normalize_phone
 from tests.conversation_helpers import Conversation, unique_phone
 
+PHONE_INVALID = "chưa đúng định dạng"  # text from appointment.py (invalid-phone hint)
 SHOWROOM = "Tôi muốn đặt lịch xem xe tại showroom"
 WHEN = "Tôi muốn đến vào thứ 7 tuần này lúc 8 giờ sáng"
 ELEVEN_DIGITS = "09123456789"

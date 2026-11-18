@@ -1,5 +1,6 @@
 """Regression tests for canonical conversation interpretation."""
-from app.agent.nodes.preprocess import _apply_interpretation, validate_interpretation
+from app.agent.nodes.preprocess import _apply_interpretation
+from tests.conversation_helpers import validate_interpretation
 from app.contracts.schemas import (
     ConversationInterpretation,
     FactSource,
@@ -22,10 +23,9 @@ def _task(domain=Intent.SALES, action="show_catalog", text="Tôi muốn xem danh
 def test_explicit_catalog_request_maps_to_browse_action():
     interpretation = ConversationInterpretation(
         message_summary="Khách muốn xem danh sách xe.",
-        tasks=[_task()], catalog_request=True,
+        tasks=[_task()],
     )
     assert interpretation.tasks[0].action == "show_catalog"
-    assert interpretation.catalog_request
 
 
 def test_general_sales_request_keeps_search_action():

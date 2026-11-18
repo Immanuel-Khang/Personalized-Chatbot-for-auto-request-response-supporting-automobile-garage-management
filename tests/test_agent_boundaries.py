@@ -7,8 +7,9 @@ import pytest
 from app.agent.graph import get_graph
 from app.agent.nodes.compose import compose
 from app.agent.nodes.output_guard import output_guard
-from app.agent.nodes.preprocess import _apply_interpretation, _trace_safe, validate_interpretation
+from app.agent.nodes.preprocess import _apply_interpretation, _trace_safe
 from app.agent.nodes.router import WRITERS, router
+from tests.conversation_helpers import validate_interpretation
 
 
 def classify_clause(text: str) -> set[str]:

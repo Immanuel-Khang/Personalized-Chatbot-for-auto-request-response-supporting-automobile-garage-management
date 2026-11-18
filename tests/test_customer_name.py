@@ -3,7 +3,7 @@ import pytest
 
 from app.agent.nodes import preprocess as pre
 from app.agent.nodes.appointment import appointment
-from app.agent.nodes.preprocess import _apply_interpretation, _valid_name
+from app.agent.nodes.preprocess import _apply_interpretation
 from app.contracts.schemas import (
     ConversationInterpretation, FactSource, Intent, KnownFact, SlotOperation, SlotUpdate,
     TaskInterpretation, TaskRelationship,
@@ -22,20 +22,6 @@ def _interpretation(text, name, relationship=TaskRelationship.NEW_REQUEST, evide
 
 def _known(name):
     return {"customer_name": KnownFact(key="customer_name", value=name, source=FactSource.USER_EXPLICIT)}
-
-
-@pytest.mark.parametrize("value", ["Nam", "Minh Tuấn", "Nguyễn Văn A", "  Lan  ", "Nguyễn Thị Thu Hà"])
-def test_valid_name_accepts_person_names(value):
-    assert _valid_name(value) == value.strip()
-
-
-@pytest.mark.parametrize("value", [
-    "", "   ", None, 10, "10 tấn", "xe tải", "ngày mai", "0912345678", "+84912345678", "Xin chào",
-    "khách ở Hà Nội", "Hà Nội", "Foton Auman", "người cần xem xe", "Nam 2", "a" * 80,
-    "Một Hai Ba Bốn Năm Sáu",
-])
-def test_valid_name_rejects_non_names(value):
-    assert _valid_name(value) is None
 
 
 def test_llm_name_update_is_stored_as_explicit_fact():
