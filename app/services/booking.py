@@ -310,11 +310,12 @@ class DbBookingService:
                                     exclude_id=row.id):
                 return refused  # lịch cũ giữ nguyên (chưa trả slot)
             row.appointment_date, row.start_time = appointment_date, start_time
+            # Set status BEFORE releasing the slot: autoflush would otherwise write CONFIRMED with slot_id NULL
+            # and violate ck_appointments_slot_required_when_confirmed.
+            row.status = "PENDING_APPROVAL"
             _release_slot(db, row)  # slot cũ không còn khớp giờ mới
             if start_time is not None:  # còn chỗ -> tự xác nhận lại ở khung mới
                 row.slot_id, row.status = _take_slot(db, cfg, row.service_type, appointment_date, start_time).id, "CONFIRMED"
-            else:
-                row.status = "PENDING_APPROVAL"
             db.commit()
             return BookingResult(ok=True, appointment_id=row.id, status=row.status,
                                  message="Đã đổi lịch hẹn." if row.status == "CONFIRMED"
