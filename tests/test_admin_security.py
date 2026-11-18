@@ -67,7 +67,7 @@ def _token(client, role="sales_admin"):
 def _book_auto(session_id, start=time(9, 0), phone="0912345601"):
     """Đặt qua service như bot: còn chỗ thì lịch CONFIRMED ngay, đã giữ slot."""
     r = DbBookingService().create_appointment(session_id, ServiceType.MAINTENANCE, DAY, start, phone, "Xe: FUSO")
-    assert r.ok and r.status == "CONFIRMED"
+    assert r.ok and r.status == ("CONFIRMED" if start else "PENDING_APPROVAL")  # no time -> staff must set it
     return r.appointment_id
 
 
@@ -76,8 +76,8 @@ def _book(session_id, start=time(9, 0), phone="0912345601"):
     appt = _book_auto(session_id, start, phone)
     with SessionLocal() as db:
         row = db.get(Appointment, appt)
-        slot = db.get(AppointmentSlot, row.slot_id)
-        slot.booked_count -= 1
+        if row.slot_id is not None:
+            db.get(AppointmentSlot, row.slot_id).booked_count -= 1
         row.slot_id, row.status = None, "PENDING_APPROVAL"
         db.commit()
     return appt
