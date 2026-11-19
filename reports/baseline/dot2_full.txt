@@ -1,0 +1,51 @@
+......sssssssssssssssssssss..s.........................................s [ 17%]
+ssssssssxsxss.s........s...s.....s..s.xs.sss..sssssss.ss.ss......s.ss... [ 34%]
+s...s..s..s...ss.s..sssssss.s..sss...s..............xxxxxx...xx......... [ 51%]
+.............x...x.......................................sssssssssssssss [ 68%]
+ss...................................................................... [ 85%]
+.......xxxxxxxxxxx...........................................            [100%]
+=============================== warnings summary ===============================
+.venv/lib/python3.14/site-packages/langsmith/_internal/_beta_decorator.py:92: 13 warnings
+  /home/vanh/Personalized-Chatbot-for-auto-request-response-supporting-automobile-garage-management/.venv/lib/python3.14/site-packages/langsmith/_internal/_beta_decorator.py:92: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    if asyncio.iscoroutinefunction(func):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+XFAIL tests/test_conv_booking.py::test_tc07_cancelling_created_appointment_is_not_falsely_confirmed - DEFECT-07: chưa có luồng hủy lịch đã tạo: bot báo 'đã dừng' nhưng lịch vẫn PENDING_APPROVAL
+XFAIL tests/test_conv_context.py::test_tc11_follow_up_is_not_a_verbatim_repeat - DEFECT-11: knowledge không dùng lịch sử hội thoại: lượt 2 lặp lại nguyên văn câu trả lời lượt 1
+XFAIL tests/test_conv_inquiry.py::test_tc03_unknown_price_is_flagged_not_substituted - DEFECT-03: ProductService.search ILIKE theo từng từ ('gió') -> báo giá lọc gió thay cho giá kính
+XFAIL tests/test_customer_name.py::test_llm_name_with_phone_in_same_message_is_cleaned - DEFECT-12: preprocess LLM-only không còn lọc giá trị không phải tên (xe tải, SĐT, ngày mai, Xin chào) trước khi lưu customer_name
+XFAIL tests/test_customer_name.py::test_llm_non_name_update_is_discarded[10 t\u1ea5n] - DEFECT-12: preprocess LLM-only không còn lọc giá trị không phải tên (xe tải, SĐT, ngày mai, Xin chào) trước khi lưu customer_name
+XFAIL tests/test_customer_name.py::test_llm_non_name_update_is_discarded[xe t\u1ea3i] - DEFECT-12: preprocess LLM-only không còn lọc giá trị không phải tên (xe tải, SĐT, ngày mai, Xin chào) trước khi lưu customer_name
+XFAIL tests/test_customer_name.py::test_llm_non_name_update_is_discarded[ng\xe0y mai] - DEFECT-12: preprocess LLM-only không còn lọc giá trị không phải tên (xe tải, SĐT, ngày mai, Xin chào) trước khi lưu customer_name
+XFAIL tests/test_customer_name.py::test_llm_non_name_update_is_discarded[0912345678] - DEFECT-12: preprocess LLM-only không còn lọc giá trị không phải tên (xe tải, SĐT, ngày mai, Xin chào) trước khi lưu customer_name
+XFAIL tests/test_customer_name.py::test_llm_non_name_update_is_discarded[Xin ch\xe0o] - DEFECT-12: preprocess LLM-only không còn lọc giá trị không phải tên (xe tải, SĐT, ngày mai, Xin chào) trước khi lưu customer_name
+XFAIL tests/test_customer_name.py::test_appointment_keeps_name_and_does_not_ask_for_it - OBSOLETE: assert hành vi rule-based cũ của appointment; viết lại bằng FakeLLM ở Đợt 2
+XFAIL tests/test_customer_name.py::test_appointment_without_name_still_asks_only_required_slots - OBSOLETE: assert hành vi rule-based cũ của appointment; viết lại bằng FakeLLM ở Đợt 2
+XFAIL tests/test_inv_orchestration.py::test_oi08_customer_is_told_the_booking_succeeded_even_if_another_part_is_blocked - DEFECT-14: writer đã ghi lịch nhưng guard bỏ cả bản nháp nên khách chỉ nhận lời chuyển nhân viên, không biết lịch đã được đặt
+XFAIL tests/test_inv_orchestration.py::test_oi11_customer_never_receives_an_empty_reply - DEFECT-13: sau lần thử lại mà specialist vẫn trả rỗng, không có needs_human nên khách nhận tin rỗng
+XFAIL tests/test_unit_output_guard.py::test_og01_abbreviated_price_outside_allowed_is_blocked - OG01: số tiền viết tắt ('800 triệu') không được kiểm vì chỉ xét từ 9 chữ số
+XFAIL tests/test_unit_output_guard.py::test_og02_small_amount_not_in_allowed_is_blocked - OG02: khoản nhỏ (< 9 chữ số) không có trong dữ liệu vẫn lọt
+XFAIL tests/test_unit_output_guard.py::test_og03_honest_refusal_mentioning_free_is_not_blocked - OG03: 'miễn phí'/'tặng' nằm trong FORBIDDEN nên câu từ chối hợp lệ cũng bị chặn nhầm
+XFAIL tests/test_unit_output_guard.py::test_og06_full_amount_with_empty_allowed_is_blocked - OG06: allowed_amounts rỗng thì guard bỏ qua mọi số tiền: bịa giá không qua công cụ vẫn lọt
+XFAIL tests/test_unit_output_guard.py::test_og07_other_currency_spellings_are_blocked[399.000.000\u0111] - OG07: regex chỉ bắt đuôi đồng/triệu/tỷ/vnđ; 'đ' và 'VND' lọt
+XFAIL tests/test_unit_output_guard.py::test_og07_other_currency_spellings_are_blocked[399.000.000 VND] - OG07: regex chỉ bắt đuôi đồng/triệu/tỷ/vnđ; 'đ' và 'VND' lọt
+XFAIL tests/test_unit_output_guard.py::test_og07_other_currency_spellings_are_blocked[399.000.000 vnd] - OG07: regex chỉ bắt đuôi đồng/triệu/tỷ/vnđ; 'đ' và 'VND' lọt
+XFAIL tests/test_unit_output_guard.py::test_og08_discount_phrasings_are_blocked[M\xecnh gi\u1ea3m gi\xe1 10% cho b\u1ea1n] - OG08: FORBIDDEN cần 'giảm' sát chữ số kèm %; thiếu 'bớt', 'khuyến mãi'; '5 triệu' dưới 9 chữ số
+XFAIL tests/test_unit_output_guard.py::test_og08_discount_phrasings_are_blocked[Gi\u1ea3m 5 tri\u1ec7u cho b\u1ea1n] - OG08: FORBIDDEN cần 'giảm' sát chữ số kèm %; thiếu 'bớt', 'khuyến mãi'; '5 triệu' dưới 9 chữ số
+XFAIL tests/test_unit_output_guard.py::test_og08_discount_phrasings_are_blocked[B\u1edbt 10 tri\u1ec7u nh\xe9] - OG08: FORBIDDEN cần 'giảm' sát chữ số kèm %; thiếu 'bớt', 'khuyến mãi'; '5 triệu' dưới 9 chữ số
+XFAIL tests/test_unit_output_guard.py::test_og08_discount_phrasings_are_blocked[\u0110ang c\xf3 khuy\u1ebfn m\xe3i th\xe1ng n\xe0y] - OG08: FORBIDDEN cần 'giảm' sát chữ số kèm %; thiếu 'bớt', 'khuyến mãi'; '5 triệu' dưới 9 chữ số
+SKIPPED [20] tests/test_agent_boundaries.py: Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)
+SKIPPED [2] tests/test_agent_boundaries.py:206: Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)
+SKIPPED [9] tests/test_conv_booking.py: Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)
+SKIPPED [4] tests/test_conv_context.py: Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)
+SKIPPED [1] tests/test_conv_context.py:60: Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)
+SKIPPED [1] tests/test_conv_history.py: Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)
+SKIPPED [2] tests/test_conv_inquiry.py: Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)
+SKIPPED [1] tests/test_conv_pending.py: Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)
+SKIPPED [21] tests/test_conv_policy.py: Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)
+SKIPPED [3] tests/test_conv_sales.py: Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)
+SKIPPED [11] tests/test_conv_sales_discovery.py: Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)
+SKIPPED [1] tests/test_conversation_agent.py: Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)
+SKIPPED [17] tests/test_smoke.py: Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)
+304 passed, 93 skipped, 24 xfailed, 13 warnings in 30.29s
