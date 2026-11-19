@@ -46,6 +46,7 @@ def _ensure_test_database() -> None:
 
 _ensure_test_database()
 
+from app.config import settings  # noqa: E402
 from app.main import app  # noqa: E402
 from app.db.session import engine, SessionLocal, Base, init_db  # noqa: E402
 from app.db import models  # noqa: E402, F401 - Import to register models
@@ -79,8 +80,38 @@ def db_session():
         db.close()
 
 
+def pytest_configure(config):
+    config.addinivalue_line("markers", "llm: gọi LLM thật (chỉ chạy khi RUN_LLM_TESTS=1, tốn tiền)")
+    config.addinivalue_line("markers", "slow: chậm (đồng thời, E2E, benchmark lặp)")
+
+
+def pytest_runtest_setup(item):
+    """Đợt 3: chạm trần ngân sách (L5_BUDGET_USD) thì dừng cả lần chạy, báo cáo một phần vẫn được ghi."""
+    if os.getenv("RUN_LLM_TESTS") == "1":
+        from tests import llm_budget
+        if llm_budget.exceeded():
+            pytest.exit(f"Dừng: chạm trần ngân sách. {llm_budget.summary()}", returncode=3)
+
+
+def pytest_terminal_summary(terminalreporter):
+    if os.getenv("RUN_LLM_TESTS") != "1":
+        return
+    from tests import l5, llm_budget
+    terminalreporter.write_line(llm_budget.summary())
+    if l5.RESULTS:
+        json_path, md_path = l5.write_reports(
+            os.path.join(os.path.dirname(__file__), "..", "reports", "l5"), settings.openai_model,
+            os.getenv("L5_REASONING_EFFORT", "low"), llm_budget.summary())
+        terminalreporter.write_line(f"Báo cáo L5: {md_path} (chi tiết {json_path})")
+
+
 def pytest_collection_modifyitems(config, items):
     from app.agent.llm import _get_llm
+    if os.getenv("RUN_LLM_TESTS") != "1":
+        no_llm = pytest.mark.skip(reason="Test LLM thật: đặt RUN_LLM_TESTS=1 (tốn tiền, xem tests/llm_budget.py)")
+        for item in items:
+            if "llm" in item.keywords:
+                item.add_marker(no_llm)
     if _get_llm() is not None:
         return
     skip = pytest.mark.skip(reason="Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)")
@@ -103,6 +134,10 @@ def rag_chunk(monkeypatch):
 
 # Fixture FakeLLM (Đợt 2): thay LLM bằng kịch bản; tool_call_spy ghi công cụ nào được chạy ở node nào.
 from tests.fake_llm import fake_llm, tool_call_spy  # noqa: E402, F401
+
+if os.getenv("RUN_LLM_TESTS") == "1":  # Đợt 3: LLM thật có đếm token + reasoning_effort thấp
+    from tests import llm_budget  # noqa: E402
+    llm_budget.install()
 
 
 @pytest.fixture()

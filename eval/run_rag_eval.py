@@ -79,8 +79,10 @@ def evaluate(retriever, cases: list[dict]) -> dict:
         if c.get("expect_empty"):
             rows.append({**c, "in_scope": False, "got": len(res), "rank": None})
             continue
+        relevant_count = sum(is_relevant(ch.text, c["gold_contains"]) for ch in res[:3])
         rank = next((i for i, ch in enumerate(res, 1) if is_relevant(ch.text, c["gold_contains"])), None)
         rows.append({**c, "in_scope": True, "got": len(res), "rank": rank,
+                     "precision3": relevant_count / 3, "relevant_top3": relevant_count,
                      "top": [ch.source for ch in res[:3]]})
     return summarize(rows)
 
@@ -95,15 +97,20 @@ def summarize(rows: list[dict]) -> dict:
     def mrr(sub):
         return sum(1 / r["rank"] for r in sub if r["rank"]) / len(sub) if sub else float("nan")
 
+    def precision3(sub):
+        # Fixed denominator: missing result positions among the top three count as non-relevant.
+        return sum(r.get("relevant_top3", 0) for r in sub) / (3 * len(sub)) if sub else float("nan")
+
     by_cat = defaultdict(list)
     for r in ins:
         by_cat[r["cat"]].append(r)
     return {
         "n_in": len(ins), "n_oos": len(oos),
         "recall1": recall(ins, 1), "recall3": recall(ins, 3), "recall5": recall(ins, 5), "mrr": mrr(ins),
+        "precision3": precision3(ins),
         "false_handover": sum(1 for r in ins if r["got"] == 0) / len(ins) if ins else float("nan"),
         "false_answer": sum(1 for r in oos if r["got"] > 0) / len(oos) if oos else float("nan"),
-        "by_cat": {k: recall(v, 3) for k, v in by_cat.items()},
+        "by_cat": {k: {"recall3": recall(v, 3), "precision3": precision3(v)} for k, v in by_cat.items()},
         "rows": rows,
     }
 
@@ -131,12 +138,16 @@ def main() -> int:
     names = list(results)
     print(f"{'chỉ số':<26}" + "".join(f"{x:>10}" for x in names))
     for label, key in [("Recall@1", "recall1"), ("Recall@3", "recall3"), ("Recall@5", "recall5"),
-                       ("MRR@5", "mrr"), ("Chuyển oan (thấp tốt)", "false_handover"),
+                       ("MRR@5", "mrr"), ("Precision@3", "precision3"),
+                       ("Chuyển oan (thấp tốt)", "false_handover"),
                        ("Trả bừa (thấp tốt)", "false_answer")]:
         print(f"{label:<26}" + "".join(f"{results[x][key]:>10.2f}" for x in names))
-    print("\nRecall@3 theo nhóm câu hỏi")
+    print("\nRecall@3 / Precision@3 theo nhóm câu hỏi")
     for cat in sorted({c for r in results.values() for c in r["by_cat"]}):
-        print(f"{cat:<26}" + "".join(f"{results[x]['by_cat'].get(cat, float('nan')):>10.2f}" for x in names))
+        print(f"{cat:<26}" + "".join(
+            f"{results[x]['by_cat'].get(cat, {}).get('recall3', float('nan')):>5.2f}/"
+            f"{results[x]['by_cat'].get(cat, {}).get('precision3', float('nan')):>5.2f}"
+            for x in names))
     if a.verbose:
         for name, r in results.items():
             print(f"\n== {name}: câu trượt ==")

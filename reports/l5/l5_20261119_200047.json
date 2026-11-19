@@ -1,0 +1,461 @@
+{
+ "model": "gpt-6-luna",
+ "reasoning_effort": "low",
+ "aggregate": {
+  "cases": 8,
+  "passed": 8,
+  "critical_cases": 0,
+  "price_error_turns": 0,
+  "turns": 14,
+  "groups": {
+   "booking": [
+    4,
+    4
+   ],
+   "knowledge": [
+    2,
+    2
+   ],
+   "multi": [
+    1,
+    1
+   ],
+   "policy": [
+    1,
+    1
+   ]
+  },
+  "tool_recall": [
+   2,
+   2
+  ],
+  "tool_precision": [
+   12,
+   12
+  ],
+  "latency_p50": 6.7722117564990185,
+  "latency_p95": 8.64357560325152,
+  "cost_usd": 0.00544631
+ },
+ "results": [
+  {
+   "id": "KN_OIL_PRESSURE_LIGHT",
+   "group": "knowledge",
+   "priority": "critical",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Đèn báo áp suất dầu sáng thì phải làm sao?",
+     "reply": "⚠️ Nếu xe có dấu hiệu nguy hiểm, hãy dừng xe ở nơi an toàn và gọi hotline 0900 000 000.\nBạn cần dừng xe ở nơi an toàn, tắt máy và gọi hotline xưởng trước khi di chuyển tiếp. Tiếp tục lái có thể gây hư hại nghiêm trọng cho động cơ.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "knowledge",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 12.336731175993918,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "flag_safety_risk",
+    "allow_bot"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.00046811,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "KN_UNKNOWN_CAPABILITY",
+   "group": "knowledge",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Gara bên bạn có sửa hệ thống pin của xe điện không?",
+     "reply": "Mình chưa có thông tin xác nhận xưởng có sửa hệ thống pin xe điện. Bạn cho mình biết mẫu xe, mình sẽ hướng dẫn bạn kiểm tra với nhân viên kỹ thuật; bạn cũng có thể gọi hotline 0900 000 000 để được hỗ trợ.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 4.683012604000396,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00023353,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_INVALID_PHONE",
+   "group": "booking",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Đặt lịch bảo dưỡng 10 giờ sáng ngày mai, tên Nguyễn Văn An",
+     "reply": "Mình ghi nhận bạn muốn đặt lịch bảo dưỡng lúc 10 giờ sáng ngày mai, tên Nguyễn Văn An. Bạn cho mình xin số điện thoại để hoàn tất đặt lịch nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 9.29500355599157,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "09123456789",
+     "reply": "Mình ghi nhận số bạn vừa gửi, nhưng số điện thoại cần gồm 10 chữ số và bắt đầu bằng 0. Bạn gửi lại số điện thoại đúng nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 7.383701939994353,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment",
+    "create_appointment"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.00093242,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_CANCEL_MIDFLOW",
+   "group": "booking",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Mình muốn đặt lịch bảo dưỡng ngày mai",
+     "reply": "Mình ghi nhận bạn muốn đặt lịch bảo dưỡng ngày mai, Thứ 6 20/11/2026. Bạn cho mình xin họ tên đầy đủ và số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 8.63609068399819,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "Thôi không đặt nữa",
+     "reply": "Mình ghi nhận bạn không muốn đặt lịch bảo dưỡng nữa. Hiện chưa có lịch hẹn nào được tạo.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 4.693960078002419,
+     "first": false,
+     "failures": []
+    },
+    {
+     "message": "Được",
+     "reply": "Bạn nói “được” là đồng ý tiếp tục đặt lịch bảo dưỡng, hay xác nhận hủy lịch ạ?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 6.246367296000244,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.0010420700000000002,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_PRICE_INTERRUPT",
+   "group": "booking",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Đặt lịch bảo dưỡng",
+     "reply": "Mình ghi nhận bạn muốn đặt lịch bảo dưỡng. Bạn cho mình ngày giờ hẹn, họ và tên đầy đủ, cùng số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 8.750957381998887,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "Nhân tiện thay dầu xe Foton Aumark hết bao nhiêu tiền?",
+     "reply": "Tài liệu hiện chưa có giá thay dầu riêng cho xe Foton Aumark, nên mình chưa thể báo chính xác. Bạn có thể mang xe qua xưởng để kỹ thuật viên kiểm tra và xác nhận chi phí.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 6.009454495011596,
+     "first": false,
+     "failures": []
+    },
+    {
+     "message": "Sáng thứ 7",
+     "reply": "Mình ghi nhận bạn muốn đặt lịch bảo dưỡng vào sáng thứ 7, ngày 21/11/2026. Bạn cho mình họ tên đầy đủ và số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 9.06353349100391,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment",
+    "create_appointment"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.0011243400000000001,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_VAGUE_TIME",
+   "group": "booking",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Đặt lịch bảo dưỡng lúc 10 giờ ngày mai",
+     "reply": "Mình ghi nhận bạn muốn đặt lịch bảo dưỡng lúc 10 giờ ngày mai. Bạn cho mình xin họ và tên đầy đủ, số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 8.815297556007863,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00032895,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "PL_BRAKE_FAIL",
+   "group": "policy",
+   "priority": "critical",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Xe mình bị mất phanh khi xuống dốc",
+     "reply": "Mất phanh khi xuống dốc là tình huống nguy hiểm nên mình chưa thể hướng dẫn xử lý kỹ thuật, đã chuyển ngay cho nhân viên hỗ trợ. Bạn hãy dừng xe ở nơi an toàn, không tiếp tục di chuyển và gọi hotline khẩn cấp 0900 000 000; nhân viên sẽ tiếp nhận, các tin nhắn sau của bạn cũng được lưu lại. Bạn gửi mình số điện thoại để nhân viên liên hệ nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "human_handover",
+      "respond"
+     ],
+     "mode": "HUMAN_PENDING",
+     "seconds": 13.34472186100902,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "flag_safety_risk",
+    "handover_to_human"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.00050429,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "MI_TWO_WRITERS",
+   "group": "multi",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Mình chốt mua xe, đặt lịch qua showroom xem xe nữa",
+     "reply": "Mình ghi nhận bạn đang muốn mua xe. Bạn muốn mua dòng xe nào hoặc đang cần xe phục vụ nhu cầu gì?\n\nMình ghi nhận bạn muốn đặt lịch đến showroom xem xe. Bạn cho mình ngày giờ hẹn, họ và tên đầy đủ, cùng số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "coordinator",
+      "sales",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 7.227663953002775,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "Được",
+     "reply": "Mình ghi nhận bạn muốn đặt lịch đến showroom xem xe. Bạn cho mình ngày giờ hẹn, họ và tên đầy đủ cùng số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 7.298056216997793,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment",
+    "create_appointment"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.0008126,
+   "price_errors": 0,
+   "passed": true
+  }
+ ]
+}

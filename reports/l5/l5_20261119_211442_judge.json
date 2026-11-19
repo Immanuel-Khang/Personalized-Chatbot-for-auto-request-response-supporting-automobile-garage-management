@@ -1,0 +1,745 @@
+{
+  "source_report": "reports/l5/l5_20261119_211442.json",
+  "source_model": "gpt-6-luna",
+  "judge_model": "gpt-6-luna",
+  "created_at": "2026-11-19T21:52:42",
+  "rubric_max_per_turn": 10,
+  "grounding_note": "Report L5 không chứa retrieved passages; grounding thường là unclear, không dùng làm kết luận hallucination.",
+  "cases": [
+    {
+      "id": "SL_PRICE_BRAND",
+      "group": "sales",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "SL_PRICE_BRAND",
+      "group": "sales",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "SL_PRICE_BRAND",
+      "group": "sales",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "SL_NEED_CITY",
+      "group": "sales",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "SL_NEED_CITY",
+      "group": "sales",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "SL_NEED_CITY",
+      "group": "sales",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "SL_COMPARE",
+      "group": "sales",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "SL_COMPARE",
+      "group": "sales",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "SL_COMPARE",
+      "group": "sales",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "SL_BUDGET",
+      "group": "sales",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "SL_BUDGET",
+      "group": "sales",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "SL_BUDGET",
+      "group": "sales",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "SL_NO_ACCENT",
+      "group": "sales",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "SL_NO_ACCENT",
+      "group": "sales",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "SL_NO_ACCENT",
+      "group": "sales",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "SL_SPEC_ABS",
+      "group": "sales",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "SL_SPEC_ABS",
+      "group": "sales",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "SL_SPEC_ABS",
+      "group": "sales",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "SL_MOST_EXPENSIVE",
+      "group": "sales",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "SL_MOST_EXPENSIVE",
+      "group": "sales",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "SL_MOST_EXPENSIVE",
+      "group": "sales",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "SL_DISCOVERY_2TURN",
+      "group": "sales",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "SL_DISCOVERY_2TURN",
+      "group": "sales",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "SL_DISCOVERY_2TURN",
+      "group": "sales",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "KN_OIL_INTERVAL",
+      "group": "knowledge",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "KN_OIL_INTERVAL",
+      "group": "knowledge",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "KN_OIL_INTERVAL",
+      "group": "knowledge",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "KN_OIL_NO_ACCENT",
+      "group": "knowledge",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "KN_OIL_NO_ACCENT",
+      "group": "knowledge",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "KN_OIL_NO_ACCENT",
+      "group": "knowledge",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "KN_TIRE_PRESSURE",
+      "group": "knowledge",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "KN_TIRE_PRESSURE",
+      "group": "knowledge",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "KN_TIRE_PRESSURE",
+      "group": "knowledge",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "KN_BRAKE_PADS",
+      "group": "knowledge",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "KN_BRAKE_PADS",
+      "group": "knowledge",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "KN_BRAKE_PADS",
+      "group": "knowledge",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "KN_OIL_PRESSURE_LIGHT",
+      "group": "knowledge",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "KN_OIL_PRESSURE_LIGHT",
+      "group": "knowledge",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "KN_OIL_PRESSURE_LIGHT",
+      "group": "knowledge",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "KN_MILESTONE_COST",
+      "group": "knowledge",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "KN_MILESTONE_COST",
+      "group": "knowledge",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "KN_MILESTONE_COST",
+      "group": "knowledge",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "KN_NOT_IN_DOCS",
+      "group": "knowledge",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "KN_NOT_IN_DOCS",
+      "group": "knowledge",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "KN_NOT_IN_DOCS",
+      "group": "knowledge",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "KN_UNKNOWN_CAPABILITY",
+      "group": "knowledge",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "KN_UNKNOWN_CAPABILITY",
+      "group": "knowledge",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "KN_UNKNOWN_CAPABILITY",
+      "group": "knowledge",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "BK_FULL_CONFIRM",
+      "group": "booking",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "BK_FULL_CONFIRM",
+      "group": "booking",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "BK_FULL_CONFIRM",
+      "group": "booking",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "BK_MISSING_NAME",
+      "group": "booking",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "BK_MISSING_NAME",
+      "group": "booking",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "BK_MISSING_NAME",
+      "group": "booking",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "BK_INVALID_PHONE",
+      "group": "booking",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "BK_INVALID_PHONE",
+      "group": "booking",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "BK_INVALID_PHONE",
+      "group": "booking",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "BK_CANCEL_MIDFLOW",
+      "group": "booking",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "BK_CANCEL_MIDFLOW",
+      "group": "booking",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "BK_CANCEL_MIDFLOW",
+      "group": "booking",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "BK_CANCEL_CREATED",
+      "group": "booking",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "BK_CANCEL_CREATED",
+      "group": "booking",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "BK_CANCEL_CREATED",
+      "group": "booking",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "BK_PRICE_INTERRUPT",
+      "group": "booking",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "BK_PRICE_INTERRUPT",
+      "group": "booking",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "BK_PRICE_INTERRUPT",
+      "group": "booking",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "BK_VAGUE_TIME",
+      "group": "booking",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "BK_VAGUE_TIME",
+      "group": "booking",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "BK_VAGUE_TIME",
+      "group": "booking",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "BK_SHOWROOM_FULL",
+      "group": "booking",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "BK_SHOWROOM_FULL",
+      "group": "booking",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "BK_SHOWROOM_FULL",
+      "group": "booking",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "PL_DISCOUNT",
+      "group": "policy",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "PL_DISCOUNT",
+      "group": "policy",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "PL_DISCOUNT",
+      "group": "policy",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "PL_GIFT",
+      "group": "policy",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "PL_GIFT",
+      "group": "policy",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "PL_GIFT",
+      "group": "policy",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "PL_WANTS_HUMAN",
+      "group": "policy",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "PL_WANTS_HUMAN",
+      "group": "policy",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "PL_WANTS_HUMAN",
+      "group": "policy",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "PL_COMPLAINT",
+      "group": "policy",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "PL_COMPLAINT",
+      "group": "policy",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "PL_COMPLAINT",
+      "group": "policy",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "PL_MILD_REMARK",
+      "group": "policy",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "PL_MILD_REMARK",
+      "group": "policy",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "PL_MILD_REMARK",
+      "group": "policy",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "PL_BRAKE_FAIL",
+      "group": "policy",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "PL_BRAKE_FAIL",
+      "group": "policy",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "PL_BRAKE_FAIL",
+      "group": "policy",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "PL_SMOKE",
+      "group": "policy",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "PL_SMOKE",
+      "group": "policy",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "PL_SMOKE",
+      "group": "policy",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "PL_PERSUASION",
+      "group": "policy",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "PL_PERSUASION",
+      "group": "policy",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "PL_PERSUASION",
+      "group": "policy",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "MI_PRICE_AND_BRAKE",
+      "group": "multi",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "MI_PRICE_AND_BRAKE",
+      "group": "multi",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "MI_PRICE_AND_BRAKE",
+      "group": "multi",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "MI_PRICE_AND_SHOWROOM",
+      "group": "multi",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "MI_PRICE_AND_SHOWROOM",
+      "group": "multi",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "MI_PRICE_AND_SHOWROOM",
+      "group": "multi",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "MI_BRAKE_AND_BOOKING",
+      "group": "multi",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "MI_BRAKE_AND_BOOKING",
+      "group": "multi",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "MI_BRAKE_AND_BOOKING",
+      "group": "multi",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "MI_TWO_WRITERS",
+      "group": "multi",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "MI_TWO_WRITERS",
+      "group": "multi",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "MI_TWO_WRITERS",
+      "group": "multi",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "OS_CHITCHAT",
+      "group": "oos",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "OS_CHITCHAT",
+      "group": "oos",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "OS_CHITCHAT",
+      "group": "oos",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "OS_NO_HISTORY",
+      "group": "oos",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "OS_NO_HISTORY",
+      "group": "oos",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "OS_NO_HISTORY",
+      "group": "oos",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "OS_NOT_A_TRUCK",
+      "group": "oos",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "OS_NOT_A_TRUCK",
+      "group": "oos",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "OS_NOT_A_TRUCK",
+      "group": "oos",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "OS_GIBBERISH",
+      "group": "oos",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "OS_GIBBERISH",
+      "group": "oos",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    },
+    {
+      "id": "OS_GIBBERISH",
+      "group": "oos",
+      "judge_error": "Error code: 400 - Unsupported parameter: 'temperature' is not supported with this model."
+    }
+  ],
+  "summary": {
+    "cases_requested": 120,
+    "cases_scored": 0,
+    "turns_scored": 0,
+    "mean_score_10": null,
+    "critical_cases_by_judge": 0,
+    "below_7_cases": [],
+    "judge_errors": [
+      "SL_PRICE_BRAND",
+      "SL_PRICE_BRAND",
+      "SL_PRICE_BRAND",
+      "SL_NEED_CITY",
+      "SL_NEED_CITY",
+      "SL_NEED_CITY",
+      "SL_COMPARE",
+      "SL_COMPARE",
+      "SL_COMPARE",
+      "SL_BUDGET",
+      "SL_BUDGET",
+      "SL_BUDGET",
+      "SL_NO_ACCENT",
+      "SL_NO_ACCENT",
+      "SL_NO_ACCENT",
+      "SL_SPEC_ABS",
+      "SL_SPEC_ABS",
+      "SL_SPEC_ABS",
+      "SL_MOST_EXPENSIVE",
+      "SL_MOST_EXPENSIVE",
+      "SL_MOST_EXPENSIVE",
+      "SL_DISCOVERY_2TURN",
+      "SL_DISCOVERY_2TURN",
+      "SL_DISCOVERY_2TURN",
+      "KN_OIL_INTERVAL",
+      "KN_OIL_INTERVAL",
+      "KN_OIL_INTERVAL",
+      "KN_OIL_NO_ACCENT",
+      "KN_OIL_NO_ACCENT",
+      "KN_OIL_NO_ACCENT",
+      "KN_TIRE_PRESSURE",
+      "KN_TIRE_PRESSURE",
+      "KN_TIRE_PRESSURE",
+      "KN_BRAKE_PADS",
+      "KN_BRAKE_PADS",
+      "KN_BRAKE_PADS",
+      "KN_OIL_PRESSURE_LIGHT",
+      "KN_OIL_PRESSURE_LIGHT",
+      "KN_OIL_PRESSURE_LIGHT",
+      "KN_MILESTONE_COST",
+      "KN_MILESTONE_COST",
+      "KN_MILESTONE_COST",
+      "KN_NOT_IN_DOCS",
+      "KN_NOT_IN_DOCS",
+      "KN_NOT_IN_DOCS",
+      "KN_UNKNOWN_CAPABILITY",
+      "KN_UNKNOWN_CAPABILITY",
+      "KN_UNKNOWN_CAPABILITY",
+      "BK_FULL_CONFIRM",
+      "BK_FULL_CONFIRM",
+      "BK_FULL_CONFIRM",
+      "BK_MISSING_NAME",
+      "BK_MISSING_NAME",
+      "BK_MISSING_NAME",
+      "BK_INVALID_PHONE",
+      "BK_INVALID_PHONE",
+      "BK_INVALID_PHONE",
+      "BK_CANCEL_MIDFLOW",
+      "BK_CANCEL_MIDFLOW",
+      "BK_CANCEL_MIDFLOW",
+      "BK_CANCEL_CREATED",
+      "BK_CANCEL_CREATED",
+      "BK_CANCEL_CREATED",
+      "BK_PRICE_INTERRUPT",
+      "BK_PRICE_INTERRUPT",
+      "BK_PRICE_INTERRUPT",
+      "BK_VAGUE_TIME",
+      "BK_VAGUE_TIME",
+      "BK_VAGUE_TIME",
+      "BK_SHOWROOM_FULL",
+      "BK_SHOWROOM_FULL",
+      "BK_SHOWROOM_FULL",
+      "PL_DISCOUNT",
+      "PL_DISCOUNT",
+      "PL_DISCOUNT",
+      "PL_GIFT",
+      "PL_GIFT",
+      "PL_GIFT",
+      "PL_WANTS_HUMAN",
+      "PL_WANTS_HUMAN",
+      "PL_WANTS_HUMAN",
+      "PL_COMPLAINT",
+      "PL_COMPLAINT",
+      "PL_COMPLAINT",
+      "PL_MILD_REMARK",
+      "PL_MILD_REMARK",
+      "PL_MILD_REMARK",
+      "PL_BRAKE_FAIL",
+      "PL_BRAKE_FAIL",
+      "PL_BRAKE_FAIL",
+      "PL_SMOKE",
+      "PL_SMOKE",
+      "PL_SMOKE",
+      "PL_PERSUASION",
+      "PL_PERSUASION",
+      "PL_PERSUASION",
+      "MI_PRICE_AND_BRAKE",
+      "MI_PRICE_AND_BRAKE",
+      "MI_PRICE_AND_BRAKE",
+      "MI_PRICE_AND_SHOWROOM",
+      "MI_PRICE_AND_SHOWROOM",
+      "MI_PRICE_AND_SHOWROOM",
+      "MI_BRAKE_AND_BOOKING",
+      "MI_BRAKE_AND_BOOKING",
+      "MI_BRAKE_AND_BOOKING",
+      "MI_TWO_WRITERS",
+      "MI_TWO_WRITERS",
+      "MI_TWO_WRITERS",
+      "OS_CHITCHAT",
+      "OS_CHITCHAT",
+      "OS_CHITCHAT",
+      "OS_NO_HISTORY",
+      "OS_NO_HISTORY",
+      "OS_NO_HISTORY",
+      "OS_NOT_A_TRUCK",
+      "OS_NOT_A_TRUCK",
+      "OS_NOT_A_TRUCK",
+      "OS_GIBBERISH",
+      "OS_GIBBERISH",
+      "OS_GIBBERISH"
+    ],
+    "limitations": [
+      "Judge là đánh giá hỗ trợ, không thay chấm tay B7.",
+      "Không có retrieved passages trong L5 report nên không thể xác nhận grounding/hallucination chỉ từ report.",
+      "Kiểm tra thủ công toàn bộ ca critical và booking có lỗi DB."
+    ]
+  }
+}

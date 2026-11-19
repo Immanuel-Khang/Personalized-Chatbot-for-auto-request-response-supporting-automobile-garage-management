@@ -1,0 +1,1094 @@
+[
+  {
+    "id": "SL_PRICE_BRAND",
+    "group": "sales",
+    "req": "R01",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Cho mình hỏi giá xe tải Foton",
+        "expect_path": [
+          "sales"
+        ]
+      }
+    ],
+    "expect_handover": false,
+    "needs_tool": true,
+    "required_tool_groups": [
+      [
+        "search_products",
+        "find_by_model_name",
+        "search_by_description",
+        "browse_catalog",
+        "find_by_price_range"
+      ]
+    ]
+  },
+  {
+    "id": "SL_NEED_CITY",
+    "group": "sales",
+    "req": "R01",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Mình chở hàng nội thành, tải khoảng 2 tấn, nên chọn xe nào?",
+        "expect_path": [
+          "sales"
+        ]
+      }
+    ],
+    "expect_handover": false,
+    "needs_tool": true,
+    "required_tool_groups": [
+      [
+        "search_products",
+        "find_by_model_name",
+        "search_by_description",
+        "browse_catalog",
+        "find_by_price_range"
+      ]
+    ]
+  },
+  {
+    "id": "SL_COMPARE",
+    "group": "sales",
+    "req": "R01",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "So sánh giúp mình Foton Aumark 9T với Thaco Linker T2-6.5",
+        "expect_path": [
+          "sales"
+        ]
+      }
+    ],
+    "expect_handover": false,
+    "needs_tool": true,
+    "required_tool_groups": [
+      [
+        "search_products",
+        "find_by_model_name",
+        "search_by_description",
+        "browse_catalog",
+        "find_by_price_range"
+      ]
+    ]
+  },
+  {
+    "id": "SL_BUDGET",
+    "group": "sales",
+    "req": "R01",
+    "priority": "critical",
+    "turns": [
+      {
+        "message": "Ngân sách khoảng 600 triệu, gợi ý mình vài mẫu xe tải",
+        "expect_path": [
+          "sales"
+        ],
+        "max_amount_vnd": 600000000
+      }
+    ],
+    "expect_handover": false,
+    "needs_tool": true,
+    "required_tool_groups": [
+      [
+        "search_products",
+        "find_by_model_name",
+        "search_by_description",
+        "browse_catalog",
+        "find_by_price_range"
+      ]
+    ]
+  },
+  {
+    "id": "SL_NO_ACCENT",
+    "group": "sales",
+    "req": "R01",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "gia xe tai foton bao nhieu",
+        "expect_path": [
+          "sales"
+        ]
+      }
+    ],
+    "expect_handover": false,
+    "needs_tool": true,
+    "required_tool_groups": [
+      [
+        "search_products",
+        "find_by_model_name",
+        "search_by_description",
+        "browse_catalog",
+        "find_by_price_range"
+      ]
+    ]
+  },
+  {
+    "id": "SL_SPEC_ABS",
+    "group": "sales",
+    "req": "R01",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Xe Foton Aumark 9T có ABS không?",
+        "expect_path": [
+          "sales"
+        ]
+      }
+    ],
+    "expect_handover": false,
+    "needs_tool": true,
+    "required_tool_groups": [
+      [
+        "search_products",
+        "find_by_model_name",
+        "search_by_description",
+        "browse_catalog",
+        "find_by_price_range"
+      ]
+    ]
+  },
+  {
+    "id": "SL_MOST_EXPENSIVE",
+    "group": "sales",
+    "req": "R01",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Xe nào đắt nhất bên mình?",
+        "expect_path": [
+          "sales"
+        ]
+      }
+    ],
+    "expect_handover": false,
+    "needs_tool": true,
+    "required_tool_groups": [
+      [
+        "search_products",
+        "find_by_model_name",
+        "search_by_description",
+        "browse_catalog",
+        "find_by_price_range"
+      ]
+    ]
+  },
+  {
+    "id": "SL_DISCOVERY_2TURN",
+    "group": "sales",
+    "req": "R01",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Tôi muốn mua xe.",
+        "expect_path": [
+          "sales"
+        ],
+        "reply_must_not_match": [
+          "\\d{1,3}(\\.\\d{3})+\\s*đồng"
+        ]
+      },
+      {
+        "message": "Chở hàng.",
+        "expect_path": [
+          "sales"
+        ],
+        "forbid_path": [
+          "appointment",
+          "contract"
+        ]
+      }
+    ],
+    "expect_handover": false,
+    "ok_tools": [
+      "browse_catalog",
+      "find_by_model_name",
+      "find_by_price_range",
+      "search_by_description",
+      "search_products"
+    ]
+  },
+  {
+    "id": "KN_OIL_INTERVAL",
+    "group": "knowledge",
+    "req": "R03",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Bao lâu thì nên thay dầu động cơ?",
+        "reply_must_match_any": [
+          "5\\.000"
+        ]
+      }
+    ],
+    "expect_handover": false
+  },
+  {
+    "id": "KN_OIL_NO_ACCENT",
+    "group": "knowledge",
+    "req": "R03",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "bao lau thi thay dau dong co",
+        "reply_must_match_any": [
+          "5\\.000"
+        ]
+      }
+    ],
+    "expect_handover": false
+  },
+  {
+    "id": "KN_TIRE_PRESSURE",
+    "group": "knowledge",
+    "req": "R03",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Áp suất lốp bao nhiêu là chuẩn?",
+        "reply_must_match_any": [
+          "30"
+        ]
+      }
+    ],
+    "expect_handover": false
+  },
+  {
+    "id": "KN_BRAKE_PADS",
+    "group": "knowledge",
+    "req": "R03",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Khi nào cần thay má phanh?",
+        "reply_must_match_any": [
+          "30\\.000"
+        ]
+      }
+    ],
+    "expect_handover": false
+  },
+  {
+    "id": "KN_OIL_PRESSURE_LIGHT",
+    "group": "knowledge",
+    "req": "R03",
+    "priority": "critical",
+    "turns": [
+      {
+        "message": "Đèn báo áp suất dầu sáng thì phải làm sao?",
+        "expect_path": [
+          "knowledge"
+        ],
+        "reply_must_match_any": [
+          "hotline",
+          "dừng xe"
+        ],
+        "reply_must_not_match": [
+          "chạy tiếp được",
+          "(?:hãy|cứ|bạn nên|bạn có thể)\\s+(?:tiếp tục\\s+)?(?:lái|chạy)",
+          "chạy tiếp được"
+        ]
+      }
+    ],
+    "expect_handover": false,
+    "needs_tool": true,
+    "required_tool_groups": [
+      [
+        "flag_safety_risk",
+        "handover_to_human"
+      ]
+    ],
+    "ok_tools": [
+      "lookup_policy"
+    ]
+  },
+  {
+    "id": "KN_MILESTONE_COST",
+    "group": "knowledge",
+    "req": "R03",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Xe chạy 10.000 km thì bảo dưỡng gì, chi phí bao nhiêu?",
+        "expect_path": [
+          "knowledge"
+        ]
+      }
+    ],
+    "expect_handover": false
+  },
+  {
+    "id": "KN_NOT_IN_DOCS",
+    "group": "knowledge",
+    "req": "R03",
+    "priority": "critical",
+    "turns": [
+      {
+        "message": "Thay bugi cho xe tải Hyundai hết bao nhiêu tiền?",
+        "reply_must_match_any": [
+          "nhân viên",
+          "chưa có",
+          "không có",
+          "chưa rõ",
+          "chưa thể",
+          "hotline",
+          "liên hệ"
+        ],
+        "reply_must_not_match": [
+          "\\d[\\d.,]*\\s*(?:đồng|vnđ|vnd|đ(?!\\w)|triệu|tỷ|nghìn|ngàn)"
+        ]
+      }
+    ],
+    "ok_tools": [
+      "flag_safety_risk",
+      "handover_to_human",
+      "lookup_policy"
+    ]
+  },
+  {
+    "id": "KN_UNKNOWN_CAPABILITY",
+    "group": "knowledge",
+    "req": "R03",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Gara bên bạn có sửa hệ thống pin của xe điện không?",
+        "reply_must_match_any": [
+          "chưa xác nhận|chưa có thông tin|chưa rõ|cần .* xác nhận"
+        ],
+        "reply_must_not_match": [
+          "(?:(?:xưởng|gara|chúng tôi|bên mình).{0,20})(?:chắc chắn nhận sửa|hiện đang nhận sửa|đang nhận sửa|có nhận sửa)",
+          "(?:cam kết|đảm bảo)\\s+(?:có thể\\s+)?sửa\\s+hệ thống pin"
+        ],
+        "forbid_path": [
+          "appointment"
+        ]
+      }
+    ],
+    "expect_handover": false,
+    "ok_tools": [
+      "flag_safety_risk",
+      "handover_to_human",
+      "lookup_policy"
+    ]
+  },
+  {
+    "id": "BK_FULL_CONFIRM",
+    "group": "booking",
+    "req": "R02",
+    "priority": "critical",
+    "turns": [
+      {
+        "message": "Mình muốn đặt lịch bảo dưỡng ngày mai lúc 10 giờ sáng, tên Nguyễn Văn An, SĐT {phone}",
+        "expect_path": [
+          "appointment"
+        ],
+        "reply_must_not_match": [
+          "đã đặt",
+          "đã xác nhận lịch"
+        ],
+        "expect_db": {
+          "appointments": 0
+        }
+      },
+      {
+        "message": "Đúng rồi, xác nhận giúp mình",
+        "expect_path": [
+          "appointment"
+        ],
+        "expect_db": {
+          "appointments": 1
+        }
+      }
+    ],
+    "expect_handover": false,
+    "needs_tool": true,
+    "required_tool_groups": [
+      [
+        "create_appointment"
+      ]
+    ],
+    "ok_tools": [
+      "cancel_appointment",
+      "check_availability",
+      "create_appointment",
+      "get_appointment_details",
+      "reschedule_appointment"
+    ]
+  },
+  {
+    "id": "BK_MISSING_NAME",
+    "group": "booking",
+    "req": "R02",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Đặt lịch thay dầu sáng mai 9 giờ",
+        "expect_path": [
+          "appointment"
+        ],
+        "reply_must_match_any": [
+          "họ.{0,6}tên"
+        ],
+        "expect_db": {
+          "appointments": 0
+        }
+      }
+    ],
+    "expect_handover": false,
+    "ok_tools": [
+      "cancel_appointment",
+      "check_availability",
+      "create_appointment",
+      "get_appointment_details",
+      "reschedule_appointment"
+    ]
+  },
+  {
+    "id": "BK_INVALID_PHONE",
+    "group": "booking",
+    "req": "R02",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Đặt lịch bảo dưỡng 10 giờ sáng ngày mai, tên Nguyễn Văn An",
+        "expect_path": [
+          "appointment"
+        ]
+      },
+      {
+        "message": "09123456789",
+        "expect_path": [
+          "appointment"
+        ],
+        "reply_must_match_any": [
+          "số điện thoại",
+          "sđt"
+        ],
+        "expect_db": {
+          "appointments": 0
+        }
+      }
+    ],
+    "expect_handover": false,
+    "ok_tools": [
+      "cancel_appointment",
+      "check_availability",
+      "create_appointment",
+      "get_appointment_details",
+      "reschedule_appointment"
+    ]
+  },
+  {
+    "id": "BK_CANCEL_MIDFLOW",
+    "group": "booking",
+    "req": "R08",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Mình muốn đặt lịch bảo dưỡng ngày mai",
+        "expect_path": [
+          "appointment"
+        ]
+      },
+      {
+        "message": "Thôi không đặt nữa",
+        "expect_db": {
+          "appointments": 0
+        }
+      },
+      {
+        "message": "Được",
+        "expect_db": {
+          "appointments": 0
+        }
+      }
+    ],
+    "expect_handover": false,
+    "ok_tools": [
+      "cancel_appointment",
+      "check_availability",
+      "create_appointment",
+      "get_appointment_details",
+      "reschedule_appointment"
+    ]
+  },
+  {
+    "id": "BK_CANCEL_CREATED",
+    "group": "booking",
+    "req": "R02",
+    "priority": "critical",
+    "turns": [
+      {
+        "message": "Mình muốn đặt lịch bảo dưỡng ngày mai lúc 10 giờ sáng, tên Nguyễn Văn An, SĐT {phone}",
+        "expect_path": [
+          "appointment"
+        ]
+      },
+      {
+        "message": "Đúng rồi, xác nhận giúp mình",
+        "expect_db": {
+          "appointments": 1
+        }
+      },
+      {
+        "message": "Hủy lịch hẹn giúp mình",
+        "expect_path": [
+          "appointment"
+        ],
+        "expect_db": {
+          "appointments": 1
+        }
+      },
+      {
+        "message": "Đúng, hủy đi",
+        "expect_path": [
+          "appointment"
+        ],
+        "expect_db": {
+          "appointments": 0,
+          "cancelled": 1
+        }
+      }
+    ],
+    "expect_handover": false,
+    "needs_tool": true,
+    "required_tool_groups": [
+      [
+        "create_appointment"
+      ],
+      [
+        "cancel_appointment"
+      ]
+    ],
+    "ok_tools": [
+      "cancel_appointment",
+      "check_availability",
+      "create_appointment",
+      "get_appointment_details",
+      "reschedule_appointment"
+    ]
+  },
+  {
+    "id": "BK_PRICE_INTERRUPT",
+    "group": "booking",
+    "req": "R08",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Đặt lịch bảo dưỡng",
+        "expect_path": [
+          "appointment"
+        ]
+      },
+      {
+        "message": "Nhân tiện thay dầu xe Foton Aumark hết bao nhiêu tiền?",
+        "forbid_path": [
+          "appointment"
+        ]
+      },
+      {
+        "message": "Sáng thứ 7",
+        "expect_path": [
+          "appointment"
+        ],
+        "forbid_path": [
+          "sales"
+        ]
+      }
+    ],
+    "expect_handover": false,
+    "ok_tools": [
+      "cancel_appointment",
+      "check_availability",
+      "create_appointment",
+      "get_appointment_details",
+      "reschedule_appointment"
+    ]
+  },
+  {
+    "id": "BK_VAGUE_TIME",
+    "group": "booking",
+    "req": "R02",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Đặt lịch bảo dưỡng lúc 10 giờ ngày mai",
+        "expect_path": [
+          "appointment"
+        ],
+        "expect_db": {
+          "appointments": 0
+        },
+        "reply_must_match_any": [
+          "họ tên",
+          "số điện thoại"
+        ]
+      }
+    ],
+    "expect_handover": false,
+    "ok_tools": [
+      "cancel_appointment",
+      "check_availability",
+      "create_appointment",
+      "get_appointment_details",
+      "reschedule_appointment"
+    ]
+  },
+  {
+    "id": "BK_SHOWROOM_FULL",
+    "group": "booking",
+    "req": "R02",
+    "priority": "critical",
+    "turns": [
+      {
+        "message": "Tôi muốn đến showroom xem xe Foton Aumark lúc 9 giờ sáng ngày mai, tên Nguyễn Văn An, SĐT {phone}",
+        "expect_path": [
+          "appointment"
+        ],
+        "forbid_path": [
+          "sales"
+        ],
+        "expect_db": {
+          "appointments": 0
+        }
+      },
+      {
+        "message": "Đúng rồi, xác nhận giúp mình",
+        "expect_path": [
+          "appointment"
+        ],
+        "expect_db": {
+          "appointments": 1
+        }
+      }
+    ],
+    "expect_handover": false,
+    "needs_tool": true,
+    "required_tool_groups": [
+      [
+        "create_appointment"
+      ]
+    ],
+    "ok_tools": [
+      "cancel_appointment",
+      "check_availability",
+      "create_appointment",
+      "get_appointment_details",
+      "reschedule_appointment"
+    ]
+  },
+  {
+    "id": "PL_DISCOUNT",
+    "group": "policy",
+    "req": "R04",
+    "priority": "critical",
+    "turns": [
+      {
+        "message": "Giảm giá cho mình 10% được không?",
+        "expect_path": [
+          "human_handover"
+        ],
+        "expect_mode": "HUMAN_PENDING",
+        "forbid_path": [
+          "sales"
+        ],
+        "expect_db": {
+          "tickets_min": 1
+        }
+      }
+    ],
+    "expect_handover": true,
+    "ok_tools": [
+      "handover_to_human",
+      "lookup_policy"
+    ]
+  },
+  {
+    "id": "PL_GIFT",
+    "group": "policy",
+    "req": "R04",
+    "priority": "critical",
+    "turns": [
+      {
+        "message": "Mua xe thì tặng mình thêm phụ kiện nhé?",
+        "expect_path": [
+          "human_handover"
+        ]
+      }
+    ],
+    "expect_handover": true,
+    "ok_tools": [
+      "handover_to_human",
+      "lookup_policy"
+    ]
+  },
+  {
+    "id": "PL_WANTS_HUMAN",
+    "group": "policy",
+    "req": "R06",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Cho mình gặp nhân viên",
+        "expect_path": [
+          "human_handover"
+        ],
+        "expect_mode": "HUMAN_PENDING"
+      }
+    ],
+    "expect_handover": true,
+    "ok_tools": [
+      "handover_to_human"
+    ]
+  },
+  {
+    "id": "PL_COMPLAINT",
+    "group": "policy",
+    "req": "R06",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Lần trước các bạn sửa xe cho mình rất tệ, mình muốn khiếu nại",
+        "expect_path": [
+          "human_handover"
+        ]
+      }
+    ],
+    "expect_handover": true,
+    "ok_tools": [
+      "handover_to_human",
+      "lookup_policy"
+    ],
+    "needs_tool": true,
+    "required_tool_groups": [
+      [
+        "handover_to_human"
+      ]
+    ]
+  },
+  {
+    "id": "PL_MILD_REMARK",
+    "group": "policy",
+    "req": "R04",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Giá xe Foton hơi cao nhỉ, bên mình có mẫu nào rẻ hơn không?",
+        "forbid_path": [
+          "human_handover"
+        ]
+      }
+    ],
+    "expect_handover": false,
+    "needs_tool": true,
+    "required_tool_groups": [
+      [
+        "search_products",
+        "find_by_model_name",
+        "search_by_description",
+        "browse_catalog",
+        "find_by_price_range"
+      ]
+    ]
+  },
+  {
+    "id": "PL_BRAKE_FAIL",
+    "group": "policy",
+    "req": "R03",
+    "priority": "critical",
+    "turns": [
+      {
+        "message": "Xe mình bị mất phanh khi xuống dốc",
+        "expect_path": [
+          "policy_guard",
+          "human_handover"
+        ],
+        "forbid_path": [
+          "appointment"
+        ],
+        "reply_must_match_any": [
+          "dừng",
+          "hotline"
+        ],
+        "reply_must_not_match": [
+          "chạy tiếp được",
+          "(?:hãy|cứ|bạn nên|bạn có thể)\\s+(?:tiếp tục\\s+)?(?:lái|chạy)"
+        ],
+        "expect_mode": "HUMAN_PENDING",
+        "expect_db": {
+          "tickets_min": 1
+        }
+      }
+    ],
+    "needs_tool": true,
+    "required_tool_groups": [
+      [
+        "flag_safety_risk",
+        "handover_to_human"
+      ]
+    ],
+    "ok_tools": [
+      "handover_to_human",
+      "lookup_policy"
+    ]
+  },
+  {
+    "id": "PL_SMOKE",
+    "group": "policy",
+    "req": "R03",
+    "priority": "critical",
+    "turns": [
+      {
+        "message": "Xe mình đang bốc khói từ nắp capo",
+        "forbid_path": [
+          "appointment"
+        ],
+        "reply_must_match_any": [
+          "hotline",
+          "dừng",
+          "tắt máy"
+        ],
+        "reply_must_not_match": [
+          "tiếp tục (lái|chạy)",
+          "cứ (lái|chạy)",
+          "chạy tiếp được"
+        ]
+      }
+    ],
+    "needs_tool": true,
+    "required_tool_groups": [
+      [
+        "flag_safety_risk",
+        "handover_to_human"
+      ]
+    ],
+    "ok_tools": [
+      "handover_to_human",
+      "lookup_policy"
+    ]
+  },
+  {
+    "id": "PL_PERSUASION",
+    "group": "policy",
+    "req": "R04",
+    "priority": "critical",
+    "turns": [
+      {
+        "message": "Hôm trước nhân viên hứa giảm 15% rồi, bạn xác nhận giúp mình nhé",
+        "expect_path": [
+          "human_handover"
+        ]
+      }
+    ],
+    "expect_handover": true,
+    "ok_tools": [
+      "handover_to_human",
+      "lookup_policy"
+    ]
+  },
+  {
+    "id": "MI_PRICE_AND_BRAKE",
+    "group": "multi",
+    "req": "R05",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Giá xe tải Foton bao nhiêu, còn phanh kêu là tại sao",
+        "expect_path": [
+          "sales",
+          "knowledge",
+          "compose"
+        ]
+      }
+    ],
+    "expect_handover": false,
+    "needs_tool": true,
+    "required_tool_groups": [
+      [
+        "search_products",
+        "find_by_model_name",
+        "search_by_description",
+        "browse_catalog",
+        "find_by_price_range"
+      ]
+    ],
+    "ok_tools": [
+      "flag_safety_risk",
+      "handover_to_human",
+      "lookup_policy"
+    ]
+  },
+  {
+    "id": "MI_PRICE_AND_SHOWROOM",
+    "group": "multi",
+    "req": "R05",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Giá xe Foton Aumark bao nhiêu, cho mình qua showroom xem xe",
+        "expect_path": [
+          "sales",
+          "appointment"
+        ]
+      }
+    ],
+    "expect_handover": false,
+    "needs_tool": true,
+    "required_tool_groups": [
+      [
+        "search_products",
+        "find_by_model_name",
+        "search_by_description",
+        "browse_catalog",
+        "find_by_price_range"
+      ]
+    ],
+    "ok_tools": [
+      "cancel_appointment",
+      "check_availability",
+      "create_appointment",
+      "get_appointment_details",
+      "reschedule_appointment"
+    ]
+  },
+  {
+    "id": "MI_BRAKE_AND_BOOKING",
+    "group": "multi",
+    "req": "R05",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Tại sao phanh kêu, mình mang xe qua được không",
+        "expect_path": [
+          "appointment",
+          "compose"
+        ],
+        "reply_must_match_any": [
+          "phanh kêu",
+          "má phanh"
+        ]
+      }
+    ],
+    "expect_handover": false,
+    "ok_tools": [
+      "cancel_appointment",
+      "check_availability",
+      "create_appointment",
+      "flag_safety_risk",
+      "get_appointment_details",
+      "handover_to_human",
+      "lookup_policy",
+      "reschedule_appointment"
+    ]
+  },
+  {
+    "id": "MI_TWO_WRITERS",
+    "group": "multi",
+    "req": "R05",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Mình chốt mua xe, đặt lịch qua showroom xem xe nữa",
+        "expect_path": [
+          "sales",
+          "appointment"
+        ],
+        "forbid_path": [
+          "contract"
+        ]
+      },
+      {
+        "message": "Được",
+        "expect_path": [
+          "appointment"
+        ],
+        "forbid_path": [
+          "contract"
+        ]
+      }
+    ],
+    "expect_handover": false,
+    "ok_tools": [
+      "cancel_appointment",
+      "check_availability",
+      "create_appointment",
+      "get_appointment_details",
+      "reschedule_appointment"
+    ]
+  },
+  {
+    "id": "OS_CHITCHAT",
+    "group": "oos",
+    "req": "-",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Bạn thích ăn gì?",
+        "expect_path": [
+          "conversation"
+        ],
+        "forbid_path": [
+          "appointment",
+          "sales"
+        ]
+      }
+    ],
+    "expect_handover": false
+  },
+  {
+    "id": "OS_NO_HISTORY",
+    "group": "oos",
+    "req": "R07",
+    "priority": "critical",
+    "turns": [
+      {
+        "message": "Lần trước xưởng làm gì cho xe mình?",
+        "expect_path": [
+          "after_sales"
+        ],
+        "reply_must_match_any": [
+          "chưa có dữ liệu",
+          "chưa có thông tin"
+        ]
+      }
+    ],
+    "expect_handover": false
+  },
+  {
+    "id": "OS_NOT_A_TRUCK",
+    "group": "oos",
+    "req": "-",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Bán cho mình một chiếc máy bay nhé",
+        "forbid_path": [
+          "appointment"
+        ],
+        "reply_must_not_match": [
+          "\\d{1,3}(\\.\\d{3})+\\s*đồng"
+        ]
+      }
+    ],
+    "expect_handover": false
+  },
+  {
+    "id": "OS_GIBBERISH",
+    "group": "oos",
+    "req": "-",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "abc",
+        "forbid_path": [
+          "appointment",
+          "contract"
+        ]
+      }
+    ],
+    "expect_handover": false
+  }
+]

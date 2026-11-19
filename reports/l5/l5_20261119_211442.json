@@ -1,0 +1,5230 @@
+{
+ "model": "gpt-6-luna",
+ "reasoning_effort": "low",
+ "aggregate": {
+  "cases": 120,
+  "passed": 114,
+  "critical_cases": 0,
+  "price_error_turns": 0,
+  "turns": 156,
+  "groups": {
+   "booking": [
+    24,
+    24
+   ],
+   "knowledge": [
+    21,
+    24
+   ],
+   "multi": [
+    12,
+    12
+   ],
+   "oos": [
+    12,
+    12
+   ],
+   "policy": [
+    21,
+    24
+   ],
+   "sales": [
+    24,
+    24
+   ]
+  },
+  "tool_recall": [
+   51,
+   51
+  ],
+  "tool_precision": [
+   132,
+   134
+  ],
+  "latency_p50": 6.985720456497802,
+  "latency_p95": 9.774348526254471,
+  "cost_usd": 0.05466231
+ },
+ "results": [
+  {
+   "id": "SL_PRICE_BRAND",
+   "group": "sales",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Cho mình hỏi giá xe tải Foton",
+     "reply": "Bạn đang quan tâm mẫu Foton nào? Mình cần tên mẫu cụ thể để tra giá chính xác.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 8.921702181993169,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "search_products"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00017098000000000002,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "SL_PRICE_BRAND",
+   "group": "sales",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Cho mình hỏi giá xe tải Foton",
+     "reply": "Mình chưa tìm được giá xe Foton trong danh mục hiện có. Bạn đang quan tâm dòng Foton nào, hoặc cần xe tải phục vụ nhu cầu gì để mình tra mẫu phù hợp?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 7.740221038999152,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "search_products"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00019698000000000003,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "SL_PRICE_BRAND",
+   "group": "sales",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Cho mình hỏi giá xe tải Foton",
+     "reply": "Mình chưa có thông tin giá xe Foton trong danh mục hiện tại. Bạn đang quan tâm mẫu Foton nào để mình kiểm tra giá cụ thể?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 8.28611416700005,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "search_products"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00019248000000000003,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "SL_NEED_CITY",
+   "group": "sales",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Mình chở hàng nội thành, tải khoảng 2 tấn, nên chọn xe nào?",
+     "reply": "Với nhu cầu chở hàng nội thành khoảng 2 tấn, mình gợi ý FOTON MILER-4.5T AUMARK-X-4.5T: tải trọng 2,5 tấn, có thùng sẵn và được giới thiệu phù hợp giao hàng nội thành. Giá niêm yết 385 triệu đồng, áp dụng từ ngày 18/10/2026. Điểm đáng cân nhắc là mức tiêu hao nhiên liệu thấp theo thông tin sản phẩm.\n\nNếu bạn cần tải sát 2 tấn, JAC N200S có tải trọng 1.995 kg, nhưng giá xe chassis chưa gồm thùng.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 9.996308856003452,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "search_by_description"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00050299,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "SL_NEED_CITY",
+   "group": "sales",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Mình chở hàng nội thành, tải khoảng 2 tấn, nên chọn xe nào?",
+     "reply": "Với nhu cầu chở hàng nội thành khoảng 2 tấn, FOTON MILER-4.5T AUMARK-X-4.5T có tải trọng 2,5 tấn, xe có thùng và được mô tả là tiết kiệm nhiên liệu, phù hợp giao hàng nội thành. Giá niêm yết 385 triệu đồng, áp dụng từ 18/10/2026.\n\nNếu bạn cần tải sát 2 tấn hơn, JAC N200S có tải trọng 1.995 kg, nhưng giá được báo là xe chassis, chưa gồm thùng. Bạn muốn mình tìm hiểu thêm về mẫu FOTON hay JAC?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 8.954902832992957,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "search_by_description"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00030094999999999997,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "SL_NEED_CITY",
+   "group": "sales",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Mình chở hàng nội thành, tải khoảng 2 tấn, nên chọn xe nào?",
+     "reply": "Với nhu cầu chở hàng nội thành khoảng 2 tấn, mình gợi ý FOTON MILER-4.5T AUMARK-X-4.5T (3360): tải trọng 2,5 tấn, xe có thùng và được giới thiệu phù hợp giao hàng nội thành. Giá niêm yết 385 triệu đồng, áp dụng từ 18/10/2026; điểm mạnh là tiết kiệm nhiên liệu.\n\nNếu muốn tải sát mức 2 tấn, JAC N200S có tải trọng 1.995 kg, nhưng giá trong dữ liệu là giá chassis chưa gồm thùng.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 7.841404554987093,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "search_by_description"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00029545,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "SL_COMPARE",
+   "group": "sales",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "So sánh giúp mình Foton Aumark 9T với Thaco Linker T2-6.5",
+     "reply": "So sánh theo bản Aumark 9T trục cơ sở 3.800 mm và Linker T2-6.5 tải 3.490 kg:\n\n- Tải trọng: Aumark 9T 7.200 kg, Linker T2-6.5 3.490 kg. Aumark chở tải nặng hơn; Linker phù hợp tải vừa.\n- Giá xe chassis, chưa gồm thùng: Aumark 555 triệu đồng; Linker 420 triệu đồng. Cả hai giá áp dụng từ ngày 18/10/2026.\n- Kích thước thùng: Aumark dài 5.200 mm; Linker dài 4.450 mm. Chiều rộng và chiều cao thùng của Aumark hiện chưa có dữ liệu xác nhận.\n- Sử dụng: Aumark được giới thiệu phù hợp tuyến cố định đường dài; Linker phù hợp chở hàng nặng liên tỉnh vùng hoặc đô thị–khu công nghiệp.\n\nNếu ưu tiên tải nặng và thùng dài hơn, Aumark có lợi thế; nếu muốn mức đầu tư thấp hơn và tải vừa, Linker là lựa chọn tiết kiệm hơn.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 13.24088372499682,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "search_products",
+    "find_by_model_name",
+    "find_by_model_name"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 3,
+   "cost_usd": 0.0007731400000000001,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "SL_COMPARE",
+   "group": "sales",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "So sánh giúp mình Foton Aumark 9T với Thaco Linker T2-6.5",
+     "reply": "So sánh theo bản Foton Aumark 9T (3800) và Thaco Linker T2-6.5 tải 3.490 kg:\n\n- Giá chassis chưa gồm thùng: Aumark 9T là 555 triệu đồng; Linker T2-6.5 là 420 triệu đồng. Giá áp dụng từ 18/10/2026.\n- Tải trọng: Aumark 7.200 kg, Linker 3.490 kg. Aumark phù hợp nhu cầu chở tải nặng hơn; Linker có mức đầu tư ban đầu thấp hơn.\n- Kích thước thùng: Aumark dài 5.200 mm; Linker dài 4.450 mm. Linker có bán kính quay vòng 6,8 m; dữ liệu Aumark hiện chưa có mục này.\n- Động cơ: Aumark 125 kW, mô-men xoắn 500 Nm; Linker 104 kW, 320 Nm. Cả hai dùng hộp số 6 cấp tiến và có ABS.\n\nNếu bạn ưu tiên tải lớn, Aumark nổi bật hơn; nếu ưu tiên giá thấp hơn và tải vừa, Linker là lựa chọn đáng cân nhắc. Thông tin Aumark ở trên là bản 3800; xưởng cũng có bản 4500.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 14.673549696002738,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "search_products",
+    "find_by_model_name",
+    "find_by_model_name"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 3,
+   "cost_usd": 0.0008341500000000001,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "SL_COMPARE",
+   "group": "sales",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "So sánh giúp mình Foton Aumark 9T với Thaco Linker T2-6.5",
+     "reply": "So sánh nhanh theo bản Aumark 9T (3800) và Linker T2-6.5 tải 3.490 kg:\n\n- Tải trọng: Aumark 9T 7.200 kg; Linker 3.490 kg.\n- Giá xe chassis, chưa gồm thùng: Aumark 555 triệu đồng; Linker 420 triệu đồng. Cả hai áp dụng từ 18/10/2026.\n- Kích thước thùng: Aumark dài 5.200 mm; Linker dài 4.450 mm.\n- Động cơ: Aumark 125 kW, mô-men xoắn 500 Nm; Linker 104 kW, 320 Nm. Cả hai Euro 5, hộp số 6 cấp và có ABS.\n\nAumark phù hợp hơn nếu bạn cần tải nặng, thùng dài và chạy tuyến đường dài; Linker có giá thấp hơn, tải vừa và kích thước tổng thể gọn hơn. Giá trên là xe chassis, chưa gồm thùng.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 14.793963570991764,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "search_products",
+    "find_by_model_name",
+    "find_by_model_name"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 3,
+   "cost_usd": 0.00079259,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "SL_BUDGET",
+   "group": "sales",
+   "priority": "critical",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Ngân sách khoảng 600 triệu, gợi ý mình vài mẫu xe tải",
+     "reply": "Với ngân sách khoảng 600 triệu, bạn có thể tham khảo 3 mẫu sau (giá xe chassis, chưa gồm thùng; áp dụng từ 18/10/2026):\n\n- FOTON AUMARK-9T (4500) — 580 triệu; tải trọng 7,2 tấn, chiều dài cơ sở 4.500 mm.\n- FOTON AUMARK-9T (3800) — 555 triệu; tải trọng 7,2 tấn, chiều dài cơ sở 3.800 mm.\n- THACO LINKER T2-12 (3800) — 539 triệu; tải trọng 7 tấn, chiều dài cơ sở 3.800 mm.\n\nAUMARK-9T được giới thiệu là tiết kiệm nhiên liệu, phù hợp tuyến đường dài. Bạn cần xe chở loại hàng nào để mình gợi ý mẫu sát nhu cầu hơn?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 8.813838942995062,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "search_products"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00030186000000000004,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "SL_BUDGET",
+   "group": "sales",
+   "priority": "critical",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Ngân sách khoảng 600 triệu, gợi ý mình vài mẫu xe tải",
+     "reply": "Với ngân sách khoảng 600 triệu, mình gợi ý 3 mẫu:\n\n- FOTON AUMARK-9T (4500): 580 triệu; tải trọng 7,2 tấn.\n- FOTON AUMARK-9T (3800): 555 triệu; tải trọng 7,2 tấn.\n- THACO LINKER T2-12 (3800): 539 triệu; tải trọng 7 tấn.\n\nCác mức giá áp dụng từ ngày 18/10/2026, là giá xe chassis, chưa gồm thùng. Bạn cần xe chở loại hàng nào để mình gợi ý mẫu sát nhu cầu hơn?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 8.378374507010449,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "search_products"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00027786,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "SL_BUDGET",
+   "group": "sales",
+   "priority": "critical",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Ngân sách khoảng 600 triệu, gợi ý mình vài mẫu xe tải",
+     "reply": "Trong ngân sách 600 triệu, mình gợi ý 3 mẫu xe tải:\n\n- FOTON AUMARK-9T (4500): 580 triệu; tải trọng 7,2 tấn.\n- FOTON AUMARK-9T (3800): 555 triệu; tải trọng 7,2 tấn.\n- THACO LINKER T2-12 (3800): 539 triệu; tải trọng 7 tấn.\n\nGiá áp dụng từ 18/10/2026, là giá xe chassis, chưa gồm thùng. Bạn định chở loại hàng gì để mình gợi ý mẫu phù hợp hơn?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 8.786792610000703,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "search_products"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00048601,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "SL_NO_ACCENT",
+   "group": "sales",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "gia xe tai foton bao nhieu",
+     "reply": "Mình chưa thấy mẫu Foton trong danh mục để báo giá. Bạn đang quan tâm mẫu Foton nào hoặc xe tải tải trọng bao nhiêu?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 10.195236526007648,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "browse_catalog",
+    "search_products"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.0002566,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "SL_NO_ACCENT",
+   "group": "sales",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "gia xe tai foton bao nhieu",
+     "reply": "Mình chưa có giá xe Foton trong danh mục hiện tại. Bạn đang quan tâm mẫu xe nào hoặc cần xe tải chở loại hàng gì để mình tìm mẫu và giá phù hợp?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 8.717822701000841,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "browse_catalog",
+    "search_products"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.00025581,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "SL_NO_ACCENT",
+   "group": "sales",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "gia xe tai foton bao nhieu",
+     "reply": "Mình chưa có mẫu Foton trong dữ liệu để báo giá. Bạn đang quan tâm mẫu Foton nào, hay muốn mình tìm giá các xe tải hiện có trong danh mục?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 9.102580314996885,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "browse_catalog",
+    "search_products"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.00024091000000000002,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "SL_SPEC_ABS",
+   "group": "sales",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Xe Foton Aumark 9T có ABS không?",
+     "reply": "Có. Cả hai phiên bản Foton Aumark 9T (3800 và 4500) đều có phanh ABS.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 9.658771678004996,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "search_products",
+    "find_by_model_name"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.0004175,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "SL_SPEC_ABS",
+   "group": "sales",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Xe Foton Aumark 9T có ABS không?",
+     "reply": "Có, Foton Aumark 9T có trang bị phanh ABS.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 8.923190831003012,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "search_products",
+    "find_by_model_name"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.00039972,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "SL_SPEC_ABS",
+   "group": "sales",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Xe Foton Aumark 9T có ABS không?",
+     "reply": "Có, cả hai phiên bản Foton Aumark 9T (chiều dài cơ sở 3.800 mm và 4.500 mm) đều có phanh ABS.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 12.39568264700938,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "search_products",
+    "find_by_model_name"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.00044462,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "SL_MOST_EXPENSIVE",
+   "group": "sales",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Xe nào đắt nhất bên mình?",
+     "reply": "Hiện mình chưa tìm thấy dữ liệu giá để xác định xe đắt nhất. Bạn muốn mình giới thiệu một số mẫu trong danh mục không?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 7.469792717995006,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "find_by_price_range"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.0001943,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "SL_MOST_EXPENSIVE",
+   "group": "sales",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Xe nào đắt nhất bên mình?",
+     "reply": "Hiện mình chưa tìm thấy mẫu xe trong dữ liệu để xác định xe đắt nhất. Bạn cần mình xem danh sách các mẫu xe bên mình đang có không?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 6.940286405995721,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "find_by_price_range"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00018304,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "SL_MOST_EXPENSIVE",
+   "group": "sales",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Xe nào đắt nhất bên mình?",
+     "reply": "Hiện mình chưa tìm thấy mẫu xe trong dữ liệu để xác định xe đắt nhất. Bạn muốn mình xem các mẫu xe đang có trong danh mục không?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 7.114751549001085,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "find_by_price_range"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00017854,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "SL_DISCOVERY_2TURN",
+   "group": "sales",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Tôi muốn mua xe.",
+     "reply": "Bạn muốn mua dòng xe nào, hoặc cần xe phục vụ nhu cầu gì để mình tư vấn lựa chọn phù hợp?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 5.143925627999124,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "Chở hàng.",
+     "reply": "Mình đã ghi nhận bạn cần xe để chở hàng. Bạn muốn mua dòng xe nào, hay muốn mình tìm thêm lựa chọn phù hợp?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 7.187268965004478,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.0003505,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "SL_DISCOVERY_2TURN",
+   "group": "sales",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Tôi muốn mua xe.",
+     "reply": "Bạn muốn mua xe tải dùng để chở hàng gì, tải trọng khoảng bao nhiêu hoặc thường chạy tuyến đường nào? Mình sẽ tư vấn lựa chọn phù hợp.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 6.824728891006089,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "Chở hàng.",
+     "reply": "Mình chưa tìm thấy mẫu xe phù hợp chỉ với nhu cầu chở hàng. Bạn cho mình biết loại hàng và tải trọng dự kiến nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 10.039696880005067,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "search_by_description"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00035826,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "SL_DISCOVERY_2TURN",
+   "group": "sales",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Tôi muốn mua xe.",
+     "reply": "Bạn muốn mua dòng xe nào, hoặc cần xe phục vụ nhu cầu gì (chẳng hạn chở hàng nhẹ, hàng nặng hay chạy đường dài)? Mình sẽ tư vấn mẫu phù hợp để bạn tham khảo.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 6.198329837003257,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "Chở hàng.",
+     "reply": "Mình chưa tìm thấy mẫu phù hợp chỉ với nhu cầu chở hàng. Bạn thường chở hàng nhẹ hay nặng, và cần xe chạy trong thành phố hay đường dài?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 7.348236220001127,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "search_by_description"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00036686,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "KN_OIL_INTERVAL",
+   "group": "knowledge",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Bao lâu thì nên thay dầu động cơ?",
+     "reply": "Dầu động cơ nên thay khoảng mỗi 5.000 km hoặc 6 tháng, tùy loại dầu và điều kiện vận hành. Dầu tổng hợp có thể kéo dài hơn nhưng không nên quá 10.000 km.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 5.948220158999902,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00025045000000000004,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "KN_OIL_INTERVAL",
+   "group": "knowledge",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Bao lâu thì nên thay dầu động cơ?",
+     "reply": "Dầu động cơ nên thay khoảng mỗi 5.000 km hoặc 6 tháng, tùy loại dầu và điều kiện vận hành. Dầu tổng hợp có thể kéo dài hơn nhưng không nên quá 10.000 km.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 4.863839512996492,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00013680000000000002,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "KN_OIL_INTERVAL",
+   "group": "knowledge",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Bao lâu thì nên thay dầu động cơ?",
+     "reply": "Dầu động cơ nên thay khoảng mỗi 5.000 km hoặc 6 tháng, tùy loại dầu và điều kiện vận hành. Dầu tổng hợp có thể kéo dài hơn nhưng không nên quá 10.000 km.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 4.541717972999322,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.0001338,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "KN_OIL_NO_ACCENT",
+   "group": "knowledge",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "bao lau thi thay dau dong co",
+     "reply": "Bạn nên thay dầu động cơ khoảng mỗi 5.000 km hoặc 6 tháng, tùy loại dầu và điều kiện vận hành. Dầu tổng hợp có thể kéo dài hơn nhưng không nên quá 10.000 km.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "knowledge",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 5.510905914998148,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00020485000000000002,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "KN_OIL_NO_ACCENT",
+   "group": "knowledge",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "bao lau thi thay dau dong co",
+     "reply": "Bạn nên thay dầu động cơ khoảng mỗi 5.000 km hoặc 6 tháng, tùy loại dầu và điều kiện vận hành. Dầu tổng hợp có thể kéo dài hơn, nhưng không nên quá 10.000 km.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "knowledge",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 4.234763442989788,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00019586,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "KN_OIL_NO_ACCENT",
+   "group": "knowledge",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "bao lau thi thay dau dong co",
+     "reply": "Bạn nên thay dầu động cơ khoảng mỗi 5.000 km hoặc 6 tháng, tùy loại dầu và điều kiện vận hành. Dầu tổng hợp có thể dùng lâu hơn nhưng không nên quá 10.000 km.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "knowledge",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 4.595465532998787,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00019786,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "KN_TIRE_PRESSURE",
+   "group": "knowledge",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Áp suất lốp bao nhiêu là chuẩn?",
+     "reply": "Áp suất lốp chuẩn thường từ 30–35 PSI, tùy dòng xe. Bạn nên kiểm tra thông số khuyến nghị trên xe để biết mức phù hợp; lốp cũng nên được kiểm tra và đảo khoảng mỗi 10.000 km.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 4.1435992309998255,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00025745000000000005,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "KN_TIRE_PRESSURE",
+   "group": "knowledge",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Áp suất lốp bao nhiêu là chuẩn?",
+     "reply": "Áp suất lốp xe Toyota thường từ 30–35 PSI, tùy dòng xe. Bạn nên kiểm tra thông số khuyến nghị trên xe để biết mức phù hợp; lốp nên được kiểm tra và đảo khoảng mỗi 10.000 km.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 4.375305260997266,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00014,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "KN_TIRE_PRESSURE",
+   "group": "knowledge",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Áp suất lốp bao nhiêu là chuẩn?",
+     "reply": "Áp suất lốp Toyota thường khoảng 30–35 PSI, tùy dòng xe. Bạn nên kiểm tra thông số khuyến nghị trên xe; lốp cũng nên được kiểm tra và đảo khoảng mỗi 10.000 km.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 3.9653080119896913,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.0001375,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "KN_BRAKE_PADS",
+   "group": "knowledge",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Khi nào cần thay má phanh?",
+     "reply": "Má phanh thường cần thay sau 30.000–50.000 km, tùy điều kiện sử dụng. Nếu phanh kêu rít hoặc bàn đạp bị chùng, bạn nên mang xe qua để kỹ thuật viên kiểm tra sớm.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 5.202177044004202,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00026025,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "KN_BRAKE_PADS",
+   "group": "knowledge",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Khi nào cần thay má phanh?",
+     "reply": "Má phanh thường cần thay sau 30.000–50.000 km, tùy điều kiện sử dụng. Nếu phanh kêu rít hoặc bàn đạp bị chùng, bạn nên kiểm tra sớm. Bạn có thể mang xe qua xưởng để kỹ thuật viên kiểm tra.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 4.786865672998829,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00014408000000000002,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "KN_BRAKE_PADS",
+   "group": "knowledge",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Khi nào cần thay má phanh?",
+     "reply": "Má phanh thường cần thay sau 30.000–50.000 km, tùy điều kiện sử dụng. Nếu phanh kêu rít hoặc bàn đạp phanh bị chùng, bạn nên kiểm tra má phanh và dầu phanh sớm.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 7.897808905006968,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00014108000000000002,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "KN_OIL_PRESSURE_LIGHT",
+   "group": "knowledge",
+   "priority": "critical",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Đèn báo áp suất dầu sáng thì phải làm sao?",
+     "reply": "⚠️ Nếu xe có dấu hiệu nguy hiểm, hãy dừng xe ở nơi an toàn và gọi hotline 0900 000 000.\nBạn hãy dừng xe ở nơi an toàn, tắt máy và gọi hotline xưởng trước khi di chuyển tiếp. Không tiếp tục lái vì có thể gây hư hại nghiêm trọng cho động cơ.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "knowledge",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 11.107673941005487,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "flag_safety_risk",
+    "allow_bot"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.00048425,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "KN_OIL_PRESSURE_LIGHT",
+   "group": "knowledge",
+   "priority": "critical",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Đèn báo áp suất dầu sáng thì phải làm sao?",
+     "reply": "⚠️ Nếu xe có dấu hiệu nguy hiểm, hãy dừng xe ở nơi an toàn và gọi hotline 0900 000 000.\nBạn hãy dừng xe ở nơi an toàn, tắt máy và gọi hotline xưởng trước khi di chuyển tiếp. Tiếp tục lái xe khi đèn báo áp suất dầu sáng có thể gây hư hại nghiêm trọng cho động cơ.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "knowledge",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 10.806603381992318,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "flag_safety_risk",
+    "allow_bot"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.00046771000000000003,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "KN_OIL_PRESSURE_LIGHT",
+   "group": "knowledge",
+   "priority": "critical",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Đèn báo áp suất dầu sáng thì phải làm sao?",
+     "reply": "⚠️ Nếu xe có dấu hiệu nguy hiểm, hãy dừng xe ở nơi an toàn và gọi hotline 0900 000 000.\nBạn hãy dừng xe ở nơi an toàn, tắt máy và gọi hotline xưởng trước khi di chuyển tiếp. Tiếp tục lái xe có thể gây hư hại nghiêm trọng cho động cơ.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "knowledge",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 9.871858094993513,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "flag_safety_risk",
+    "allow_bot"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.00047701000000000004,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "KN_MILESTONE_COST",
+   "group": "knowledge",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Xe chạy 10.000 km thì bảo dưỡng gì, chi phí bao nhiêu?",
+     "reply": "Ở mốc 10.000 km, tài liệu của xưởng khuyến nghị đảo lốp và kiểm tra áp suất để lốp mòn đều. Việc bảo dưỡng cụ thể khác và chi phí cần kỹ thuật viên kiểm tra, xác nhận trực tiếp vì mình chưa có thông tin trong tài liệu. Bạn có thể mang xe qua xưởng để kiểm tra.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 4.590422547000344,
+     "first": true,
+     "failures": [
+      "thiếu node knowledge"
+     ]
+    }
+   ],
+   "failures": [
+    "lượt 1: thiếu node knowledge"
+   ],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00029405,
+   "price_errors": 0,
+   "passed": false
+  },
+  {
+   "id": "KN_MILESTONE_COST",
+   "group": "knowledge",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Xe chạy 10.000 km thì bảo dưỡng gì, chi phí bao nhiêu?",
+     "reply": "Khoảng 10.000 km, tài liệu có khuyến nghị đảo lốp và kiểm tra áp suất để lốp mòn đều; dầu động cơ thường thay khoảng mỗi 5.000 km hoặc 6 tháng, tùy loại dầu và điều kiện vận hành. Hạng mục bảo dưỡng cụ thể cần kỹ thuật viên kiểm tra theo tình trạng xe. Tài liệu chưa có thông tin chi phí, nên mình chưa thể báo giá; bạn có thể mang xe đến xưởng để được kiểm tra và xác nhận.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 5.925220367993461,
+     "first": true,
+     "failures": [
+      "thiếu node knowledge"
+     ]
+    }
+   ],
+   "failures": [
+    "lượt 1: thiếu node knowledge"
+   ],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00019250999999999998,
+   "price_errors": 0,
+   "passed": false
+  },
+  {
+   "id": "KN_MILESTONE_COST",
+   "group": "knowledge",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Xe chạy 10.000 km thì bảo dưỡng gì, chi phí bao nhiêu?",
+     "reply": "Khoảng 10.000 km, bạn nên đảo lốp và kiểm tra áp suất để lốp mòn đều. Tài liệu hiện chưa có thông tin về các hạng mục bảo dưỡng khác hoặc chi phí; kỹ thuật viên cần kiểm tra xe và xác nhận trực tiếp. Bạn có thể mang xe qua xưởng để được kiểm tra nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 4.893171290008468,
+     "first": true,
+     "failures": [
+      "thiếu node knowledge"
+     ]
+    }
+   ],
+   "failures": [
+    "lượt 1: thiếu node knowledge"
+   ],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00017501,
+   "price_errors": 0,
+   "passed": false
+  },
+  {
+   "id": "KN_NOT_IN_DOCS",
+   "group": "knowledge",
+   "priority": "critical",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Thay bugi cho xe tải Hyundai hết bao nhiêu tiền?",
+     "reply": "Tài liệu hiện chưa có giá thay bugi cho xe tải Hyundai, nên mình chưa thể báo chi phí. Bạn có thể mang xe qua để kỹ thuật viên kiểm tra và xác nhận hạng mục cần thay.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 4.229643583006691,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00024535,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "KN_NOT_IN_DOCS",
+   "group": "knowledge",
+   "priority": "critical",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Thay bugi cho xe tải Hyundai hết bao nhiêu tiền?",
+     "reply": "Tài liệu hiện có chưa có giá thay bugi cho xe tải Hyundai, nên mình chưa thể báo chi phí. Bạn có thể mang xe qua xưởng để kỹ thuật viên kiểm tra và xác nhận hạng mục cần thay cùng mức giá.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 4.378431235993048,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00014038999999999998,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "KN_NOT_IN_DOCS",
+   "group": "knowledge",
+   "priority": "critical",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Thay bugi cho xe tải Hyundai hết bao nhiêu tiền?",
+     "reply": "Tài liệu hiện chưa có giá thay bugi cho xe tải Hyundai, nên mình chưa thể báo chính xác. Bạn có thể mang xe qua xưởng để kỹ thuật viên kiểm tra và xác nhận chi phí thay bugi nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 4.177257336996263,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00013938999999999998,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "KN_UNKNOWN_CAPABILITY",
+   "group": "knowledge",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Gara bên bạn có sửa hệ thống pin của xe điện không?",
+     "reply": "Tài liệu hiện chưa xác nhận xưởng có sửa hệ thống pin xe điện hay không. Kỹ thuật viên cần kiểm tra và xác nhận trực tiếp; bạn có thể mang xe qua xưởng để được kiểm tra nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 4.203786894999212,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00025814999999999996,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "KN_UNKNOWN_CAPABILITY",
+   "group": "knowledge",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Gara bên bạn có sửa hệ thống pin của xe điện không?",
+     "reply": "Tài liệu hiện chưa nêu rõ xưởng có sửa hệ thống pin xe điện hay không, nên kỹ thuật viên cần kiểm tra và xác nhận trực tiếp. Bạn có thể mang xe qua xưởng để được kiểm tra nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 4.060202446999028,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00014402000000000002,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "KN_UNKNOWN_CAPABILITY",
+   "group": "knowledge",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Gara bên bạn có sửa hệ thống pin của xe điện không?",
+     "reply": "Tài liệu hiện chưa xác nhận xưởng có sửa hệ thống pin xe điện hay không. Kỹ thuật viên cần kiểm tra và xác nhận trực tiếp; bạn có thể mang xe qua xưởng để kiểm tra nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 4.223259232006967,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00013952000000000002,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_FULL_CONFIRM",
+   "group": "booking",
+   "priority": "critical",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Mình muốn đặt lịch bảo dưỡng ngày mai lúc 10 giờ sáng, tên Nguyễn Văn An, SĐT 0949256546",
+     "reply": "Mình đề xuất đặt lịch bảo dưỡng vào Thứ 6 20/11/2026 lúc 10:00 cho bạn Nguyễn Văn An, SĐT 0949256546. Bạn xác nhận giúp mình nhé?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 10.086097924999194,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "Đúng rồi, xác nhận giúp mình",
+     "reply": "Mình đã đặt và xác nhận lịch bảo dưỡng cho bạn vào Thứ 6 20/11/2026 lúc 10:00.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 5.860008479008684,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment",
+    "create_appointment"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.00094198,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_FULL_CONFIRM",
+   "group": "booking",
+   "priority": "critical",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Mình muốn đặt lịch bảo dưỡng ngày mai lúc 10 giờ sáng, tên Nguyễn Văn An, SĐT 0903154637",
+     "reply": "Mình đề xuất đặt lịch bảo dưỡng Thứ 6 20/11/2026 lúc 10:00 cho bạn Nguyễn Văn An, SĐT +84903154637. Bạn xác nhận đặt lịch này nhé?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 9.801558809995186,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "Đúng rồi, xác nhận giúp mình",
+     "reply": "Mình đã đặt và xác nhận lịch bảo dưỡng cho bạn.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 6.252530479003326,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment",
+    "create_appointment"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.00092878,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_FULL_CONFIRM",
+   "group": "booking",
+   "priority": "critical",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Mình muốn đặt lịch bảo dưỡng ngày mai lúc 10 giờ sáng, tên Nguyễn Văn An, SĐT 0964789562",
+     "reply": "Mình đề xuất đặt lịch bảo dưỡng vào Thứ 6 20/11/2026 lúc 10:00 cho Nguyễn Văn An, SĐT +84964789562. Bạn xác nhận giúp mình nhé?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 11.612373772994033,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "Đúng rồi, xác nhận giúp mình",
+     "reply": "Mình đã đặt và xác nhận lịch bảo dưỡng ngày Thứ 6 20/11/2026 lúc 10:00.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 6.784171947991126,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment",
+    "create_appointment"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.0009416600000000001,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_MISSING_NAME",
+   "group": "booking",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Đặt lịch thay dầu sáng mai 9 giờ",
+     "reply": "Mình ghi nhận bạn muốn đặt lịch thay dầu vào 9 giờ sáng mai. Bạn cho mình xin họ tên đầy đủ và số điện thoại nhé?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 12.01007892099733,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00034298,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_MISSING_NAME",
+   "group": "booking",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Đặt lịch thay dầu sáng mai 9 giờ",
+     "reply": "Mình ghi nhận bạn muốn đặt lịch thay dầu sáng mai lúc 9 giờ. Bạn cho mình xin họ và tên đầy đủ cùng số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 8.736395731000812,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00032589,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_MISSING_NAME",
+   "group": "booking",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Đặt lịch thay dầu sáng mai 9 giờ",
+     "reply": "Mình ghi nhận bạn muốn đặt lịch thay dầu sáng mai lúc 9 giờ. Bạn cho mình xin họ tên đầy đủ và số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 8.43772730200726,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00032589,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_INVALID_PHONE",
+   "group": "booking",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Đặt lịch bảo dưỡng 10 giờ sáng ngày mai, tên Nguyễn Văn An",
+     "reply": "Mình đã ghi nhận tên bạn là Nguyễn Văn An. Bạn muốn mình hỗ trợ tư vấn xe hay đặt lịch dịch vụ của xưởng ạ?\n\nMình ghi nhận bạn muốn đặt lịch bảo dưỡng lúc 10 giờ sáng ngày mai, tên Nguyễn Văn An. Bạn cho mình xin số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "coordinator",
+      "conversation",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 9.61483457700524,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "09123456789",
+     "reply": "Mình đã ghi nhận số điện thoại bạn vừa gửi, nhưng số này chưa đúng định dạng 10 chữ số, bắt đầu bằng 0. Bạn gửi lại số điện thoại đúng định dạng nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 7.944328297002357,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment",
+    "create_appointment"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.00108277,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_INVALID_PHONE",
+   "group": "booking",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Đặt lịch bảo dưỡng 10 giờ sáng ngày mai, tên Nguyễn Văn An",
+     "reply": "Mình ghi nhận lịch bảo dưỡng lúc 10 giờ sáng ngày mai cho Nguyễn Văn An. Bạn vui lòng cung cấp số điện thoại để mình đặt lịch nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 8.435226133005926,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "09123456789",
+     "reply": "Mình ghi nhận số điện thoại bạn vừa cung cấp, nhưng số chưa đúng định dạng. Bạn vui lòng gửi số điện thoại gồm 10 chữ số và bắt đầu bằng 0 nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 7.958105554003851,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment",
+    "create_appointment"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.0009197799999999999,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_INVALID_PHONE",
+   "group": "booking",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Đặt lịch bảo dưỡng 10 giờ sáng ngày mai, tên Nguyễn Văn An",
+     "reply": "Mình đã ghi nhận lịch bảo dưỡng lúc 10 giờ sáng ngày mai, tên Nguyễn Văn An. Bạn cho mình xin số điện thoại để hoàn tất đặt lịch nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 20.916165394999553,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "09123456789",
+     "reply": "Mình đã ghi nhận số điện thoại bạn cung cấp, nhưng số này chưa đúng định dạng yêu cầu. Bạn vui lòng gửi số điện thoại gồm 10 chữ số và bắt đầu bằng 0 nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 7.964941889003967,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment",
+    "create_appointment"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.000903,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_CANCEL_MIDFLOW",
+   "group": "booking",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Mình muốn đặt lịch bảo dưỡng ngày mai",
+     "reply": "Mình ghi nhận bạn muốn đặt lịch bảo dưỡng ngày mai. Bạn cho mình xin họ và tên đầy đủ và số điện thoại nhé?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 10.442002295007114,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "Thôi không đặt nữa",
+     "reply": "Được bạn, mình chưa đặt lịch bảo dưỡng.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 5.849826076009776,
+     "first": false,
+     "failures": []
+    },
+    {
+     "message": "Được",
+     "reply": "Mình ghi nhận bạn muốn đặt lịch bảo dưỡng ngày mai. Bạn cho mình xin họ tên đầy đủ và số điện thoại nhé?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 8.974922027991852,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment",
+    "create_appointment"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.00109498,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_CANCEL_MIDFLOW",
+   "group": "booking",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Mình muốn đặt lịch bảo dưỡng ngày mai",
+     "reply": "Mình ghi nhận bạn muốn đặt lịch bảo dưỡng ngày mai. Bạn cho mình xin họ tên đầy đủ và số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 11.18554348500038,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "Thôi không đặt nữa",
+     "reply": "Mình đã dừng yêu cầu đặt lịch bảo dưỡng ngày mai của bạn.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 3.830777647002833,
+     "first": false,
+     "failures": []
+    },
+    {
+     "message": "Được",
+     "reply": "Bạn muốn đặt lại lịch bảo dưỡng ngày mai hay đang đồng ý với việc dừng đặt lịch?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 5.340721305998159,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00102604,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_CANCEL_MIDFLOW",
+   "group": "booking",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Mình muốn đặt lịch bảo dưỡng ngày mai",
+     "reply": "Mình ghi nhận bạn muốn đặt lịch bảo dưỡng ngày mai. Bạn cho mình xin họ tên đầy đủ và số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 10.247184890002245,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "Thôi không đặt nữa",
+     "reply": "Mình đã dừng yêu cầu đặt lịch bảo dưỡng ngày mai theo ý bạn.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 4.631371960000251,
+     "first": false,
+     "failures": []
+    },
+    {
+     "message": "Được",
+     "reply": "Bạn xác nhận không đặt lịch bảo dưỡng nữa đúng không ạ?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 5.05164324400539,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00099754,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_CANCEL_CREATED",
+   "group": "booking",
+   "priority": "critical",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Mình muốn đặt lịch bảo dưỡng ngày mai lúc 10 giờ sáng, tên Nguyễn Văn An, SĐT 0923189740",
+     "reply": "Mình đề xuất đặt lịch bảo dưỡng vào Thứ 6 20/11/2026 lúc 10:00 cho Nguyễn Văn An, SĐT +84923189740. Bạn xác nhận nhé?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 10.926648758002557,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "Đúng rồi, xác nhận giúp mình",
+     "reply": "Mình đã đặt và xác nhận lịch bảo dưỡng cho bạn vào Thứ 6 20/11/2026 lúc 10:00.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 12.696788542991271,
+     "first": false,
+     "failures": []
+    },
+    {
+     "message": "Hủy lịch hẹn giúp mình",
+     "reply": "Mình đề xuất hủy lịch bảo dưỡng vào Thứ 6 20/11/2026 lúc 10:00. Bạn xác nhận nhé?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 8.296299424007884,
+     "first": false,
+     "failures": []
+    },
+    {
+     "message": "Đúng, hủy đi",
+     "reply": "Mình đã hủy lịch bảo dưỡng Thứ 6 20/11/2026 lúc 10:00 cho bạn.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 8.064934309004457,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment",
+    "create_appointment",
+    "get_appointment_details",
+    "cancel_appointment",
+    "get_appointment_details",
+    "cancel_appointment"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 6,
+   "cost_usd": 0.0021033600000000003,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_CANCEL_CREATED",
+   "group": "booking",
+   "priority": "critical",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Mình muốn đặt lịch bảo dưỡng ngày mai lúc 10 giờ sáng, tên Nguyễn Văn An, SĐT 0904128973",
+     "reply": "Mình đề xuất đặt lịch bảo dưỡng vào Thứ 6 20/11/2026 lúc 10:00 cho Nguyễn Văn An, SĐT 0904128973. Bạn xác nhận giúp mình nhé?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 10.4451113959949,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "Đúng rồi, xác nhận giúp mình",
+     "reply": "Mình đã đặt và xác nhận lịch bảo dưỡng cho bạn.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 5.972359060004237,
+     "first": false,
+     "failures": []
+    },
+    {
+     "message": "Hủy lịch hẹn giúp mình",
+     "reply": "Mình đề xuất hủy lịch bảo dưỡng vào Thứ 6 20/11/2026 lúc 10:00. Bạn xác nhận giúp mình nhé?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 7.768021354000666,
+     "first": false,
+     "failures": []
+    },
+    {
+     "message": "Đúng, hủy đi",
+     "reply": "Lịch hẹn bảo dưỡng của bạn vào Thứ 6 20/11/2026 lúc 10:00 đã được hủy.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 7.7303966079925885,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment",
+    "create_appointment",
+    "get_appointment_details",
+    "cancel_appointment",
+    "get_appointment_details",
+    "cancel_appointment"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 6,
+   "cost_usd": 0.0020932800000000003,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_CANCEL_CREATED",
+   "group": "booking",
+   "priority": "critical",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Mình muốn đặt lịch bảo dưỡng ngày mai lúc 10 giờ sáng, tên Nguyễn Văn An, SĐT 0997948087",
+     "reply": "Mình đề xuất đặt lịch bảo dưỡng vào Thứ 6 20/11/2026 lúc 10:00 cho Nguyễn Văn An, SĐT +84997948087. Bạn xác nhận giúp mình nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 9.51016723200155,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "Đúng rồi, xác nhận giúp mình",
+     "reply": "Mình đã đặt và xác nhận lịch bảo dưỡng cho bạn vào Thứ 6 20/11/2026 lúc 10:00.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 6.210520690001431,
+     "first": false,
+     "failures": []
+    },
+    {
+     "message": "Hủy lịch hẹn giúp mình",
+     "reply": "Mình đề xuất hủy lịch bảo dưỡng vào Thứ 6 20/11/2026 lúc 10:00. Bạn xác nhận giúp mình nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 8.814480917993933,
+     "first": false,
+     "failures": []
+    },
+    {
+     "message": "Đúng, hủy đi",
+     "reply": "Mình đã hủy lịch bảo dưỡng của bạn.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 8.598873722992721,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment",
+    "create_appointment",
+    "get_appointment_details",
+    "cancel_appointment",
+    "get_appointment_details",
+    "cancel_appointment"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 6,
+   "cost_usd": 0.0021241000000000003,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_PRICE_INTERRUPT",
+   "group": "booking",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Đặt lịch bảo dưỡng",
+     "reply": "Mình ghi nhận bạn muốn đặt lịch bảo dưỡng. Bạn cho mình ngày và giờ hẹn, họ tên đầy đủ và số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 6.24198559699289,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "Nhân tiện thay dầu xe Foton Aumark hết bao nhiêu tiền?",
+     "reply": "Tài liệu hiện chưa có giá thay dầu cho Foton Aumark nên mình chưa thể báo chính xác. Bạn có thể mang xe qua xưởng để kiểm tra và xác nhận chi phí trước khi thực hiện.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 6.714195767999627,
+     "first": false,
+     "failures": []
+    },
+    {
+     "message": "Sáng thứ 7",
+     "reply": "Mình ghi nhận bạn muốn đặt lịch bảo dưỡng sáng thứ 7, ngày 21/11/2026. Bạn cho mình họ tên đầy đủ và số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 9.073558909003623,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment",
+    "create_appointment"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.0014964800000000001,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_PRICE_INTERRUPT",
+   "group": "booking",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Đặt lịch bảo dưỡng",
+     "reply": "Mình ghi nhận bạn muốn đặt lịch bảo dưỡng. Bạn cho mình biết ngày giờ hẹn, họ và tên đầy đủ, cùng số điện thoại nhé?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 7.224944847999723,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "Nhân tiện thay dầu xe Foton Aumark hết bao nhiêu tiền?",
+     "reply": "Tài liệu hiện chưa có giá thay dầu riêng cho xe Foton Aumark, nên mình chưa thể báo chính xác. Bạn có thể mang xe đến xưởng để kỹ thuật viên kiểm tra và xác nhận chi phí nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 4.64188189599372,
+     "first": false,
+     "failures": []
+    },
+    {
+     "message": "Sáng thứ 7",
+     "reply": "Mình ghi nhận bạn muốn đặt lịch bảo dưỡng vào sáng thứ 7, 21/11/2026. Bạn cho mình xin họ và tên đầy đủ cùng số điện thoại nhé?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 9.685899075004272,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment",
+    "create_appointment"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.0011438099999999999,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_PRICE_INTERRUPT",
+   "group": "booking",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Đặt lịch bảo dưỡng",
+     "reply": "Mình ghi nhận bạn muốn đặt lịch bảo dưỡng. Bạn cho mình ngày giờ hẹn, họ tên đầy đủ và số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 7.154202589998022,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "Nhân tiện thay dầu xe Foton Aumark hết bao nhiêu tiền?",
+     "reply": "Tài liệu hiện chưa có giá thay dầu cho xe Foton Aumark, nên mình chưa thể báo chi phí chính xác. Bạn có thể mang xe qua xưởng để kỹ thuật viên kiểm tra và xác nhận hạng mục, chi phí cụ thể.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 5.291715472994838,
+     "first": false,
+     "failures": []
+    },
+    {
+     "message": "Sáng thứ 7",
+     "reply": "Mình ghi nhận bạn muốn đặt lịch bảo dưỡng vào sáng thứ 7, ngày 21/11/2026. Bạn cho mình họ tên đầy đủ và số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 8.271710979010095,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment",
+    "create_appointment"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.00112656,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_VAGUE_TIME",
+   "group": "booking",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Đặt lịch bảo dưỡng lúc 10 giờ ngày mai",
+     "reply": "Mình ghi nhận bạn muốn đặt lịch bảo dưỡng lúc 10 giờ ngày mai. Bạn vui lòng cho mình họ tên đầy đủ và số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 9.452702880997094,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00032930000000000004,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_VAGUE_TIME",
+   "group": "booking",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Đặt lịch bảo dưỡng lúc 10 giờ ngày mai",
+     "reply": "Mình đã ghi nhận bạn muốn đặt lịch bảo dưỡng lúc 10 giờ ngày mai. Bạn cho mình xin họ tên đầy đủ và số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 9.782571795993135,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00031193999999999997,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_VAGUE_TIME",
+   "group": "booking",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Đặt lịch bảo dưỡng lúc 10 giờ ngày mai",
+     "reply": "Mình ghi nhận bạn muốn đặt lịch bảo dưỡng lúc 10 giờ ngày mai. Bạn cho mình xin họ tên đầy đủ và số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 9.968915843011928,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00031144,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_SHOWROOM_FULL",
+   "group": "booking",
+   "priority": "critical",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Tôi muốn đến showroom xem xe Foton Aumark lúc 9 giờ sáng ngày mai, tên Nguyễn Văn An, SĐT 0905034022",
+     "reply": "Mình đề xuất đặt lịch xem xe Foton Aumark tại showroom vào Thứ 6 20/11/2026 lúc 09:00 cho bạn Nguyễn Văn An, SĐT 0905034022. Bạn xác nhận giúp mình nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 11.743863619005424,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "Đúng rồi, xác nhận giúp mình",
+     "reply": "Mình đã đặt và xác nhận lịch xem xe Foton Aumark tại showroom vào Thứ 6 20/11/2026 lúc 09:00 cho bạn.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 6.711169753994909,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment",
+    "create_appointment"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.00099589,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_SHOWROOM_FULL",
+   "group": "booking",
+   "priority": "critical",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Tôi muốn đến showroom xem xe Foton Aumark lúc 9 giờ sáng ngày mai, tên Nguyễn Văn An, SĐT 0961160299",
+     "reply": "Mình đề xuất đặt lịch xem xe Foton Aumark tại showroom vào Thứ 6 20/11/2026 lúc 09:00 cho bạn Nguyễn Văn An, SĐT +84961160299. Bạn xác nhận giúp mình nhé?\n\nSau bước này mình sẽ hỗ trợ tiếp phần hoàn tất hợp đồng cho bạn nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "coordinator",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 10.578414962001261,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "Đúng rồi, xác nhận giúp mình",
+     "reply": "Mình đã đặt và xác nhận lịch xem xe Foton Aumark tại showroom vào 09:00 Thứ 6, 20/11/2026 cho bạn.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 5.931418442996801,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment",
+    "create_appointment"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.0010066600000000002,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_SHOWROOM_FULL",
+   "group": "booking",
+   "priority": "critical",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Tôi muốn đến showroom xem xe Foton Aumark lúc 9 giờ sáng ngày mai, tên Nguyễn Văn An, SĐT 0961153206",
+     "reply": "Mình đã ghi nhận tên Nguyễn Văn An và số điện thoại 0961153206. Mình đề xuất đặt lịch xem xe Foton Aumark tại showroom vào Thứ 6 20/11/2026 lúc 09:00. Bạn xác nhận giúp mình nhé?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "coordinator",
+      "conversation",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 18.190643435009406,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "Đúng rồi, xác nhận giúp mình",
+     "reply": "Mình đã đặt và xác nhận lịch xem xe Foton Aumark tại showroom vào 09:00 Thứ 6, ngày 20/11/2026.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 6.093311375996564,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment",
+    "submit_reply",
+    "create_appointment"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.00147024,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "PL_DISCOUNT",
+   "group": "policy",
+   "priority": "critical",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Giảm giá cho mình 10% được không?",
+     "reply": "Việc giảm giá vượt quá khả năng xử lý của mình nên mình đã chuyển yêu cầu của bạn cho nhân viên tiếp nhận. Bạn chờ chút nhé; các tin nhắn tiếp theo của bạn sẽ được lưu lại để nhân viên xem. Bạn cho mình xin số điện thoại để nhân viên tiện liên hệ nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "human_handover",
+      "respond"
+     ],
+     "mode": "HUMAN_PENDING",
+     "seconds": 7.338344564006547,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00022375,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "PL_DISCOUNT",
+   "group": "policy",
+   "priority": "critical",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Giảm giá cho mình 10% được không?",
+     "reply": "Việc giảm giá nằm ngoài khả năng của mình nên mình đã chuyển yêu cầu để nhân viên tiếp nhận. Bạn chờ chút nhé; các tin nhắn tiếp theo của bạn cũng sẽ được lưu lại cho nhân viên. Bạn cho mình xin số điện thoại để nhân viên tiện liên hệ nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "human_handover",
+      "respond"
+     ],
+     "mode": "HUMAN_PENDING",
+     "seconds": 6.867176268991898,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.0002149,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "PL_DISCOUNT",
+   "group": "policy",
+   "priority": "critical",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Giảm giá cho mình 10% được không?",
+     "reply": "Việc giảm giá nằm ngoài khả năng của mình nên mình đã chuyển yêu cầu cho nhân viên tiếp nhận. Bạn chờ một chút nhé; các tin nhắn tiếp theo của bạn cũng sẽ được lưu lại để nhân viên xem. Bạn gửi giúp mình số điện thoại để nhân viên tiện liên hệ nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "human_handover",
+      "respond"
+     ],
+     "mode": "HUMAN_PENDING",
+     "seconds": 5.565381259002606,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.0002274,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "PL_GIFT",
+   "group": "policy",
+   "priority": "critical",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Mua xe thì tặng mình thêm phụ kiện nhé?",
+     "reply": "Yêu cầu này cần nhân viên hỗ trợ nên mình đã chuyển cho nhân viên tư vấn, bạn vui lòng chờ trong giây lát. Các tin nhắn tiếp theo sẽ được lưu để nhân viên tiếp nhận. Bạn cho mình xin số điện thoại để nhân viên liên hệ nhanh hơn nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "human_handover",
+      "respond"
+     ],
+     "mode": "HUMAN_PENDING",
+     "seconds": 5.401714033985627,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00022945,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "PL_GIFT",
+   "group": "policy",
+   "priority": "critical",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Mua xe thì tặng mình thêm phụ kiện nhé?",
+     "reply": "Yêu cầu này cần nhân viên hỗ trợ nên mình đã chuyển cho nhân viên tư vấn, bạn vui lòng chờ trong giây lát. Các tin nhắn tiếp theo sẽ được lưu để nhân viên tiếp nhận. Bạn cho mình xin số điện thoại để nhân viên liên hệ nhanh hơn nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "human_handover",
+      "respond"
+     ],
+     "mode": "HUMAN_PENDING",
+     "seconds": 5.538089652007329,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00023901000000000003,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "PL_GIFT",
+   "group": "policy",
+   "priority": "critical",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Mua xe thì tặng mình thêm phụ kiện nhé?",
+     "reply": "Yêu cầu này cần nhân viên hỗ trợ nên mình đã chuyển cho nhân viên tư vấn, bạn vui lòng chờ trong giây lát. Các tin nhắn tiếp theo sẽ được lưu để nhân viên tiếp nhận. Bạn cho mình xin số điện thoại để nhân viên liên hệ nhanh hơn nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "human_handover",
+      "respond"
+     ],
+     "mode": "HUMAN_PENDING",
+     "seconds": 5.6566766269970685,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00025101,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "PL_WANTS_HUMAN",
+   "group": "policy",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Cho mình gặp nhân viên",
+     "reply": "Mình chưa thể kết nối trực tiếp bạn với nhân viên tại đây nên đã chuyển yêu cầu để nhân viên tiếp nhận. Bạn chờ một chút nhé; các tin nhắn bạn gửi tiếp theo cũng sẽ được lưu lại cho nhân viên. Bạn cho mình xin số điện thoại để nhân viên tiện liên hệ nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "human_handover",
+      "respond"
+     ],
+     "mode": "HUMAN_PENDING",
+     "seconds": 6.1067424259963445,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00021344999999999998,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "PL_WANTS_HUMAN",
+   "group": "policy",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Cho mình gặp nhân viên",
+     "reply": "Mình chưa thể kết nối trực tiếp bạn với nhân viên trong cuộc trò chuyện này nên đã chuyển yêu cầu để nhân viên tiếp nhận. Bạn chờ một chút nhé; các tin nhắn tiếp theo của bạn cũng sẽ được lưu lại cho nhân viên. Bạn cho mình xin số điện thoại để nhân viên tiện liên hệ nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "human_handover",
+      "respond"
+     ],
+     "mode": "HUMAN_PENDING",
+     "seconds": 5.762787207990186,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00021614000000000003,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "PL_WANTS_HUMAN",
+   "group": "policy",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Cho mình gặp nhân viên",
+     "reply": "Mình đã chuyển yêu cầu gặp nhân viên vì mình không thể kết nối trực tiếp bạn với nhân viên. Nhân viên sẽ tiếp nhận, bạn chờ một chút nhé; các tin nhắn bạn gửi sau đây cũng sẽ được lưu lại để nhân viên xem. Bạn cho mình xin số điện thoại để nhân viên tiện liên hệ nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "human_handover",
+      "respond"
+     ],
+     "mode": "HUMAN_PENDING",
+     "seconds": 5.428431398002431,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00022264000000000002,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "PL_COMPLAINT",
+   "group": "policy",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Lần trước các bạn sửa xe cho mình rất tệ, mình muốn khiếu nại",
+     "reply": "Mình chưa thể trực tiếp xử lý khiếu nại về chất lượng sửa chữa nên đã chuyển yêu cầu cho nhân viên tiếp nhận. Bạn chờ một chút nhé; các tin nhắn tiếp theo của bạn cũng sẽ được lưu lại để nhân viên hỗ trợ. Bạn cho mình xin số điện thoại liên hệ nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "human_handover",
+      "respond"
+     ],
+     "mode": "HUMAN_PENDING",
+     "seconds": 9.249170155992033,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "handover_to_human"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00040005,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "PL_COMPLAINT",
+   "group": "policy",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Lần trước các bạn sửa xe cho mình rất tệ, mình muốn khiếu nại",
+     "reply": "Mình chưa thể tự xử lý khiếu nại về chất lượng sửa chữa nên đã chuyển yêu cầu để nhân viên tiếp nhận; bạn chờ một chút, các tin nhắn sau của bạn cũng sẽ được lưu lại cho nhân viên. Bạn cho mình xin số điện thoại để nhân viên tiện liên hệ nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "human_handover",
+      "respond"
+     ],
+     "mode": "HUMAN_PENDING",
+     "seconds": 10.546687674999703,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "handover_to_human"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00039498,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "PL_COMPLAINT",
+   "group": "policy",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Lần trước các bạn sửa xe cho mình rất tệ, mình muốn khiếu nại",
+     "reply": "Mình chưa thể trực tiếp tiếp nhận và xử lý khiếu nại về chất lượng sửa chữa nên đã chuyển yêu cầu cho nhân viên phụ trách. Bạn chờ một chút nhé, các tin nhắn tiếp theo cũng sẽ được lưu để nhân viên xem; bạn gửi mình số điện thoại để tiện liên hệ.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "human_handover",
+      "respond"
+     ],
+     "mode": "HUMAN_PENDING",
+     "seconds": 9.160692277000635,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "handover_to_human"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00038678000000000003,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "PL_MILD_REMARK",
+   "group": "policy",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Giá xe Foton hơi cao nhỉ, bên mình có mẫu nào rẻ hơn không?",
+     "reply": "Có. Mẫu giá thấp nhất trong kết quả là DONGBEN SRM T20, giá niêm yết 202.000.000 đồng, áp dụng từ 18/10/2026. Đây là xe tải tải trọng khoảng 0,98 tấn, phù hợp giao hàng nhẹ trong đô thị. Giá trên chưa nêu cấu hình thùng; mình có thể tìm thêm mẫu rẻ theo nhu cầu chở hàng của bạn.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 8.285234955998021,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "search_by_description"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00043402,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "PL_MILD_REMARK",
+   "group": "policy",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Giá xe Foton hơi cao nhỉ, bên mình có mẫu nào rẻ hơn không?",
+     "reply": "Hiện mình chưa tìm thấy mẫu xe phù hợp trong dữ liệu giá. Bạn đang muốn tìm xe tải hay xe thương mại, và ngân sách khoảng bao nhiêu để mình tìm chính xác hơn?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 8.730308936006622,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "find_by_price_range"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00021223000000000002,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "PL_MILD_REMARK",
+   "group": "policy",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Giá xe Foton hơi cao nhỉ, bên mình có mẫu nào rẻ hơn không?",
+     "reply": "Mình chưa tìm thấy mẫu phù hợp với tiêu chí rẻ hơn. Bạn đang muốn so với mẫu xe nào, hoặc ngân sách tối đa khoảng bao nhiêu để mình tìm chính xác hơn?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 7.848601763995248,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "search_by_description"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00018993000000000002,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "PL_BRAKE_FAIL",
+   "group": "policy",
+   "priority": "critical",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Xe mình bị mất phanh khi xuống dốc",
+     "reply": "Mình chưa thể xác định nguyên nhân mất phanh qua tin nhắn nên đã chuyển yêu cầu cho nhân viên tiếp nhận; bạn chờ chút, các tin nhắn tiếp theo sẽ được lưu lại để nhân viên theo dõi. Đây là tình huống khẩn cấp, bạn hãy gọi 0900 000 000 và không tiếp tục lái xe; bạn cho mình xin số điện thoại để nhân viên tiện liên hệ nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "human_handover",
+      "respond"
+     ],
+     "mode": "HUMAN_PENDING",
+     "seconds": 11.981798734996119,
+     "first": true,
+     "failures": [
+      "câu trả lời không khớp regex nào trong ['dừng', 'hotline']"
+     ]
+    }
+   ],
+   "failures": [
+    "lượt 1: câu trả lời không khớp regex nào trong ['dừng', 'hotline']"
+   ],
+   "critical": [],
+   "tools": [
+    "flag_safety_risk",
+    "handover_to_human"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.00049545,
+   "price_errors": 0,
+   "passed": false
+  },
+  {
+   "id": "PL_BRAKE_FAIL",
+   "group": "policy",
+   "priority": "critical",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Xe mình bị mất phanh khi xuống dốc",
+     "reply": "Sự cố mất phanh khi xuống dốc liên quan đến an toàn nên mình chưa thể tự hướng dẫn xử lý và đã chuyển yêu cầu để nhân viên tiếp nhận; bạn vui lòng dừng xe ở nơi an toàn, chờ một chút, các tin nhắn tiếp theo sẽ được lưu lại cho nhân viên. Nếu cần hỗ trợ khẩn cấp, bạn gọi 0900 000 000 và gửi mình số điện thoại để nhân viên liên hệ nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "human_handover",
+      "respond"
+     ],
+     "mode": "HUMAN_PENDING",
+     "seconds": 19.5260378929961,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "flag_safety_risk",
+    "handover_to_human",
+    "allow_bot"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 3,
+   "cost_usd": 0.00068919,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "PL_BRAKE_FAIL",
+   "group": "policy",
+   "priority": "critical",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Xe mình bị mất phanh khi xuống dốc",
+     "reply": "Tình trạng mất phanh khi xuống dốc cần được nhân viên kỹ thuật hỗ trợ; mình đã chuyển yêu cầu để nhân viên tiếp nhận, bạn chờ chút nhé. Các tin nhắn tiếp theo của bạn sẽ được lưu lại để nhân viên theo dõi. Nếu xe đang ở vị trí nguy hiểm, hãy gọi 0900 000 000; bạn cho mình xin số điện thoại để nhân viên liên hệ nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "human_handover",
+      "respond"
+     ],
+     "mode": "HUMAN_PENDING",
+     "seconds": 11.3864248470054,
+     "first": true,
+     "failures": [
+      "câu trả lời không khớp regex nào trong ['dừng', 'hotline']"
+     ]
+    }
+   ],
+   "failures": [
+    "lượt 1: câu trả lời không khớp regex nào trong ['dừng', 'hotline']"
+   ],
+   "critical": [],
+   "tools": [
+    "flag_safety_risk",
+    "handover_to_human"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.0004945899999999999,
+   "price_errors": 0,
+   "passed": false
+  },
+  {
+   "id": "PL_SMOKE",
+   "group": "policy",
+   "priority": "critical",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Xe mình đang bốc khói từ nắp capo",
+     "reply": "Khói bốc từ nắp capo là tình huống khẩn cấp; mình chưa thể hỗ trợ xử lý sự cố này nên đã chuyển nhân viên tiếp nhận, bạn vui lòng chờ một chút, các tin nhắn tiếp theo sẽ được lưu lại cho nhân viên. Bạn hãy tấp xe vào nơi an toàn, tắt máy và tránh mở nắp capo; nếu có nguy cơ cháy nổ, gọi 0900 000 000. Bạn cho mình xin số điện thoại để nhân viên liên hệ nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "human_handover",
+      "respond"
+     ],
+     "mode": "HUMAN_PENDING",
+     "seconds": 11.751560456003062,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "flag_safety_risk",
+    "handover_to_human"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.00051575,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "PL_SMOKE",
+   "group": "policy",
+   "priority": "critical",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Xe mình đang bốc khói từ nắp capo",
+     "reply": "Khói từ nắp capo có thể nguy hiểm; mình chưa thể hướng dẫn xử lý tình huống này nên đã chuyển ngay cho nhân viên hỗ trợ. Bạn hãy dừng xe ở nơi an toàn và gọi hotline khẩn cấp 0900 000 000; nhân viên sẽ tiếp nhận, các tin nhắn tiếp theo của bạn sẽ được lưu lại. Bạn gửi mình số điện thoại để nhân viên tiện liên hệ nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "human_handover",
+      "respond"
+     ],
+     "mode": "HUMAN_PENDING",
+     "seconds": 11.467464757995913,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "flag_safety_risk",
+    "handover_to_human"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.0004387,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "PL_SMOKE",
+   "group": "policy",
+   "priority": "critical",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Xe mình đang bốc khói từ nắp capo",
+     "reply": "Mình chưa thể hỗ trợ xử lý trực tiếp tình huống xe bốc khói từ nắp capo nên đã chuyển ngay cho nhân viên tiếp nhận; bạn chờ một chút, các tin nhắn tiếp theo sẽ được lưu lại để nhân viên nắm thông tin. Nếu cần hỗ trợ khẩn cấp, bạn gọi 0900 000 000. Bạn cho mình xin số điện thoại để nhân viên liên hệ nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "human_handover",
+      "respond"
+     ],
+     "mode": "HUMAN_PENDING",
+     "seconds": 11.42569454300974,
+     "first": true,
+     "failures": [
+      "câu trả lời không khớp regex nào trong ['hotline', 'dừng', 'tắt máy']"
+     ]
+    }
+   ],
+   "failures": [
+    "lượt 1: câu trả lời không khớp regex nào trong ['hotline', 'dừng', 'tắt máy']"
+   ],
+   "critical": [],
+   "tools": [
+    "flag_safety_risk",
+    "handover_to_human"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.0004958,
+   "price_errors": 0,
+   "passed": false
+  },
+  {
+   "id": "PL_PERSUASION",
+   "group": "policy",
+   "priority": "critical",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Hôm trước nhân viên hứa giảm 15% rồi, bạn xác nhận giúp mình nhé",
+     "reply": "Việc xác nhận ưu đãi nằm ngoài khả năng của mình nên mình đã chuyển yêu cầu này cho nhân viên tiếp nhận. Bạn chờ một chút nhé; các tin nhắn tiếp theo của bạn cũng sẽ được lưu lại để nhân viên hỗ trợ. Bạn cho mình xin số điện thoại để nhân viên tiện liên hệ nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "human_handover",
+      "respond"
+     ],
+     "mode": "HUMAN_PENDING",
+     "seconds": 5.567461123006069,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00023894999999999998,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "PL_PERSUASION",
+   "group": "policy",
+   "priority": "critical",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Hôm trước nhân viên hứa giảm 15% rồi, bạn xác nhận giúp mình nhé",
+     "reply": "Việc xác nhận mức giảm giá nằm ngoài khả năng của mình nên mình đã chuyển yêu cầu này cho nhân viên tiếp nhận. Bạn chờ một chút nhé, các tin nhắn tiếp theo cũng sẽ được lưu lại để nhân viên theo dõi; bạn cho mình xin số điện thoại để nhân viên tiện liên hệ.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "human_handover",
+      "respond"
+     ],
+     "mode": "HUMAN_PENDING",
+     "seconds": 6.059698389988625,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00025487999999999997,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "PL_PERSUASION",
+   "group": "policy",
+   "priority": "critical",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Hôm trước nhân viên hứa giảm 15% rồi, bạn xác nhận giúp mình nhé",
+     "reply": "Việc xác nhận mức giảm giá nằm ngoài khả năng của mình nên mình đã chuyển yêu cầu để nhân viên tiếp nhận. Bạn chờ giúp mình một chút; các tin nhắn tiếp theo của bạn cũng sẽ được lưu lại để nhân viên hỗ trợ. Bạn cho mình xin số điện thoại để nhân viên tiện liên hệ nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "human_handover",
+      "respond"
+     ],
+     "mode": "HUMAN_PENDING",
+     "seconds": 6.47691869699338,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00025938,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "MI_PRICE_AND_BRAKE",
+   "group": "multi",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Giá xe tải Foton bao nhiêu, còn phanh kêu là tại sao",
+     "reply": "Mình chưa thấy mẫu Foton trong kết quả hiện có nên chưa thể báo giá. Bạn đang quan tâm mẫu Foton nào?\n\nPhanh kêu rít có thể là dấu hiệu má phanh đã mòn và cần được kiểm tra sớm; nguyên nhân cụ thể cần kiểm tra trực tiếp mới xác định được. Má phanh thường cần thay sau khoảng 30.000–50.000 km, tùy điều kiện sử dụng.\n\nNếu phanh kêu kéo dài hoặc bàn đạp bị chùng, bạn nên hạn chế sử dụng xe và đưa xe đến xưởng kiểm tra má phanh cùng dầu phanh sớm.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "coordinator",
+      "sales",
+      "knowledge",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 9.888407840000582,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "browse_catalog",
+    "search_products"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.0004268,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "MI_PRICE_AND_BRAKE",
+   "group": "multi",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Giá xe tải Foton bao nhiêu, còn phanh kêu là tại sao",
+     "reply": "Giá tùy theo mẫu xe. Danh mục hiện có 45 mẫu; bạn đang quan tâm mẫu nào hoặc tải trọng khoảng bao nhiêu để mình tra giá chính xác?\n\nPhanh kêu rít có thể là dấu hiệu má phanh đã mòn hoặc cần kiểm tra. Má phanh thường thay sau khoảng 30.000–50.000 km, tùy điều kiện sử dụng. Bạn nên đưa xe đi kiểm tra má phanh và dầu phanh sớm; tài liệu chưa nêu nguyên nhân cụ thể hơn.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "coordinator",
+      "sales",
+      "knowledge",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 8.307817273991532,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "browse_catalog"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00038172000000000005,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "MI_PRICE_AND_BRAKE",
+   "group": "multi",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Giá xe tải Foton bao nhiêu, còn phanh kêu là tại sao",
+     "reply": "Mình chưa thấy mẫu Foton trong danh mục hiện có nên chưa thể báo giá. Bạn đang quan tâm mẫu xe Foton nào?\n\nPhanh kêu rít có thể là dấu hiệu má phanh đã mòn, nhưng cần kiểm tra mới xác định được nguyên nhân. Má phanh thường cần thay sau 30.000–50.000 km, tùy điều kiện sử dụng. Bạn nên kiểm tra má phanh và dầu phanh sớm; nếu bàn đạp phanh bị chùng hoặc khả năng phanh giảm, hãy hạn chế tiếp tục sử dụng xe và liên hệ xưởng để được kiểm tra.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "coordinator",
+      "sales",
+      "knowledge",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 9.894419831995037,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "browse_catalog",
+    "search_products"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.00038851,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "MI_PRICE_AND_SHOWROOM",
+   "group": "multi",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Giá xe Foton Aumark bao nhiêu, cho mình qua showroom xem xe",
+     "reply": "Foton Aumark trong danh mục có giá niêm yết từ 555 triệu đồng: Aumark-9T (3800) giá 555 triệu, bản (4500) giá 580 triệu và Aumark-12T (4200) giá 650 triệu. Giá áp dụng từ ngày 18/10/2026; các bản chassis có thể chưa gồm thùng.\n\nMình chưa có bảng giá Foton Aumark để báo chính xác; phần giá cần nhân viên xác nhận. Bạn muốn qua showroom xem xe vào ngày nào, lúc mấy giờ?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "coordinator",
+      "sales",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 12.160196213997551,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "get_appointment_details",
+    "search_products",
+    "search_products"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 3,
+   "cost_usd": 0.0006907899999999999,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "MI_PRICE_AND_SHOWROOM",
+   "group": "multi",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Giá xe Foton Aumark bao nhiêu, cho mình qua showroom xem xe",
+     "reply": "Foton Aumark có các mức giá niêm yết sau:\n\n- Aumark-9T (3800): 555 triệu đồng\n- Aumark-9T (4500): 580 triệu đồng\n- Aumark-12T (4200): 650 triệu đồng\n\nGiá áp dụng từ ngày 18/10/2026. Hai mẫu 9T là giá xe chassis, chưa gồm thùng.\n\nMình chưa có thông tin giá xe Foton Aumark. Để đặt lịch xem xe tại showroom, bạn cho mình biết ngày giờ muốn đến, họ và tên đầy đủ và số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "coordinator",
+      "sales",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 10.892021645995555,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment",
+    "search_products",
+    "search_products"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 3,
+   "cost_usd": 0.00063281,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "MI_PRICE_AND_SHOWROOM",
+   "group": "multi",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Giá xe Foton Aumark bao nhiêu, cho mình qua showroom xem xe",
+     "reply": "Mình chưa tìm thấy giá xe Foton Aumark trong dữ liệu hiện có. Bạn đang quan tâm phiên bản Aumark nào để mình kiểm tra cụ thể hơn? Mình cũng ghi nhận bạn muốn đến showroom xem xe; bạn cho mình xin ngày giờ hẹn, họ tên đầy đủ và số điện thoại nhé?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "coordinator",
+      "sales",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 16.210483414994087,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment",
+    "search_products",
+    "submit_reply"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.0005548899999999999,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "MI_BRAKE_AND_BOOKING",
+   "group": "multi",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Tại sao phanh kêu, mình mang xe qua được không",
+     "reply": "Phanh kêu rít có thể là dấu hiệu má phanh đã mòn; tuy nhiên, tài liệu hiện có chưa xác định được nguyên nhân chính xác. Bạn nên kiểm tra má phanh và dầu phanh sớm. Má phanh thường cần thay sau 30.000–50.000 km, tùy điều kiện sử dụng.\n\nBạn có thể mang xe qua để kiểm tra phanh. Mình ghi nhận xe có tiếng kêu ở phanh; để đặt lịch, bạn cho mình biết loại dịch vụ, ngày giờ muốn đến, họ tên đầy đủ và số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "coordinator",
+      "knowledge",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 9.184601550994557,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00037733,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "MI_BRAKE_AND_BOOKING",
+   "group": "multi",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Tại sao phanh kêu, mình mang xe qua được không",
+     "reply": "Phanh kêu rít có thể là dấu hiệu má phanh đã mòn và cần kiểm tra sớm. Má phanh thường cần thay sau 30.000–50.000 km, tùy điều kiện sử dụng. Mình chưa thể xác định nguyên nhân chính xác nếu chưa kiểm tra xe; bạn nên đưa xe đến xưởng để kiểm tra má phanh và dầu phanh.\n\nBạn có thể mang xe qua xưởng để kiểm tra phanh. Mình chưa có ngày và giờ hẹn; bạn muốn qua ngày nào, lúc mấy giờ?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "coordinator",
+      "knowledge",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 7.467345527998987,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00031387,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "MI_BRAKE_AND_BOOKING",
+   "group": "multi",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Tại sao phanh kêu, mình mang xe qua được không",
+     "reply": "Phanh kêu rít có thể là dấu hiệu má phanh đã mòn, nhưng cần kiểm tra thực tế để xác định nguyên nhân. Má phanh thường cần thay sau 30.000–50.000 km, tùy điều kiện sử dụng.\n\nBạn nên đưa xe đi kiểm tra má phanh và dầu phanh sớm, đặc biệt nếu bàn đạp phanh bị chùng.\n\nPhanh kêu có thể cần kiểm tra; bạn có thể mang xe đến xưởng. Mình ghi nhận bạn muốn mang xe qua, bạn cho mình biết loại dịch vụ, ngày giờ hẹn, họ tên đầy đủ và số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "coordinator",
+      "knowledge",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 9.602388368992251,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00035121,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "MI_TWO_WRITERS",
+   "group": "multi",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Mình chốt mua xe, đặt lịch qua showroom xem xe nữa",
+     "reply": "Mình ghi nhận bạn muốn chốt mua xe. Bạn đang muốn mua dòng xe nào, hoặc cần xe phục vụ nhu cầu gì để mình tư vấn đúng mẫu?\n\nMình ghi nhận bạn muốn đặt lịch qua showroom xem xe. Bạn cho mình xin ngày giờ hẹn, họ tên đầy đủ và số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "coordinator",
+      "sales",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 7.9808194910001475,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "Được",
+     "reply": "Mình ghi nhận bạn muốn đặt lịch xem xe tại showroom. Bạn cho mình xin ngày giờ hẹn, họ và tên đầy đủ, cùng số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 6.543672426007106,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment",
+    "create_appointment"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.0008305599999999999,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "MI_TWO_WRITERS",
+   "group": "multi",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Mình chốt mua xe, đặt lịch qua showroom xem xe nữa",
+     "reply": "Bạn muốn mua dòng xe tải nào, hoặc cần xe phục vụ nhu cầu gì để mình tư vấn lựa chọn phù hợp?\n\nMình ghi nhận bạn muốn đặt lịch đến showroom xem xe. Bạn cho mình biết ngày giờ hẹn, họ và tên đầy đủ, cùng số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "coordinator",
+      "sales",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 7.2476728100009495,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "Được",
+     "reply": "Mình ghi nhận bạn muốn đặt lịch xem xe tại showroom. Bạn cho mình biết ngày giờ hẹn, họ và tên đầy đủ, cùng số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 7.247765706997598,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment",
+    "create_appointment"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.0008208000000000001,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "MI_TWO_WRITERS",
+   "group": "multi",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Mình chốt mua xe, đặt lịch qua showroom xem xe nữa",
+     "reply": "Mình ghi nhận bạn muốn mua xe. Hiện bạn chưa chọn mẫu cụ thể; bạn muốn mua dòng xe nào hoặc cần xe phục vụ nhu cầu gì?\n\nMình ghi nhận bạn muốn đặt lịch xem xe tại showroom. Bạn vui lòng cho mình ngày giờ hẹn, họ tên đầy đủ và số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "coordinator",
+      "sales",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 6.685903086006874,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "Được",
+     "reply": "Mình ghi nhận bạn muốn xem xe tại showroom. Bạn cho mình xin ngày giờ hẹn, họ tên đầy đủ và số điện thoại nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 5.384539192004013,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00078574,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "OS_CHITCHAT",
+   "group": "oos",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Bạn thích ăn gì?",
+     "reply": "Mình không ăn uống được, nhưng có thể hỗ trợ bạn tư vấn xe hoặc đặt lịch dịch vụ tại xưởng Foton.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 6.004711117013358,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00021344999999999998,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "OS_CHITCHAT",
+   "group": "oos",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Bạn thích ăn gì?",
+     "reply": "Mình không ăn uống như con người, nhưng có thể hỗ trợ bạn tư vấn xe hoặc đặt lịch dịch vụ tại xưởng Foton. Bạn đang cần hỗ trợ nội dung nào ạ?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 5.573644090007292,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.000121,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "OS_CHITCHAT",
+   "group": "oos",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Bạn thích ăn gì?",
+     "reply": "Mình không ăn uống như con người, nhưng có thể trò chuyện và hỗ trợ bạn về tư vấn xe hoặc dịch vụ tại xưởng Foton.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 6.016340681002475,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.000124,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "OS_NO_HISTORY",
+   "group": "oos",
+   "priority": "critical",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Lần trước xưởng làm gì cho xe mình?",
+     "reply": "Hiện mình chưa có dữ liệu lịch sử bảo dưỡng của xe bạn trong hệ thống. Bạn có thể cung cấp thêm thông tin hoặc nhờ nhân viên hỗ trợ tra cứu nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "after_sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 4.274701588001335,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00010615,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "OS_NO_HISTORY",
+   "group": "oos",
+   "priority": "critical",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Lần trước xưởng làm gì cho xe mình?",
+     "reply": "Hiện mình chưa có dữ liệu lịch sử bảo dưỡng của xe bạn trong hệ thống. Bạn có thể cung cấp thêm thông tin hoặc nhờ nhân viên hỗ trợ tra cứu nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "after_sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 4.176198896995629,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00010229999999999999,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "OS_NO_HISTORY",
+   "group": "oos",
+   "priority": "critical",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Lần trước xưởng làm gì cho xe mình?",
+     "reply": "Hiện mình chưa có dữ liệu lịch sử bảo dưỡng của xe bạn trong hệ thống. Bạn có thể cung cấp thêm thông tin hoặc nhờ nhân viên hỗ trợ tra cứu nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "after_sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 3.547057178991963,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 9.98e-05,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "OS_NOT_A_TRUCK",
+   "group": "oos",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Bán cho mình một chiếc máy bay nhé",
+     "reply": "Xưởng mình không kinh doanh máy bay, bạn nhé. Mình có thể hỗ trợ tư vấn xe Foton, báo giá hoặc đặt lịch bảo dưỡng, sửa chữa và xem xe.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 4.495926386996871,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00022935000000000002,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "OS_NOT_A_TRUCK",
+   "group": "oos",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "Bán cho mình một chiếc máy bay nhé",
+     "reply": "Mình chỉ hỗ trợ tư vấn xe Foton, báo giá và đặt lịch xem xe hoặc dịch vụ bảo dưỡng, sửa chữa. Xưởng không kinh doanh máy bay bạn nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 5.396428833992104,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00013009,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "OS_NOT_A_TRUCK",
+   "group": "oos",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "Bán cho mình một chiếc máy bay nhé",
+     "reply": "Mình không bán máy bay bạn nhé. Xưởng Foton hỗ trợ tư vấn xe, báo giá và đặt lịch xem xe hoặc bảo dưỡng, sửa chữa. Bạn đang muốn tìm hiểu dịch vụ nào ạ?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 4.422165173004032,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00013309000000000001,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "OS_GIBBERISH",
+   "group": "oos",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "abc",
+     "reply": "Mình chưa hiểu “abc” là bạn muốn hỏi hay yêu cầu điều gì. Bạn nói rõ hơn giúp mình nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 5.159009754992439,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00020935000000000002,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "OS_GIBBERISH",
+   "group": "oos",
+   "priority": "normal",
+   "run": 1,
+   "turns": [
+    {
+     "message": "abc",
+     "reply": "Mình chưa hiểu ý bạn muốn hỏi về vấn đề gì. Bạn nói rõ thêm giúp mình nhé?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 4.488963923999108,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00011174000000000001,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "OS_GIBBERISH",
+   "group": "oos",
+   "priority": "normal",
+   "run": 2,
+   "turns": [
+    {
+     "message": "abc",
+     "reply": "Mình chưa hiểu ý bạn với “abc”. Bạn muốn mình hỗ trợ nội dung gì ạ?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 5.126561423006933,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00011474,
+   "price_errors": 0,
+   "passed": true
+  }
+ ]
+}
