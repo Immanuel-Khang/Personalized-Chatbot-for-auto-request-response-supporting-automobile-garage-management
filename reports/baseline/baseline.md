@@ -1,6 +1,6 @@
 # Baseline Đợt 1: kết quả đo ban đầu
 
-Nguồn số liệu: `reports/baseline/after2_pytest_full.txt` (pytest) và `reports/baseline/rag_eval.txt` (RAG).
+Ngày chốt: 2026-11-19. Nguồn số liệu: `reports/baseline/after2_pytest_full.txt` (pytest), `reports/baseline/rag_eval.txt` (RAG) và `reports/baseline/eval_run.txt` (run_eval).
 
 ## Môi trường đo
 - Python 3.14, venv `.venv`; Postgres (pgvector) cổng 5433, DB `garage_test` (xóa sạch mỗi lần chạy).
@@ -42,9 +42,9 @@ Danh sách đầy đủ: `tests/needs_llm.txt`. Đây là việc đầu tiên c�
 | test_conv_booking::test_tc07_cancelling_created_appointment_is_not_falsely_confirmed | DEFECT-07: chưa có luồng hủy lịch đã tạo |
 | test_conv_context::test_tc11_follow_up_is_not_a_verbatim_repeat | DEFECT-11: knowledge không dùng lịch sử, lặp nguyên văn |
 | test_conv_inquiry::test_tc03_unknown_price_is_flagged_not_substituted | DEFECT-03: tìm sản phẩm ILIKE theo từng từ, báo giá sai món |
-| test_customer_name::test_llm_name_with_phone_in_same_message_is_cleaned | Lỗi mới: preprocess không còn lọc giá trị không phải tên |
-| test_customer_name::test_llm_non_name_update_is_discarded (5 tham số: "10 tấn", "xe tải", "ngày mai", "0912345678", "Xin chào") | Cùng lỗi trên |
-| 2 test `appointment()` trong test_customer_name.py | Gọi node trực tiếp với state tối thiểu, contract đã đổi (suy ra từ số liệu 11 xfail; xác nhận bằng `pytest tests/ -rx`) |
+| test_customer_name::test_llm_name_with_phone_in_same_message_is_cleaned | DEFECT-12: preprocess LLM-only không còn lọc giá trị không phải tên (xe tải, SĐT, ngày mai, Xin chào) trước khi lưu customer_name |
+| test_customer_name::test_llm_non_name_update_is_discarded (5 tham số: "10 tấn", "xe tải", "ngày mai", "0912345678", "Xin chào") | DEFECT-12 (cùng lỗi trên) |
+| test_customer_name::test_appointment_keeps_name_and_does_not_ask_for_it, ::test_appointment_without_name_still_asks_only_required_slots | OBSOLETE: assert hành vi rule-based cũ của appointment; viết lại bằng FakeLLM ở Đợt 2 |
 
 ## Kết quả RAG (22 câu trong phạm vi + 4 ngoài phạm vi)
 | Chỉ số | keyword | bm25 |
@@ -60,11 +60,15 @@ Danh sách đầy đủ: `tests/needs_llm.txt`. Đây là việc đầu tiên c�
 - Cả hai còn "trả bừa": "thời tiết hôm nay ở Hà Nội" và "lãi suất vay mua xe trả góp" vẫn trả chunk, nên bot không chuyển cho nhân viên. Cần chỉnh ngưỡng ở Đợt 3.
 - Mẫu nhỏ (26 câu), chỉ dùng làm mốc so sánh.
 
+## Kết quả run_eval (14 ca quỹ đạo)
+- 1/14 passed với `LLM_PROVIDER=none` (chỉ ca `greeting` qua). 13 ca fail vì không có LLM (log `There is no LLM!!!!` ở mọi ca), nên con số này không phản ánh chất lượng bot.
+- Chỉ ghi nhận là đã chạy ở chế độ none. Kết quả có ý nghĩa cần đo với LLM thật ở Đợt 3.
+
 ## Bug thật đã tìm và sửa trong Đợt 1
 - `booking.py::reschedule_appointment`: nhả slot (`slot_id = NULL`) khi `status` còn `CONFIRMED` nên autoflush vi phạm ràng buộc `ck_appointments_slot_required_when_confirmed`. Đổi lịch hẹn đã xác nhận ném `IntegrityError`. Đã sửa bằng cách đặt `PENDING_APPROVAL` trước khi nhả slot.
 
 ## Lỗi mới chưa sửa
-- Preprocess LLM-only không còn lọc tên khách: "xe tải", "0912345678", "ngày mai", "Xin chào" có thể bị lưu làm tên. Đề xuất mã DEFECT-12.
+- DEFECT-12: preprocess LLM-only không còn lọc tên khách: "xe tải", "0912345678", "ngày mai", "Xin chào" có thể bị lưu làm tên (xfail, 6 test).
 
 ## Phạm vi baseline theo tầng
 | Tầng | Trạng thái |

@@ -1,6 +1,6 @@
 # Triage Đợt 1
 
-Lần chạy đầu (pytest_full.txt): 111 passed, 92 failed, 3 xfailed, 5 error. Sau khi xử lý (after2_pytest_full.txt): 167 passed, 93 skipped, 11 xfailed, 0 failed.
+Ngày: 2026-11-19. Lần chạy đầu (pytest_full.txt): 111 passed, 92 failed, 3 xfailed, 5 error. Sau khi xử lý (after2_pytest_full.txt): 167 passed, 93 skipped, 11 xfailed, 0 failed.
 
 ## Tổng quan theo nhóm
 
@@ -64,5 +64,5 @@ Trong `test_conv_policy.py` có các test kiểm "cái cũ không còn" thay vì
 | Mã | Mô tả | Trạng thái |
 |---|---|---|
 | (không mã) | `reschedule_appointment` vi phạm ràng buộc khi đổi lịch đã xác nhận | Đã sửa |
-| DEFECT-12 (đề xuất) | Preprocess LLM-only không còn lọc tên khách ("xe tải", "0912345678", "ngày mai", "Xin chào" có thể bị lưu làm tên) | Chưa sửa (xfail) |
+| DEFECT-12 | Preprocess LLM-only không còn lọc tên khách ("xe tải", "0912345678", "ngày mai", "Xin chào" có thể bị lưu làm tên) | Chưa sửa (xfail) |
 | DEFECT-03, 07, 11 | Đã có từ trước (xem baseline.md) | Chưa sửa (xfail) |
