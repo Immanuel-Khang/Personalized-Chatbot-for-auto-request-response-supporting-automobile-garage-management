@@ -1,0 +1,25 @@
+......sssssssssssssssssssss..s.........................................s [ 26%]
+ssssssssxsxss.s........s...s.....s..s.xs.sss..sssssss.ss.ss......s.ss... [ 53%]
+s...s..s..s...ss.s..sssssss.s..sss...s..............xxxxxx...xx......... [ 79%]
+..............................sssssssssssssssss........                  [100%]
+=============================== warnings summary ===============================
+.venv/lib/python3.14/site-packages/langsmith/_internal/_beta_decorator.py:92: 13 warnings
+  /home/vanh/Personalized-Chatbot-for-auto-request-response-supporting-automobile-garage-management/.venv/lib/python3.14/site-packages/langsmith/_internal/_beta_decorator.py:92: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    if asyncio.iscoroutinefunction(func):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+SKIPPED [20] tests/test_agent_boundaries.py: Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)
+SKIPPED [2] tests/test_agent_boundaries.py:206: Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)
+SKIPPED [9] tests/test_conv_booking.py: Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)
+SKIPPED [4] tests/test_conv_context.py: Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)
+SKIPPED [1] tests/test_conv_context.py:60: Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)
+SKIPPED [1] tests/test_conv_history.py: Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)
+SKIPPED [2] tests/test_conv_inquiry.py: Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)
+SKIPPED [1] tests/test_conv_pending.py: Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)
+SKIPPED [21] tests/test_conv_policy.py: Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)
+SKIPPED [3] tests/test_conv_sales.py: Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)
+SKIPPED [11] tests/test_conv_sales_discovery.py: Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)
+SKIPPED [1] tests/test_conversation_agent.py: Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)
+SKIPPED [17] tests/test_smoke.py: Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)
+167 passed, 93 skipped, 11 xfailed, 13 warnings in 26.86s
