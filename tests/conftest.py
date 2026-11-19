@@ -89,5 +89,29 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(skip)
 
 
+@pytest.fixture()
+def rag_chunk(monkeypatch):
+    """RAG trả đúng một đoạn tài liệu cố định: L3 không đo chất lượng truy xuất (đó là L4)."""
+    from app.contracts.schemas import KnowledgeChunk
+    from app.services import get_services
+
+    def set_chunk(text: str) -> None:
+        monkeypatch.setattr(get_services().knowledge, "retrieve",
+                            lambda question, k=3: [KnowledgeChunk(text=text, source="test", score=1.0)])
+    return set_chunk
+
+
 # Fixture FakeLLM (Đợt 2): thay LLM bằng kịch bản; tool_call_spy ghi công cụ nào được chạy ở node nào.
 from tests.fake_llm import fake_llm, tool_call_spy  # noqa: E402, F401
+
+
+@pytest.fixture()
+def clean_bookings():
+    """Lịch/ticket của test trước không được chiếm sức chứa khung giờ của test sau (mặc định 2 lịch/khung).
+    Chỉ xóa dữ liệu đặt lịch và hội thoại, KHÔNG đụng catalog."""
+    from app.db.models import Appointment, AppointmentSlot, HandoverTicket, Message
+    from app.db.session import SessionLocal
+    with SessionLocal() as db:
+        for model in (Appointment, AppointmentSlot, HandoverTicket, Message):
+            db.query(model).delete()
+        db.commit()
