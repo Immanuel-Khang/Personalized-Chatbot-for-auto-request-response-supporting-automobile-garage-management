@@ -135,6 +135,7 @@ LLM_PROVIDER=none python -m eval.run_eval
 # Retrieval quality
 python -m eval.run_rag_eval
 ```
+Run the whole suite with `make test` (sets `LLM_PROVIDER=none`; Postgres on port 5433 must be up). Tests that need an LLM are skipped temporarily and listed in `tests/needs_llm.txt`.
 Some older tests are out of date; see **Known issues** in [GUIDE.md](GUIDE.md).
 
 ---

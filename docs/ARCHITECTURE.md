@@ -23,7 +23,7 @@
 | CRM Sync + CRM webhook | P2 | — |
 | Maintenance Service + Reminder Job + Outbox Worker | P1 | `app/jobs/reminders.py` |
 | Birthday/Event Job, consent, DLQ | P2 | — |
-| Postgres + pgvector | P0 dev bằng SQLite; Postgres khi cần | `app/db/` |
+| Postgres + pgvector | P0 ✅ (DB chính và checkpoint dùng Postgres) | \app/db/` |
 | Tracing/monitoring (Langfuse/LangSmith) | P1 — nên thêm sớm | — |
 
 ## Ranh giới Layer 3
@@ -32,6 +32,6 @@ Preprocess chỉ tách intent, task theo vế câu, slot và complexity (LLM str
 
 Các nhánh song song chỉ ghi vào key có reducer (`answers`, `allowed_amounts`, `trace`); agent ghi dữ liệu duy nhất mới ghi `slots`/`active_flow`. `compose` ghép câu trả lời theo thứ tự task rồi mới qua Output Guard; Output Guard kiểm tra bản đã ghép với `allowed_amounts` gộp từ mọi nhánh, vi phạm thì bỏ toàn bộ bản nháp. Human handover giữ phần trả lời hợp lệ của agent khác, rồi xóa flow/intent chờ trước khi bàn giao.
 
-`pending_intent`, `active_flow`, slots dùng MemorySaver nên mất khi restart; chưa có checkpoint bền vững. Bot không chạy trong cả hai human mode; tin khách vẫn vào inbox và ticket đang mở. After-sales chỉ đọc qua service, không truy cập DB trực tiếp và không bịa lịch sử.
+`pending_intent`, `active_flow`, slots được checkpoint bằng PostgresSaver (bền vững qua restart); chỉ khi `DATABASE_URL` không phải Postgres mới dùng MemorySaver. HUMAN_PENDING: bot vẫn chạy graph và trả lời, tin khách được ghi thêm vào ticket đang mở. HUMAN_ACTIVE: bot không gọi graph/LLM, tin khách chỉ được lưu vào inbox và ticket. After-sales chỉ đọc qua service, không truy cập DB trực tiếp và không bịa lịch sử.
 
 Lệch so với sơ đồ gốc: nguyên tắc "one bounded agent per turn" đổi thành "tối đa một agent ghi dữ liệu mỗi lượt", để trả lời được tin nhắn nhiều câu hỏi trong một lượt.
