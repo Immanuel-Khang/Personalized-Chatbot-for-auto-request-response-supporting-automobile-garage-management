@@ -2,6 +2,7 @@
 Catalog và data/knowledge/ hiện không có dịch vụ kính chắn gió -> bot không được khẳng định là nhận sửa/báo giá."""
 from tests.conversation_helpers import (AMOUNT, BOOKING_SLOTS, DATE_ASK, NOT_UNDERSTOOD, PHONE_ASK, Conversation,
                                         defect, mentions, questions, unsupported_amounts)
+from tests.fake_llm import fake_llm, slot, task  # noqa: F401
 
 TC01 = "Xe tôi đang gặp vấn đề với kính chắn gió, có thể mang qua hãng để sửa được không?"
 TC02 = "Kính chắn gió xe tôi có một vết nứt nhỏ ở góc bên phải."
@@ -30,7 +31,10 @@ def test_tc01_service_inquiry_does_not_start_booking(client):
     assert unsupported_amounts(result["reply"]) == []
 
 
-def test_tc01_answers_the_service_question(client):
+def test_tc01_answers_the_service_question(client, fake_llm):
+    """LLM im lặng -> câu dự phòng xác định nhắc đúng hạng mục khách nêu và nói cần xác minh."""
+    fake_llm.understands(TC01, task("MAINTENANCE", "service_inquiry", "sửa kính chắn gió", inquiry_only=True),
+                         slots=[slot("service_detail", "kính chắn gió", "kính chắn gió")])
     reply = Conversation(client, "tc01-answer").say(TC01)["reply"]
     assert NOT_UNDERSTOOD not in reply.lower()
     assert "kính" in reply.lower() and mentions(reply, VERIFY)
@@ -50,7 +54,9 @@ def test_tc02_damage_description_does_not_start_booking(client):
     assert not mentions(result["reply"], DIAGNOSIS_CLAIMS)
 
 
-def test_tc02_acknowledges_the_damage(client):
+def test_tc02_acknowledges_the_damage(client, fake_llm):
+    fake_llm.understands(TC02, task("MAINTENANCE", "service_inquiry", "vết nứt kính", inquiry_only=True),
+                         slots=[slot("service_detail", "kính chắn gió", "Kính chắn gió")])
     reply = Conversation(client, "tc02-ack").say(TC02)["reply"]
     assert NOT_UNDERSTOOD not in reply.lower()
     assert mentions(reply, ("kính", "vết nứt"))

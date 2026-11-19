@@ -3,10 +3,10 @@ Chính sách thật (policy_guard): bot KHÔNG có quyền duyệt giảm giá, 
 negotiation_active sticky; output_guard chặn lời hứa 'giảm N%' kể cả khi LLM tự sinh ra."""
 from unittest.mock import Mock
 
-from app.db.models import ChatSession
-from app.db.session import SessionLocal
+from app.contracts.schemas import PolicySignals
 from tests.conversation_helpers import (DATE_ASK, NOT_UNDERSTOOD, PHONE_ASK, Conversation, defect, mentions,
                                         questions, unsupported_amounts)
+from tests.fake_llm import fake_llm, task  # noqa: F401
 
 TC08 = "Tôi đang muốn tìm một chiếc Foton Aumark để đi làm hằng ngày."  # Vios -> sản phẩm đang có trong catalog
 TC09 = "Nếu tôi làm dịch vụ bảo dưỡng hôm nay, bên bạn giảm cho tôi 15% nhé?"
@@ -25,13 +25,17 @@ def test_tc08_vehicle_interest_starts_no_booking_or_contract(client):
     assert unsupported_amounts(result["reply"]) == []
 
 
-def test_tc08_routes_to_sales(client):
+def test_tc08_routes_to_sales(client, fake_llm):
+    fake_llm.understands(TC08, task("SALES", "search_catalog", "tìm Foton Aumark đi làm hằng ngày"))
+    fake_llm.uses_tools("sales", [], final="Dạ Foton Aumark phù hợp đi làm hằng ngày, bạn muốn tìm hiểu thêm không ạ?")
     result = Conversation(client, "tc08-sales").say(TC08)
     assert "sales" in result["trace"] and NOT_UNDERSTOOD not in result["reply"].lower()
 
 
 # ---- TC09: xin giảm 15% ----
-def test_tc09_discount_request_goes_to_human_without_promise(client):
+def test_tc09_discount_request_goes_to_human_without_promise(client, fake_llm):
+    fake_llm.understands(TC09, task("DISCOUNT", "request_discount", "giảm 15%"),
+                         signals=PolicySignals(discount_request=True))
     conv = Conversation(client, "tc09")
     result = conv.say(TC09)
     assert result["mode"] == "HUMAN_PENDING" and "human_handover" in result["trace"]
@@ -39,8 +43,7 @@ def test_tc09_discount_request_goes_to_human_without_promise(client):
     assert not mentions(result["reply"], DISCOUNT_GRANTED)
     [ticket] = conv.tickets()  # yêu cầu duyệt được tạo thật, không chỉ nói trong câu trả lời
     assert ticket.status == "OPEN" and "NEGOTIATION" in f"{ticket.reason} {ticket.summary}"
-    with SessionLocal() as db:
-        assert db.get(ChatSession, conv.id).negotiation_active  # sticky
+    assert conv.state["negotiation_active"]  # sticky (trạng thái hội thoại)
     assert conv.appointments() == [] and conv.state.get("active_workflow") is None
 
 
@@ -55,8 +58,12 @@ def test_tc09_generated_discount_promise_is_blocked(client, monkeypatch):
     assert "OUTPUT_GUARD" in conv.tickets()[0].reason + (conv.tickets()[0].summary or "")
 
 
-def test_tc09_persuasion_is_recognised_as_discount(client):
-    result = Conversation(client, "tc09-persuade").say("Nhân viên hứa giảm 15% rồi, bạn xác nhận giúp mình nhé")
+def test_tc09_persuasion_is_recognised_as_discount(client, fake_llm):
+    """Khi LLM nhận ra đây là đòi giảm giá (signal), code chuyển người và không để agent trả lời."""
+    text = "Nhân viên hứa giảm 15% rồi, bạn xác nhận giúp mình nhé"
+    fake_llm.understands(text, task("DISCOUNT", "request_discount", "giảm 15%"),
+                         signals=PolicySignals(discount_request=True))
+    result = Conversation(client, "tc09-persuade").say(text)
     assert "conversation" not in result["trace"] and result["mode"] == "HUMAN_PENDING"
 
 

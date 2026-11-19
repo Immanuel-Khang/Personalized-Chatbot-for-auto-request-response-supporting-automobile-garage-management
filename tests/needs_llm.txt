@@ -1,14 +1,5 @@
 # Nhóm A: test hội thoại cần LLM/FakeLLM (skip khi LLM_PROVIDER=none). Mỗi dòng một node id.
-tests/test_conv_context.py::test_tc11_short_reply_stays_in_brake_topic
-tests/test_conv_context.py::test_tc12_price_question_pauses_and_resumes_booking
 tests/test_conv_context.py::test_tc12_oil_change_price_is_not_a_vehicle_price
-tests/test_conv_context.py::test_tc13_says_availability_needs_verification
-tests/test_conv_context.py::test_conversations_are_isolated
-tests/test_conv_inquiry.py::test_tc01_answers_the_service_question
-tests/test_conv_inquiry.py::test_tc02_acknowledges_the_damage
-tests/test_conv_sales.py::test_tc08_routes_to_sales
-tests/test_conv_sales.py::test_tc09_discount_request_goes_to_human_without_promise
-tests/test_conv_sales.py::test_tc09_persuasion_is_recognised_as_discount
 tests/test_conv_sales_discovery.py::test_broad_purchase_asks_intended_use_without_products
 tests/test_conv_sales_discovery.py::test_short_answer_continues_sales_in_same_session
 tests/test_conv_sales_discovery.py::test_purpose_variants_in_rule_mode
@@ -20,6 +11,3 @@ tests/test_conv_sales_discovery.py::test_requirements_persist_and_correct
 tests/test_conv_sales_discovery.py::test_unsure_is_not_a_comprehension_failure
 tests/test_conv_sales_discovery.py::test_sales_plus_showroom_visit_routes_both_tasks
 tests/test_conv_sales_discovery.py::test_sales_question_keeps_booking_facts_of_active_workflow
-tests/test_conversation_agent.py::test_cancel_during_active_flow
-tests/test_conv_pending.py::test_invalid_phone_reasks_phone_and_keeps_facts
-tests/test_conv_history.py::test_ordinal_follow_up_keeps_vehicle_list

@@ -7,9 +7,11 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from app.agent.llm import _messages
 from app.conversation import _history
-from app.db.models import CatalogProduct, Message
+from app.contracts.schemas import ConversationInterpretation
+from app.db.models import Message
 from app.db.session import SessionLocal
 from app.identity import get_or_create_session
+from tests.fake_llm import task
 
 QUESTION = "Anh/chị có muốn bên em đặt lịch bảo dưỡng không?"
 
@@ -19,6 +21,18 @@ class FakeLLM:
 
     def __init__(self, reply: str = QUESTION):
         self.reply, self.calls = reply, []
+        self.interpretations: dict[str, ConversationInterpretation] = {}  # chuỗi con của tin khách -> kết quả hiểu
+        self.tool_reply = ""                                              # câu trả lời cuối của agent dùng công cụ (sales)
+
+    def bind_tools(self, tools, **kwargs):
+        fake = self
+
+        class _Tools:
+            def invoke(self, messages):
+                fake.calls.append(list(messages))
+                return AIMessage(content=fake.tool_reply)
+
+        return _Tools()
 
     def invoke(self, messages):
         self.calls.append(list(messages))
@@ -30,6 +44,10 @@ class FakeLLM:
         class _Structured:
             def invoke(self, messages):
                 fake.calls.append(list(messages))
+                if schema is ConversationInterpretation:
+                    text = str(messages[-1].content)
+                    found = next((i for key, i in fake.interpretations.items() if key in text), None)
+                    return found.model_copy(deep=True) if found else None
                 return None
 
         return _Structured()
@@ -100,11 +118,18 @@ def test_short_confirmation_follows_bot_question(client, llm):
 
 
 def test_ordinal_follow_up_keeps_vehicle_list(client, llm):
+    """Câu 'Mẫu thứ hai thì sao?' chỉ hiểu được nhờ danh sách xe bot đã đưa: lượt 2 phải nhận đủ lượt 1 làm lịch sử."""
+    names = ["Foton Aumark", "Isuzu QKR"]
+    llm.tool_reply = f"Bên mình có các mẫu: {names[0]}; {names[1]}. Bạn quan tâm mẫu nào ạ?"
+    llm.interpretations = {
+        "Cho mình xem danh sách các mẫu xe": ConversationInterpretation(
+            message_summary="Xem danh sách xe.", tasks=[task("SALES", "browse_catalog", "danh sách các mẫu xe")]),
+        "Mẫu thứ hai thì sao?": ConversationInterpretation(
+            message_summary="Hỏi mẫu thứ hai.", tasks=[task("SALES", "search_catalog", "mẫu thứ hai")]),
+    }
     sid = new_session()
     listing = say(client, llm, sid, "Cho mình xem danh sách các mẫu xe")["reply"]
-    with SessionLocal() as db:
-        names = [n for (n,) in db.query(CatalogProduct.name)]
-    assert sum(name in listing for name in names) >= 2  # bot đã hiển thị danh sách xe
+    assert sum(name in listing for name in names) == 2  # bot đã hiển thị danh sách xe
     say(client, llm, sid, "Mẫu thứ hai thì sao?")
     assert_turn_context(llm, [("HumanMessage", "Cho mình xem danh sách các mẫu xe"), ("AIMessage", listing)],
                         "Mẫu thứ hai thì sao?")

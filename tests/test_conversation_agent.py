@@ -4,6 +4,7 @@ from app.agent.graph import get_graph
 from app.db.models import ChatSession, Customer, Message
 from app.db.session import SessionLocal
 from app.identity import get_or_create_session
+from tests.fake_llm import fake_llm, task  # noqa: F401
 
 
 @pytest.fixture
@@ -90,9 +91,12 @@ def test_memory_recall(session_with_profile):
     # The actual name recall depends on LLM response
 
 
-def test_cancel_during_active_flow(session_with_profile):
+def test_cancel_during_active_flow(session_with_profile, fake_llm):
     """Cancel during appointment flow should route to conversation agent."""
+    fake_llm.understands("Đặt lịch bảo dưỡng", task("APPOINTMENT", "book_appointment", "Đặt lịch bảo dưỡng"))
+    fake_llm.understands("Hủy", task("APPOINTMENT", "book_appointment", "Hủy", "CANCEL_TASK"))
     graph = get_graph()
+    config = {"configurable": {"thread_id": session_with_profile}}
 
     # First, start an appointment flow
     result1 = graph.invoke({
@@ -100,13 +104,12 @@ def test_cancel_during_active_flow(session_with_profile):
         "customer_id": None,
         "user_text": "Đặt lịch bảo dưỡng",
         "mode": "BOT"
-    }, {"configurable": {"thread_id": session_with_profile}})
+    }, config)
 
     assert "appointment" in result1["planned_agents"]
     assert result1.get("active_workflow").workflow_type == "appointment"
 
     # Now cancel
-    config = {"configurable": {"thread_id": session_with_profile}}
     result2 = graph.invoke({
         "session_id": session_with_profile,
         "customer_id": None,
@@ -117,3 +120,5 @@ def test_cancel_during_active_flow(session_with_profile):
     assert "conversation" in result2["planned_agents"]
     assert result2.get("active_workflow") is None  # Flow cleared
     assert all(item.status.value != "OPEN" for item in result2.get("pending_interactions", []))  # Pending cleared
+
+
