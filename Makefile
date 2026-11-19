@@ -1,4 +1,4 @@
-.PHONY: dev prod down logs clean migrate seed
+.PHONY: dev prod down logs clean migrate seed test
 
 # Chạy môi trường dev (build lại image và hiển thị log trực tiếp)
 dev:
@@ -31,3 +31,7 @@ clean:
 # Đưa danh mục xe + chỉ mục RAG về đúng dữ liệu chuẩn (data/catalog_master_refined.csv). Mọi người chạy lệnh này để DB giống nhau.
 seed:
 	docker compose -f docker-compose.dev.yml exec web python -m app.manage bootstrap-catalog
+
+# Run the test suite (needs Postgres on 127.0.0.1:5433)
+test:
+	LLM_PROVIDER=none pytest tests/ -q
