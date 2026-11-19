@@ -4,9 +4,10 @@ import os
 # Dùng 127.0.0.1 thay vì localhost: localhost thử IPv6 (::1) trước và chờ hết timeout mới sang IPv4.
 os.environ["DATABASE_URL"] = os.getenv(
     "TEST_DATABASE_URL", "postgresql+psycopg://garage:garage@127.0.0.1:5433/garage_test?connect_timeout=5")
-# LLM_PROVIDER is configured by the environment so local integration runs can
-# use the real provider; CI/test runs can explicitly set it to "none".
-os.environ.setdefault("LLM_PROVIDER", "none")  # tests run rule-based unless explicitly enabled
+# Mặc định test KHÔNG gọi LLM thật (nhanh, xác định, không tốn tiền) dù .env có LLM_PROVIDER=openai.
+# Muốn chạy test với LLM thật (tầng L5): RUN_LLM_TESTS=1 pytest <file> (dùng ở Đợt 3)
+if os.getenv("RUN_LLM_TESTS") != "1":
+    os.environ["LLM_PROVIDER"] = "none"
 # RAG chạy BM25-only: không gọi OpenAI embeddings (mỗi câu hỏi 1 request mạng, mạng chậm -> treo cả suite)
 os.environ["EMBEDDING_PROVIDER"] = "none"
 os.environ["ADMIN_AUTH_REQUIRED"] = "false"  # test admin API không đăng nhập
@@ -86,3 +87,7 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if item.nodeid in NEEDS_LLM:
             item.add_marker(skip)
+
+
+# Fixture FakeLLM (Đợt 2): thay LLM bằng kịch bản; tool_call_spy ghi công cụ nào được chạy ở node nào.
+from tests.fake_llm import fake_llm, tool_call_spy  # noqa: E402, F401
