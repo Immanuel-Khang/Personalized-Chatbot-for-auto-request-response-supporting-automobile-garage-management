@@ -79,7 +79,8 @@ def db_session():
 
 
 def pytest_collection_modifyitems(config, items):
-    if os.environ.get("LLM_PROVIDER") != "none":
+    from app.agent.llm import _get_llm
+    if _get_llm() is not None:
         return
     skip = pytest.mark.skip(reason="Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)")
     for item in items:
