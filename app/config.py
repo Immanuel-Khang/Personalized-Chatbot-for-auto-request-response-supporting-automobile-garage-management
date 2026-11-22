@@ -1,0 +1,55 @@
+"""Cấu hình tập trung. Mọi thứ đọc từ biến môi trường, không hardcode ở nơi khác."""
+import os
+from dataclasses import dataclass
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+@dataclass(frozen=True)
+class Settings:
+    database_url: str = os.getenv("DATABASE_URL", "postgresql+psycopg://garage:garage@127.0.0.1:5433/garage")
+    llm_provider: str = os.getenv("LLM_PROVIDER", "openai")  # none | openai
+    llm_api_key: str = os.getenv("LLM_API_KEY", "")
+    openai_api_key: str = os.getenv("OPENAI_API_KEY", os.getenv("OPEN_AI_KEY", ""))
+    openai_model: str = os.getenv("OPENAI_MODEL", "gpt-6-luna")
+    openai_temperature: float = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
+    max_react_iterations: int = int(os.getenv("MAX_REACT_ITERATIONS", "3"))
+    # --- RAG (xem app/rag/factory.py) ---
+    retriever: str = os.getenv("RETRIEVER", "hybrid")  # hybrid | bm25 | vector | keyword
+    embedding_provider: str = os.getenv("EMBEDDING_PROVIDER", "openai")  # openai | hash | none
+    embedding_model: str = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
+    rag_vector_store: str = os.getenv("RAG_VECTOR_STORE", "pgvector")  # pgvector | local
+    rag_lexical: str = os.getenv("RAG_LEXICAL", "python")  # python | pg
+    rag_cache_dir: str = os.getenv("RAG_CACHE_DIR", "./data/.rag_cache")
+    rag_candidates: int = int(os.getenv("RAG_CANDIDATES", "10"))
+    rag_rrf_k: int = int(os.getenv("RAG_RRF_K", "60"))
+    rag_weight_bm25: float = float(os.getenv("RAG_WEIGHT_BM25", "1.0"))
+    rag_weight_vector: float = float(os.getenv("RAG_WEIGHT_VECTOR", "1.0"))
+    # Ngưỡng "không tìm thấy -> chuyển người": chunk phải khớp >= N từ khóa HOẶC cosine >= ngưỡng.
+    rag_min_keyword_hits: int = int(os.getenv("RAG_MIN_KEYWORD_HITS", "2"))
+    rag_min_vector_sim: float = float(os.getenv("RAG_MIN_VECTOR_SIM", "0.35"))
+    # --- Admin ---
+    # ADMIN_AUTH_REQUIRED=false chỉ dùng khi dev/test. ADMIN_SECRET ký token đăng nhập; PHẢI đặt khi chạy nhiều worker/production.
+    admin_auth_required: bool = os.getenv("ADMIN_AUTH_REQUIRED", "true").lower() not in ("0", "false", "no")
+    admin_secret: str = os.getenv("ADMIN_SECRET", "")
+    admin_token_hours: float = float(os.getenv("ADMIN_TOKEN_HOURS", "12"))
+    admin_max_login_attempts: int = int(os.getenv("ADMIN_MAX_LOGIN_ATTEMPTS", "3"))  # sai liên tiếp quá số này -> khóa
+    admin_lock_minutes: int = int(os.getenv("ADMIN_LOCK_MINUTES", "15"))
+    # Sức chứa mặc định của một khung giờ khi nhân viên xác nhận lịch (số xe/khách làm cùng lúc).
+    # Giá trị MẶC ĐỊNH; admin chỉnh lúc chạy ở trang Lịch hẹn (bảng app_settings), giá trị đã chỉnh thắng biến môi trường.
+    slot_capacity: int = int(os.getenv("SLOT_CAPACITY", "2"))
+    showroom_capacity: int = int(os.getenv("SHOWROOM_CAPACITY", "3"))  # lịch đến showroom (xem xe, ký hợp đồng) mỗi khung giờ
+    slot_minutes: int = int(os.getenv("SLOT_MINUTES", "60"))  # độ dài một khung giờ = khoảng cách giữa hai khung liên tiếp
+    work_start: str = os.getenv("WORK_START", "08:00")  # gốc của lưới khung giờ + giới hạn giờ gợi ý
+    work_end: str = os.getenv("WORK_END", "17:00")
+    hotline: str = os.getenv("HOTLINE", "0900 000 000")
+    handover_timeout_minutes: float = float(os.getenv("HANDOVER_TIMEOUT_MINUTES", "10"))
+    # LLM context: older messages are folded into a running summary; the last N go verbatim (see agent/memory.py).
+    history_window_messages: int = int(os.getenv("HISTORY_WINDOW_MESSAGES", "6"))
+    # Fold only after this many extra messages, so the summary LLM call runs every few turns, not every turn.
+    history_summary_batch: int = int(os.getenv("HISTORY_SUMMARY_BATCH", "4"))
+
+
+settings = Settings()

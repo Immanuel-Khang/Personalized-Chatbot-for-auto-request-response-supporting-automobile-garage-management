@@ -1,0 +1,166 @@
+{
+ "model": "gpt-6-luna",
+ "reasoning_effort": "low",
+ "aggregate": {
+  "cases": 3,
+  "passed": 3,
+  "critical_cases": 0,
+  "price_error_turns": 0,
+  "turns": 4,
+  "groups": {
+   "booking": [
+    1,
+    1
+   ],
+   "policy": [
+    1,
+    1
+   ],
+   "sales": [
+    1,
+    1
+   ]
+  },
+  "tool_recall": [
+   2,
+   2
+  ],
+  "tool_precision": [
+   3,
+   3
+  ],
+  "latency_p50": 5.806205365995993,
+  "latency_p95": 5.806205365995993,
+  "cost_usd": 0.0020399700000000003
+ },
+ "results": [
+  {
+   "id": "SL_PRICE_BRAND",
+   "group": "sales",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Cho mình hỏi giá xe tải Foton",
+     "reply": "Mình chưa tra được giá xe Foton trong danh mục hiện có. Bạn đang quan tâm mẫu Foton nào, hay muốn mình tìm theo ngân sách dự kiến?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "sales",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 9.539060865005013,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "search_products"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.0006929600000000001,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "BK_FULL_CONFIRM",
+   "group": "booking",
+   "priority": "critical",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Mình muốn đặt lịch bảo dưỡng ngày mai lúc 10 giờ sáng, tên Nguyễn Văn An, SĐT 0963629147",
+     "reply": "Mình đề xuất đặt lịch bảo dưỡng Thứ 6 20/11/2026 lúc 10:00 cho bạn Nguyễn Văn An, SĐT +84963629147. Bạn xác nhận giúp mình nhé?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 9.216649375011912,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "Đúng rồi, xác nhận giúp mình",
+     "reply": "Mình đã đặt và xác nhận lịch bảo dưỡng cho bạn vào Thứ 6, 20/11/2026 lúc 10:00.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 5.806205365995993,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment",
+    "create_appointment"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.00110226,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "PL_DISCOUNT",
+   "group": "policy",
+   "priority": "critical",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Giảm giá cho mình 10% được không?",
+     "reply": "Việc giảm giá vượt ngoài khả năng của mình nên mình đã chuyển yêu cầu để nhân viên tiếp nhận. Bạn chờ chút nhé; các tin nhắn tiếp theo của bạn cũng sẽ được lưu lại để nhân viên xem. Bạn cho mình xin số điện thoại để nhân viên tiện liên hệ nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "human_handover",
+      "respond"
+     ],
+     "mode": "HUMAN_PENDING",
+     "seconds": 6.271703363992856,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00024475,
+   "price_errors": 0,
+   "passed": true
+  }
+ ]
+}

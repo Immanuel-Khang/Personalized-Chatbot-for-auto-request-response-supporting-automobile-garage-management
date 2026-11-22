@@ -1,0 +1,39 @@
+There is no LLM!!!!
+PASS  greeting                       input -> preprocess -> policy_guard -> router -> conversation -> validation -> compose -> output_guard -> respond
+There is no LLM!!!!
+FAIL  price                          input -> preprocess -> policy_guard -> router -> conversation -> validation -> compose -> output_guard -> respond
+There is no LLM!!!!
+FAIL  negotiation                    input -> preprocess -> policy_guard -> router -> conversation -> validation -> compose -> output_guard -> respond
+There is no LLM!!!!
+FAIL  safety                         input -> preprocess -> policy_guard -> router -> conversation -> validation -> compose -> output_guard -> respond
+There is no LLM!!!!
+There is no LLM!!!!
+There is no LLM!!!!
+FAIL  appointment_multi_turn         input -> preprocess -> policy_guard -> router -> conversation -> validation -> compose -> output_guard -> respond | input -> preprocess -> policy_guard -> router -> conversation -> validation -> compose -> output_guard -> respond | input -> preprocess -> policy_guard -> router -> conversation -> validation -> compose -> output_guard -> respond
+There is no LLM!!!!
+FAIL  knowledge                      input -> preprocess -> policy_guard -> router -> conversation -> validation -> compose -> output_guard -> respond
+There is no LLM!!!!
+There is no LLM!!!!
+There is no LLM!!!!
+There is no LLM!!!!
+FAIL  sales_and_booking_same_turn    input -> preprocess -> policy_guard -> router -> conversation -> validation -> compose -> output_guard -> respond | input -> preprocess -> policy_guard -> router -> conversation -> validation -> compose -> output_guard -> respond | input -> preprocess -> policy_guard -> router -> conversation -> validation -> compose -> output_guard -> respond | input -> preprocess -> policy_guard -> router -> conversation -> validation -> compose -> output_guard -> respond
+There is no LLM!!!!
+FAIL  knowledge_and_booking_same_turn input -> preprocess -> policy_guard -> router -> conversation -> validation -> compose -> output_guard -> respond
+There is no LLM!!!!
+There is no LLM!!!!
+FAIL  human_pending_bot_replies      input -> preprocess -> policy_guard -> router -> conversation -> validation -> compose -> output_guard -> respond | input -> preprocess -> policy_guard -> router -> conversation -> validation -> compose -> output_guard -> respond
+There is no LLM!!!!
+FAIL  after_sales_history            input -> preprocess -> policy_guard -> router -> conversation -> validation -> compose -> output_guard -> respond
+There is no LLM!!!!
+There is no LLM!!!!
+There is no LLM!!!!
+FAIL  booking_cancel                 input -> preprocess -> policy_guard -> router -> conversation -> validation -> compose -> output_guard -> respond | input -> preprocess -> policy_guard -> router -> conversation -> validation -> compose -> output_guard -> respond | input -> preprocess -> policy_guard -> router -> conversation -> validation -> compose -> output_guard -> respond
+There is no LLM!!!!
+FAIL  showroom_visit                 input -> preprocess -> policy_guard -> router -> conversation -> validation -> compose -> output_guard -> respond
+There is no LLM!!!!
+There is no LLM!!!!
+FAIL  two_writers_deferred           input -> preprocess -> policy_guard -> router -> conversation -> validation -> compose -> output_guard -> respond | input -> preprocess -> policy_guard -> router -> conversation -> validation -> compose -> output_guard -> respond
+There is no LLM!!!!
+FAIL  parallel_read_agents           input -> preprocess -> policy_guard -> router -> conversation -> validation -> compose -> output_guard -> respond
+
+1/14 passed

@@ -1,0 +1,2822 @@
+......FFFFFFFFFFFFFFFFFFFFF..F.........................................F [ 26%]
+FFFFFFFFxFxFF.F........F...F.....F..F.xF.FFF..FFFFFFF.FF.FF......F.FF... [ 53%]
+F...F..F..F...FF.F..FFFFFFF.F..FFF...F..............xxxxxx...FF......... [ 79%]
+..............................FFFFFFFFFFFFFFFFF........                  [100%]
+=================================== FAILURES ===================================
+____________ test_price_and_showroom_visit_same_turn_single_booking ____________
+
+client = <starlette.testclient.TestClient object at 0x7f21fa95b570>
+
+    def test_price_and_showroom_visit_same_turn_single_booking(client):
+        first = chat(client, "Giá xe Foton Aumark bao nhiêu, cho mình qua showroom xem xe", "same-turn")
+        conv = first["session_id"]
+>       assert {"sales", "appointment"} <= set(first["trace"])
+E       AssertionError: assert {'appointment', 'sales'} <= {'compose', '...process', ...}
+E         
+E         Extra items in the left set:
+E         'appointment'
+E         'sales'
+
+tests/test_agent_boundaries.py:58: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+___________________ test_showroom_visit_goes_to_appointment ____________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9f1ef10>
+
+    def test_showroom_visit_goes_to_appointment(client):
+        result = chat(client, "Tôi muốn đến showroom để xem xe Foton Aumark", "showroom")
+>       assert "appointment" in result["trace"] and "sales" not in result["trace"]
+E       AssertionError: assert ('appointment' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_agent_boundaries.py:74: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_________________ test_read_question_during_booking_keeps_flow _________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9f1d370>
+
+    def test_read_question_during_booking_keeps_flow(client):
+        first = chat(client, "Mình muốn đặt lịch bảo dưỡng", "keep-flow")
+        conv = first["session_id"]
+        second = chat(client, "Lần trước xưởng làm gì cho xe mình", "keep-flow", conv)
+>       assert "after_sales" in second["trace"] and "appointment" not in second["trace"]
+E       AssertionError: assert ('after_sales' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_agent_boundaries.py:81: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+___________________ test_two_writers_defer_second_with_note ____________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9f1e8b0>
+
+    def test_two_writers_defer_second_with_note(client):
+        first = chat(client, "Mình chốt mua xe, đặt lịch qua showroom xem xe nữa", "two-writers")
+        conv = first["session_id"]
+>       assert "contract" in first["trace"] and "appointment" not in first["trace"]
+E       AssertionError: assert ('contract' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_agent_boundaries.py:89: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+___________________ test_cancel_and_greeting_in_active_flow ____________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9f1d590>
+
+    def test_cancel_and_greeting_in_active_flow(client):
+        first = chat(client, "Mình muốn đặt lịch", "cancel")
+        conv = first["session_id"]
+        greeting = chat(client, "Xin chào", "cancel", conv)
+        greeting_state = checkpoint(conv)
+>       assert "appointment" not in greeting["trace"] and greeting_state["active_workflow"].workflow_type == "appointment"
+                                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute 'workflow_type'
+
+tests/test_agent_boundaries.py:106: AttributeError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+______________________ test_policy_escalation_clears_flow ______________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f94a7f00>
+
+    def test_policy_escalation_clears_flow(client):
+        first = chat(client, "Giá xe Foton Aumark bao nhiêu, cho mình qua showroom xem xe", "escalate")
+        conv = first["session_id"]
+        escalated = chat(client, "Giảm giá cho mình", "escalate", conv)
+>       assert escalated["mode"] == "HUMAN_PENDING" and "appointment" not in escalated["trace"]
+E       AssertionError: assert ('BOT' == 'HUMAN_PENDING'
+E         
+E         - HUMAN_PENDING
+E         + BOT)
+
+tests/test_agent_boundaries.py:119: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+_______________________ test_safety_runs_knowledge_alone _______________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f94a7bd0>
+
+    def test_safety_runs_knowledge_alone(client):
+        first = chat(client, "Mình muốn đặt lịch", "safe")
+        second = chat(client, "Đèn áp suất dầu sáng, thôi không lái nữa", "safe", first["session_id"])
+>       assert "router" in second["trace"] and "knowledge" in second["trace"]
+E       AssertionError: assert ('router' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...] and 'knowledge' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_agent_boundaries.py:134: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+____________ test_active_appointment_service_slot_and_updated_time _____________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9ec1590>
+
+    def test_active_appointment_service_slot_and_updated_time(client):
+        first = chat(client, "Mình muốn đặt lịch", "service-slot")
+        conv = first["session_id"]
+        second = chat(client, "Bảo dưỡng", "service-slot", conv)
+>       assert "appointment" in second["trace"] and "knowledge" not in second["trace"]
+E       AssertionError: assert ('appointment' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_agent_boundaries.py:142: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+____________ test_sales_question_ending_with_thoi_is_not_cancelled _____________
+
+client = <starlette.testclient.TestClient object at 0x7f21f94a7680>
+
+    def test_sales_question_ending_with_thoi_is_not_cancelled(client):
+        result = chat(client, "Cho mình hỏi giá xe Foton Aumark thôi", "not-cancel")
+>       assert "sales" in result["trace"] and "đã dừng" not in result["reply"]
+E       AssertionError: assert ('sales' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_agent_boundaries.py:151: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+________________ test_technical_question_interrupts_appointment ________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f94a7ce0>
+
+    def test_technical_question_interrupts_appointment(client):
+        first = chat(client, "Mình muốn đặt lịch bảo dưỡng", "technical-interrupt")
+        result = chat(client, "Phanh kêu có nguy hiểm không?", "technical-interrupt", first["session_id"])
+>       assert "knowledge" in result["trace"] and "appointment" not in result["trace"]
+E       AssertionError: assert ('knowledge' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_agent_boundaries.py:157: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+________________ test_cancelled_booking_does_not_reuse_old_date ________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9f1e360>
+
+    def test_cancelled_booking_does_not_reuse_old_date(client):
+        first = chat(client, "Mình muốn đặt lịch bảo dưỡng ngày mai", "stale-date")
+        conv = first["session_id"]
+        chat(client, "Thôi không đặt nữa", "stale-date", conv)
+        assert not checkpoint(conv)["known_facts"].get("appointment_when")
+        result = chat(client, "Đặt lịch sửa xe 0912345678", "stale-date", conv)
+>       assert "ngày giờ" in result["reply"] and "ghi nhận lịch hẹn" not in result["reply"]
+E       AssertionError: assert ('ngày giờ' in 'Dạ, mình chưa hiểu rõ ý bạn lắm ạ. Bạn nói rõ hơn giúp mình được không ạ?')
+
+tests/test_agent_boundaries.py:166: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+There is no LLM!!!!
+_____________________ test_contract_slot_only_continuation _____________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9f1f240>
+
+    def test_contract_slot_only_continuation(client):
+        first = chat(client, "Mình muốn chốt mua xe", "contract-slots")
+        assert "sales" not in first["trace"]
+        second = chat(client, "0912345678", "contract-slots", first["session_id"])
+>       assert "contract" in second["trace"]
+E       AssertionError: assert 'contract' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...]
+
+tests/test_agent_boundaries.py:174: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+___________________ test_contract_and_fee_question_same_turn ___________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9f1e580>
+
+    def test_contract_and_fee_question_same_turn(client):
+        result = chat(client, "Mình chốt mua Foton Aumark, phí trước bạ bao nhiêu", "contract-clause")
+>       assert {"contract", "sales"} <= set(result["trace"]) and "human_handover" not in result["trace"]
+E       AssertionError: assert ({'contract', 'sales'} <= {'compose', '...process', ...}
+E         
+E         Extra items in the left set:
+E         'sales'
+E         'contract')
+
+tests/test_agent_boundaries.py:180: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+__________________ test_partial_handover_keeps_other_answers ___________________
+
+client = <starlette.testclient.TestClient object at 0x7f21fa8a06b0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21f9f70c50>
+
+    def test_partial_handover_keeps_other_answers(client, monkeypatch):
+        monkeypatch.setattr(get_services().knowledge, "retrieve", Mock(return_value=[]))
+        result = chat(client, "Giá xe Foton Aumark bao nhiêu, còn phanh kêu là tại sao", "partial")
+>       assert {"sales", "knowledge", "human_handover"} <= set(result["trace"])
+E       AssertionError: assert {'human_hando...dge', 'sales'} <= {'compose', '...process', ...}
+E         
+E         Extra items in the left set:
+E         'knowledge'
+E         'sales'
+E         'human_handover'
+
+tests/test_agent_boundaries.py:186: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_____________________ test_agents_receive_their_own_clause _____________________
+
+client = <starlette.testclient.TestClient object at 0x7f21fa8a1e10>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21fab49a90>
+
+    def test_agents_receive_their_own_clause(client, monkeypatch):
+        retrieve = Mock(wraps=get_services().knowledge.retrieve)
+        monkeypatch.setattr(get_services().knowledge, "retrieve", retrieve)
+        search = Mock(wraps=get_services().product.search)
+        monkeypatch.setattr(get_services().product, "search", search)
+        result = chat(client, "Giá xe tải Foton bao nhiêu, còn phanh kêu là tại sao", "clauses")
+>       assert {"sales", "knowledge"} <= set(result["trace"])
+E       AssertionError: assert {'knowledge', 'sales'} <= {'compose', '...process', ...}
+E         
+E         Extra items in the left set:
+E         'knowledge'
+E         'sales'
+
+tests/test_agent_boundaries.py:199: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_____________ test_human_modes_bypass_graph_and_keep_inbox[False] ______________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9ec3ce0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21f9f36030>
+claimed = False
+
+    @pytest.mark.parametrize("claimed", [False, True])
+    def test_human_modes_bypass_graph_and_keep_inbox(client, monkeypatch, claimed):
+        token = f"bypass-{claimed}"
+        first = chat(client, "Mình muốn gặp nhân viên", token)
+        conv = first["session_id"]
+        with SessionLocal() as db:
+>           task_id = db.query(HandoverTicket).filter_by(session_id=conv).one().id
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_agent_boundaries.py:212: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/sqlalchemy/orm/query.py:2872: in one
+    return self._iter().one()  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.14/site-packages/sqlalchemy/engine/result.py:1421: in one
+    return self._only_one_row(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   sqlalchemy.exc.NoResultFound: No row was found when one was required
+
+lib/sqlalchemy/engine/_result_cy.py:539: NoResultFound
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+______________ test_human_modes_bypass_graph_and_keep_inbox[True] ______________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9f1c8d0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21f83cf930>
+claimed = True
+
+    @pytest.mark.parametrize("claimed", [False, True])
+    def test_human_modes_bypass_graph_and_keep_inbox(client, monkeypatch, claimed):
+        token = f"bypass-{claimed}"
+        first = chat(client, "Mình muốn gặp nhân viên", token)
+        conv = first["session_id"]
+        with SessionLocal() as db:
+>           task_id = db.query(HandoverTicket).filter_by(session_id=conv).one().id
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_agent_boundaries.py:212: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/sqlalchemy/orm/query.py:2872: in one
+    return self._iter().one()  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.14/site-packages/sqlalchemy/engine/result.py:1421: in one
+    return self._only_one_row(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   sqlalchemy.exc.NoResultFound: No row was found when one was required
+
+lib/sqlalchemy/engine/_result_cy.py:539: NoResultFound
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_________________________ test_after_sales_empty_stub __________________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9f1e7a0>
+
+    def test_after_sales_empty_stub(client):
+        result = chat(client, "Lần trước xưởng làm gì cho xe mình", "history-empty")
+>       assert "after_sales" in result["trace"] and result["trace"][-3:] == ["compose", "output_guard", "respond"]
+E       AssertionError: assert ('after_sales' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_agent_boundaries.py:233: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+______________ test_after_sales_reads_service_and_formats_records ______________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9ec2470>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21f8bb5a90>
+
+    def test_after_sales_reads_service_and_formats_records(client, monkeypatch):
+        service = Mock()
+        service.get_history.return_value = [ServiceRecord(id=1, service_date="2026-10-01", service_type="MAINTENANCE",
+                                                         description="Thay dầu động cơ", cost_vnd=1200000)]
+        monkeypatch.setattr(get_services(), "after_sales", service)
+        result = chat(client, "Cho mình xem lịch sử bảo dưỡng", "history-records")
+>       assert "after_sales" in result["trace"] and "knowledge" not in result["trace"]
+E       AssertionError: assert ('after_sales' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_agent_boundaries.py:244: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+__________________ test_after_sales_complaint_still_escalates __________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9f1c9e0>
+
+    def test_after_sales_complaint_still_escalates(client):
+        result = chat(client, "Khiếu nại lần trước sửa xe không tốt", "history-complaint")
+>       assert "human_handover" in result["trace"] and "after_sales" not in result["trace"]
+E       AssertionError: assert ('human_handover' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_agent_boundaries.py:251: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+___________________ test_policy_records_all_handover_reasons ___________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9f1f130>
+
+    def test_policy_records_all_handover_reasons(client):
+        result = chat(client, "Cho mình gặp nhân viên, giảm giá được không", "all-reasons")
+        with SessionLocal() as db:
+>           task = db.query(HandoverTicket).filter_by(session_id=result["session_id"]).one()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_agent_boundaries.py:257: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/sqlalchemy/orm/query.py:2872: in one
+    return self._iter().one()  # type: ignore[return-value]
+           ^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.14/site-packages/sqlalchemy/engine/result.py:1421: in one
+    return self._only_one_row(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   sqlalchemy.exc.NoResultFound: No row was found when one was required
+
+lib/sqlalchemy/engine/_result_cy.py:539: NoResultFound
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_________ test_router_uses_canonical_workflow_and_pending_interaction __________
+
+    def test_router_uses_canonical_workflow_and_pending_interaction():
+        task = TaskInterpretation(task_id="appointment", domain=Intent.APPOINTMENT, action="book_appointment",
+                                  text="đặt lịch", relationship=TaskRelationship.NEW_REQUEST)
+        update = router({"user_text": "đặt lịch", "conversation_interpretation":
+                         ConversationInterpretation(message_summary="Đặt lịch.", tasks=[task])})
+        assert update["planned_agents"] == ["appointment"]
+>       assert update["active_workflow"]["workflow_type"] == "appointment"
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'active_workflow'
+
+tests/test_agent_boundaries.py:306: KeyError
+____________ test_tc04_explicit_request_enters_flow_and_keeps_date _____________
+
+client = <starlette.testclient.TestClient object at 0x7f21f94a7bd0>
+
+    def test_tc04_explicit_request_enters_flow_and_keeps_date(client):
+        conv = Conversation(client, "tc04")
+        result = conv.say(TC04)
+        state = conv.state
+>       assert "appointment" in result["trace"]
+E       AssertionError: assert 'appointment' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...]
+
+tests/test_conv_booking.py:35: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_______________________ test_tc04_does_not_reask_service _______________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f94a7ac0>
+
+    def test_tc04_does_not_reask_service(client):
+        conv = Conversation(client, "tc04-service")
+        result = conv.say(TC04)
+>       assert _fact(conv.state, "service_type") and SERVICE_ASK not in result["reply"]
+E       AssertionError: assert (None)
+E        +  where None = _fact({'session_id': 'tc04-service-88058c6810cf', 'customer_id': None, 'customer_profile': None, 'user_text': 'Tôi muốn đặt lịch kiểm tra điều hòa ô tô vào ngày mai.', ...}, 'service_type')
+E        +    where {'session_id': 'tc04-service-88058c6810cf', 'customer_id': None, 'customer_profile': None, 'user_text': 'Tôi muốn đặt lịch kiểm tra điều hòa ô tô vào ngày mai.', ...} = <tests.conversation_helpers.Conversation object at 0x7f21fabd2c10>.state
+
+tests/test_conv_booking.py:44: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+___________ test_tc05_full_request_unknown_customer_asks_only_phone ____________
+
+client = <starlette.testclient.TestClient object at 0x7f21fa95b8a0>
+
+    def test_tc05_full_request_unknown_customer_asks_only_phone(client):
+        conv = Conversation(client, "tc05")
+        result = conv.say(TC05)
+>       assert _fact(conv.state, "service_type") == "MAINTENANCE" and "ngày mai" in _fact(conv.state, "appointment_when")
+E       AssertionError: assert (None == 'MAINTENANCE')
+E        +  where None = _fact({'session_id': 'tc05-955e10a80ef5', 'customer_id': None, 'customer_profile': None, 'user_text': 'Tôi muốn đặt lịch thay dầu vào ngày mai lúc 10 giờ sáng.', ...}, 'service_type')
+E        +    where {'session_id': 'tc05-955e10a80ef5', 'customer_id': None, 'customer_profile': None, 'user_text': 'Tôi muốn đặt lịch thay dầu vào ngày mai lúc 10 giờ sáng.', ...} = <tests.conversation_helpers.Conversation object at 0x7f21f9ed5590>.state
+
+tests/test_conv_booking.py:51: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+__________________________ test_tc05_keeps_exact_time __________________________
+
+client = <starlette.testclient.TestClient object at 0x7f21facff680>
+
+    def test_tc05_keeps_exact_time(client):
+        conv = Conversation(client, "tc05-time")
+        conv.say(TC05)
+>       assert "10" in _fact(conv.state, "appointment_when")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: argument of type 'NoneType' is not a container or iterable
+
+tests/test_conv_booking.py:60: TypeError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+______________ test_tc05_known_phone_books_once_pending_approval _______________
+
+client = <starlette.testclient.TestClient object at 0x7f21facfe9c0>
+
+    def test_tc05_known_phone_books_once_pending_approval(client):
+        conv = Conversation(client, "tc05-known")
+        phone = unique_phone()
+        conv.say(f"Số điện thoại của mình là {phone}")
+        result = conv.say(TC05)
+        assert not mentions(result["reply"], PHONE_ASK + DATE_ASK)
+>       [row] = conv.appointments()
+        ^^^^^
+E       ValueError: not enough values to unpack (expected 1, got 0)
+
+tests/test_conv_booking.py:69: ValueError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+______________ test_tc05_failed_booking_is_not_reported_as_booked ______________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9f1d7b0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21f90af5b0>
+
+    def test_tc05_failed_booking_is_not_reported_as_booked(client, monkeypatch):
+        rejected = BookingResult(ok=False, status="REJECTED", message="Số điện thoại chưa hợp lệ.")
+        monkeypatch.setattr(get_services().booking, "create_appointment", Mock(return_value=rejected))
+        conv = Conversation(client, "tc05-fail")
+        conv.say(f"Số điện thoại của mình là {unique_phone()}")
+        result = conv.say(TC05)
+>       assert BOOKED not in result["reply"] and _workflow(conv.state) == "appointment"
+E       AssertionError: assert ('ghi nhận lịch hẹn' not in 'Dạ, mình ch...ược không ạ?'
+E         
+E         'ghi nhận lịch hẹn' is contained here:
+E           ợc không ạ? and None == 'appointment')
+E        +  where None = _workflow({'session_id': 'tc05-fail-275da01d174d', 'customer_id': None, 'customer_profile': {'name': None, 'phone': '+84997969344'}, 'user_text': 'Tôi muốn đặt lịch thay dầu vào ngày mai lúc 10 giờ sáng.', ...})
+E        +    where {'session_id': 'tc05-fail-275da01d174d', 'customer_id': None, 'customer_profile': {'name': None, 'phone': '+84997969344'}, 'user_text': 'Tôi muốn đặt lịch thay dầu vào ngày mai lúc 10 giờ sáng.', ...} = <tests.conversation_helpers.Conversation object at 0x7f21f9fc4710>.state
+
+tests/test_conv_booking.py:82: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+_________________ test_tc06_second_turn_keeps_booking_context __________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9f1caf0>
+
+    def test_tc06_second_turn_keeps_booking_context(client):
+        conv = Conversation(client, "tc06")
+        first = conv.say(TC06[0])
+>       assert _workflow(conv.state) == "appointment"
+E       AssertionError: assert None == 'appointment'
+E        +  where None = _workflow({'session_id': 'tc06-fb5b6b7a02fa', 'customer_id': None, 'customer_profile': None, 'user_text': 'Tôi muốn đặt lịch bảo dưỡng xe vào ngày mai.', ...})
+E        +    where {'session_id': 'tc06-fb5b6b7a02fa', 'customer_id': None, 'customer_profile': None, 'user_text': 'Tôi muốn đặt lịch bảo dưỡng xe vào ngày mai.', ...} = <tests.conversation_helpers.Conversation object at 0x7f21f94a7460>.state
+
+tests/test_conv_booking.py:90: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+___________________ test_tc06_time_answer_fills_pending_slot ___________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9f1cd10>
+
+    def test_tc06_time_answer_fills_pending_slot(client):
+        conv = Conversation(client, "tc06-slot")
+        conv.say(TC06[0])
+        second = conv.say(TC06[1])
+>       assert "appointment" in second["trace"] and NOT_UNDERSTOOD not in second["reply"].lower()
+E       AssertionError: assert ('appointment' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_conv_booking.py:105: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+________ test_tc07_cancel_incomplete_booking_clears_only_booking_state _________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9f1e030>
+
+    def test_tc07_cancel_incomplete_booking_clears_only_booking_state(client):
+        conv = Conversation(client, "tc07")
+        customer = conv.link_customer(unique_phone())
+        first = conv.say(TC07[0])
+>       assert _workflow(conv.state) == "appointment" and mentions(first["reply"], DATE_ASK + PHONE_ASK)
+E       AssertionError: assert (None == 'appointment')
+E        +  where None = _workflow({'session_id': 'tc07-09db4c4f6b5f', 'customer_id': None, 'customer_profile': {'name': None, 'phone': '+84974727109'}, 'user_text': 'Tôi muốn đặt lịch bảo dưỡng vào ngày mai.', ...})
+E        +    where {'session_id': 'tc07-09db4c4f6b5f', 'customer_id': None, 'customer_profile': {'name': None, 'phone': '+84974727109'}, 'user_text': 'Tôi muốn đặt lịch bảo dưỡng vào ngày mai.', ...} = <tests.conversation_helpers.Conversation object at 0x7f21f9f31b50>.state
+
+tests/test_conv_booking.py:114: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+__________________ test_tc11_short_reply_stays_in_brake_topic __________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9f1dd00>
+
+    def test_tc11_short_reply_stays_in_brake_topic(client):
+        conv = Conversation(client, "tc11")
+        first = conv.say(TC11[0])
+        second = conv.say(TC11[1])
+        for result in (first, second):
+>           assert "knowledge" in result["trace"] and "appointment" not in result["trace"]
+E           AssertionError: assert ('knowledge' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_conv_context.py:30: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+_____________ test_tc12_price_question_pauses_and_resumes_booking ______________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9f1dbf0>
+
+    def test_tc12_price_question_pauses_and_resumes_booking(client):
+        conv = Conversation(client, "tc12")
+        first = conv.say(TC12[0])
+>       assert mentions(first["reply"], DATE_ASK) and _workflow(conv.state) == "appointment"
+E       AssertionError: assert (False)
+E        +  where False = mentions('Dạ, mình chưa hiểu rõ ý bạn lắm ạ. Bạn nói rõ hơn giúp mình được không ạ?', ('ngày giờ', 'giờ nào', 'ngày nào', 'mấy giờ'))
+
+tests/test_conv_context.py:48: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+______________ test_tc12_oil_change_price_is_not_a_vehicle_price _______________
+[XPASS(strict)] DEFECT-12: sales trả giá xe tải nguyên chiếc (≥ 9 chữ số) cho câu hỏi giá thay dầu
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+________________ test_tc13_says_availability_needs_verification ________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9041370>
+
+    def test_tc13_says_availability_needs_verification(client):
+        reply = Conversation(client, "tc13-verify").say(TC13)["reply"].lower()
+>       assert NOT_UNDERSTOOD not in reply and mentions(reply, ("kiểm tra", "xác nhận", "hotline", "nhân viên"))
+E       AssertionError: assert ('chưa hiểu' not in 'dạ, mình ch...ược không ạ?'
+E         
+E         'chưa hiểu' is contained here:
+E           dạ, mình chưa hiểu rõ ý bạn lắm ạ. bạn nói rõ hơn giúp mình được không ạ?
+E         ?          +++++++++)
+
+tests/test_conv_context.py:81: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_______________________ test_conversations_are_isolated ________________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9042580>
+
+    def test_conversations_are_isolated(client):
+        booking, other = Conversation(client, "iso-a"), Conversation(client, "iso-b")
+        booking.say(TC12[0])
+        result = other.say("Sáng thứ 7")  # phiên khác không đang đặt lịch
+        assert "appointment" not in result["trace"] and _workflow(other.state) is None
+>       assert _workflow(booking.state) == "appointment"
+E       AssertionError: assert None == 'appointment'
+E        +  where None = _workflow({'session_id': 'iso-a-53ab087d6015', 'customer_id': None, 'customer_profile': None, 'user_text': 'Tôi muốn đặt lịch bảo dưỡng xe.', ...})
+E        +    where {'session_id': 'iso-a-53ab087d6015', 'customer_id': None, 'customer_profile': None, 'user_text': 'Tôi muốn đặt lịch bảo dưỡng xe.', ...} = <tests.conversation_helpers.Conversation object at 0x7f21f9333850>.state
+
+tests/test_conv_context.py:115: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+__________________ test_ordinal_follow_up_keeps_vehicle_list ___________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f90438a0>
+llm = <tests.test_conv_history.FakeLLM object at 0x7f21f8f85a70>
+
+    def test_ordinal_follow_up_keeps_vehicle_list(client, llm):
+        sid = new_session()
+        listing = say(client, llm, sid, "Cho mình xem danh sách các mẫu xe")["reply"]
+        with SessionLocal() as db:
+            names = [n for (n,) in db.query(CatalogProduct.name)]
+>       assert sum(name in listing for name in names) >= 2  # bot đã hiển thị danh sách xe
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       assert 0 >= 2
+E        +  where 0 = sum(<generator object test_ordinal_follow_up_keeps_vehicle_list.<locals>.<genexpr> at 0x7f21fabb7220>)
+
+tests/test_conv_history.py:107: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+____________________ test_tc01_answers_the_service_question ____________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9f1ce20>
+
+    def test_tc01_answers_the_service_question(client):
+        reply = Conversation(client, "tc01-answer").say(TC01)["reply"]
+>       assert NOT_UNDERSTOOD not in reply.lower()
+E       AssertionError: assert 'chưa hiểu' not in 'dạ, mình ch...ược không ạ?'
+E         
+E         'chưa hiểu' is contained here:
+E           dạ, mình chưa hiểu rõ ý bạn lắm ạ. bạn nói rõ hơn giúp mình được không ạ?
+E         ?          +++++++++
+
+tests/test_conv_inquiry.py:35: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+______________________ test_tc02_acknowledges_the_damage _______________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9040c00>
+
+    def test_tc02_acknowledges_the_damage(client):
+        reply = Conversation(client, "tc02-ack").say(TC02)["reply"]
+>       assert NOT_UNDERSTOOD not in reply.lower()
+E       AssertionError: assert 'chưa hiểu' not in 'dạ, mình ch...ược không ạ?'
+E         
+E         'chưa hiểu' is contained here:
+E           dạ, mình chưa hiểu rõ ý bạn lắm ạ. bạn nói rõ hơn giúp mình được không ạ?
+E         ?          +++++++++
+
+tests/test_conv_inquiry.py:55: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_______________ test_invalid_phone_reasks_phone_and_keeps_facts ________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9042140>
+
+    def test_invalid_phone_reasks_phone_and_keeps_facts(client):
+        conv = Conversation(client, "bad-phone")
+        conv.say(SHOWROOM)
+        conv.say(WHEN)
+        result = conv.say(ELEVEN_DIGITS)
+        state = conv.state
+>       assert "appointment" in result["trace"] and PHONE_INVALID in result["reply"]
+E       AssertionError: assert ('appointment' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_conv_pending.py:26: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+There is no LLM!!!!
+__________________ test_service_inquiry_leaves_offer_not_flow __________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9042cf0>
+
+    def test_service_inquiry_leaves_offer_not_flow(client):
+        conv = Conversation(client, "offer")
+        result = conv.say(TC01)
+        state = conv.state
+>       assert "conversation" in result["trace"] and NOT_UNDERSTOOD not in result["reply"].lower()
+E       AssertionError: assert ('conversation' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...] and 'chưa hiểu' not in 'dạ, mình ch...ược không ạ?'
+E         
+E         'chưa hiểu' is contained here:
+E           dạ, mình chưa hiểu rõ ý bạn lắm ạ. bạn nói rõ hơn giúp mình được không ạ?
+E         ?          +++++++++)
+
+tests/test_conv_policy.py:29: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+________ test_accepting_offer_with_time_enters_booking_without_creating ________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9042e00>
+
+    def test_accepting_offer_with_time_enters_booking_without_creating(client):
+        conv = Conversation(client, "offer-accept")
+        conv.say(TC01)
+        result = conv.say("Ngày mai lúc 10 giờ")
+        state = conv.state
+>       assert "appointment" in result["trace"] and _workflow(state) == "appointment"
+E       AssertionError: assert ('appointment' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_conv_policy.py:39: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+______ test_known_phone_offer_acceptance_asks_confirmation_before_booking ______
+
+client = <starlette.testclient.TestClient object at 0x7f21f9043ac0>
+
+    def test_known_phone_offer_acceptance_asks_confirmation_before_booking(client):
+        conv = Conversation(client, "offer-confirm")
+        conv.say(f"Số điện thoại của mình là {unique_phone()}")
+        conv.say(TC01)
+        tentative = conv.say("Ngày mai lúc 10 giờ")
+        assert BOOKED not in tentative["reply"] and conv.appointments() == []
+        confirmed = conv.say("Được")
+>       assert BOOKED in confirmed["reply"] and len(conv.appointments()) == 1
+E       AssertionError: assert ('ghi nhận lịch hẹn' in 'Dạ, mình chưa hiểu rõ ý bạn lắm ạ. Bạn nói rõ hơn giúp mình được không ạ?')
+
+tests/test_conv_policy.py:53: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+There is no LLM!!!!
+There is no LLM!!!!
+__________ test_tc15_switching_service_updates_context_keeps_identity __________
+
+client = <starlette.testclient.TestClient object at 0x7f21f90406b0>
+
+    def test_tc15_switching_service_updates_context_keeps_identity(client):
+        conv = Conversation(client, "tc15")
+        customer = conv.link_customer(unique_phone())
+        conv.say("Tôi muốn đặt lịch sửa kính chắn gió ngày mai.")
+>       assert _fact(conv.state, "service_detail") == "kính chắn gió"
+E       AssertionError: assert None == 'kính chắn gió'
+E        +  where None = _fact({'session_id': 'tc15-660ee995767c', 'customer_id': None, 'customer_profile': {'name': None, 'phone': '+84967045756'}, 'user_text': 'Tôi muốn đặt lịch sửa kính chắn gió ngày mai.', ...}, 'service_detail')
+E        +    where {'session_id': 'tc15-660ee995767c', 'customer_id': None, 'customer_profile': {'name': None, 'phone': '+84967045756'}, 'user_text': 'Tôi muốn đặt lịch sửa kính chắn gió ngày mai.', ...} = <tests.conversation_helpers.Conversation object at 0x7f21f91d68d0>.state
+
+tests/test_conv_policy.py:78: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+______________ test_tc16_booking_error_is_not_reported_as_booked _______________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9043ce0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21f9163690>
+
+    def test_tc16_booking_error_is_not_reported_as_booked(client, monkeypatch):
+        monkeypatch.setattr(get_services().booking, "create_appointment", Mock(side_effect=RuntimeError("db down")))
+        conv = Conversation(client, "tc16")
+        conv.say(f"Số điện thoại của mình là {unique_phone()}")
+        result = conv.say("Tôi muốn đặt lịch bảo dưỡng lúc 2 giờ chiều mai.")
+        state = conv.state
+>       assert BOOKED not in result["reply"] and "chưa xác nhận được" in result["reply"]
+E       AssertionError: assert ('ghi nhận lịch hẹn' not in 'Dạ, mình ch...ược không ạ?'
+E         
+E         'ghi nhận lịch hẹn' is contained here:
+E           ợc không ạ? and 'chưa xác nhận được' in 'Dạ, mình chưa hiểu rõ ý bạn lắm ạ. Bạn nói rõ hơn giúp mình được không ạ?')
+
+tests/test_conv_policy.py:92: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+_______________ test_tc12_price_interrupt_keeps_pending_booking ________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9042690>
+
+    def test_tc12_price_interrupt_keeps_pending_booking(client):
+        conv = Conversation(client, "tc12-policy")
+        conv.say("Tôi muốn đặt lịch bảo dưỡng ngày mai.")
+        result = conv.say("Nhân tiện, thay dầu cho Foton Aumark hết bao nhiêu tiền?")
+        state = conv.state
+>       assert "appointment" not in result["trace"] and _workflow(state) == "appointment"
+E       AssertionError: assert ('appointment' not in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...] and None == 'appointment')
+E        +  where None = _workflow({'session_id': 'tc12-policy-1ae2678bedba', 'customer_id': None, 'customer_profile': None, 'user_text': 'Nhân tiện, thay dầu cho Foton Aumark hết bao nhiêu tiền?', ...})
+
+tests/test_conv_policy.py:103: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+_________________ test_tc09_purchase_discount_goes_to_manager __________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f90405a0>
+
+    def test_tc09_purchase_discount_goes_to_manager(client):
+        conv = Conversation(client, "tc09-buy")
+        result = conv.say("Nếu mua xe thì bên mình giảm giá cho tôi 15% được không?")
+>       assert result["mode"] == "HUMAN_PENDING" and "human_handover" in result["trace"]
+E       AssertionError: assert ('BOT' == 'HUMAN_PENDING'
+E         
+E         - HUMAN_PENDING
+E         + BOT)
+
+tests/test_conv_policy.py:110: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+____________________ test_tc06_short_time_reply_fills_slot _____________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f90419d0>
+
+    def test_tc06_short_time_reply_fills_slot(client):
+        conv = Conversation(client, "tc06-short")
+        conv.say("Tôi muốn đặt lịch bảo dưỡng vào ngày mai.")
+        result = conv.say("Khoảng 10 giờ sáng.")
+>       assert "appointment" in result["trace"] and NOT_UNDERSTOOD not in result["reply"].lower()
+E       AssertionError: assert ('appointment' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_conv_policy.py:118: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+___ test_appointment_deferral_does_not_create_a_question_before_writer_runs ____
+
+client = <starlette.testclient.TestClient object at 0x7f21f9042be0>
+
+    def test_appointment_deferral_does_not_create_a_question_before_writer_runs(client):
+        conv = Conversation(client, "deferred-appointment")
+        result = conv.say("Mình chốt mua xe, đặt lịch qua showroom xem xe nữa")
+>       assert "contract" in result["trace"] and "appointment" not in result["trace"]
+E       AssertionError: assert ('contract' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_conv_policy.py:126: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+____ test_two_writers_deferred_appointment_asks_phone_after_slots_available ____
+
+client = <starlette.testclient.TestClient object at 0x7f21f9042ad0>
+
+    def test_two_writers_deferred_appointment_asks_phone_after_slots_available(client):
+        conv = Conversation(client, "deferred-with-phone")
+        result = conv.say(f"Mình chốt mua xe, đặt lịch qua showroom xem xe nữa, số điện thoại {unique_phone()}")
+>       assert "contract" in result["trace"] and "appointment" not in result["trace"]
+E       AssertionError: assert ('contract' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_conv_policy.py:139: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+______________ test_tc06_short_time_reply_does_not_claim_booking _______________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9043f00>
+
+    def test_tc06_short_time_reply_does_not_claim_booking(client):
+        conv = Conversation(client, "tc06-short-no-book")
+        conv.say("Tôi muốn đặt lịch bảo dưỡng vào ngày mai.")
+        result = conv.say("Khoảng 10 giờ sáng.")
+        assert BOOKED not in result["reply"] and conv.appointments() == []
+>       assert _open_pending(conv.state)
+E       AssertionError: assert []
+E        +  where [] = _open_pending({'session_id': 'tc06-short-no-book-f1f4f02753c9', 'customer_id': None, 'customer_profile': None, 'user_text': 'Khoảng 10 giờ sáng.', ...})
+E        +    where {'session_id': 'tc06-short-no-book-f1f4f02753c9', 'customer_id': None, 'customer_profile': None, 'user_text': 'Khoảng 10 giờ sáng.', ...} = <tests.conversation_helpers.Conversation object at 0x7f21f8b7c530>.state
+
+tests/test_conv_policy.py:165: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+_______ test_waiting_appointment_pending_interaction_tracks_missing_slot _______
+
+client = <starlette.testclient.TestClient object at 0x7f21f9042f10>
+
+    def test_waiting_appointment_pending_interaction_tracks_missing_slot(client):
+        conv = Conversation(client, "pending-appointment")
+        conv.say("Tôi muốn đặt lịch bảo dưỡng ngày mai.")
+        pending = _open_pending(conv.state)
+>       assert pending and pending[-1].metadata["missing_slots"] == ["customer_phone"]
+E       assert ([])
+
+tests/test_conv_policy.py:172: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_____________ test_booking_service_error_does_not_expose_exception _____________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9041f20>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21fa9a20b0>
+
+    def test_booking_service_error_does_not_expose_exception(client, monkeypatch):
+        monkeypatch.setattr(get_services().booking, "create_appointment", Mock(side_effect=RuntimeError("private failure")))
+        conv = Conversation(client, "safe-booking-error")
+        conv.say(f"Số điện thoại {unique_phone()}")
+        reply = conv.say("Đặt lịch bảo dưỡng ngày mai")
+        assert "private failure" not in reply["reply"]
+>       assert "hotline" in reply["reply"]
+E       AssertionError: assert 'hotline' in 'Dạ, mình chưa hiểu rõ ý bạn lắm ạ. Bạn nói rõ hơn giúp mình được không ạ?'
+
+tests/test_conv_policy.py:186: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+____________ test_offer_acceptance_is_stored_as_pending_interaction ____________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9043bd0>
+
+    def test_offer_acceptance_is_stored_as_pending_interaction(client):
+        conv = Conversation(client, "canonical-offer")
+        conv.say(TC01)
+>       assert any(item.kind.value == "OFFER" for item in _open_pending(conv.state))
+E       assert False
+E        +  where False = any(<generator object test_offer_acceptance_is_stored_as_pending_interaction.<locals>.<genexpr> at 0x7f21f9038790>)
+
+tests/test_conv_policy.py:192: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+____________________ test_pending_questions_are_structured _____________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9042f10>
+
+    def test_pending_questions_are_structured(client):
+        conv = Conversation(client, "structured-question")
+        conv.say("Đặt lịch bảo dưỡng ngày mai")
+        pending = _open_pending(conv.state)
+>       assert pending and pending[-1].kind.value == "QUESTION"
+E       assert ([])
+
+tests/test_conv_policy.py:237: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+____ test_appointment_writer_is_only_run_after_deferred_request_is_selected ____
+
+client = <starlette.testclient.TestClient object at 0x7f21f9041bf0>
+
+    def test_appointment_writer_is_only_run_after_deferred_request_is_selected(client):
+        conv = Conversation(client, "deferred-writer-trace")
+        first = conv.say("Mình chốt mua xe, đặt lịch qua showroom xem xe nữa")
+        assert "appointment" not in first["trace"]
+        second = conv.say("Được")
+>       assert "appointment" in second["trace"]
+E       AssertionError: assert 'appointment' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...]
+
+tests/test_conv_policy.py:252: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+___________ test_two_writer_deferral_preserves_appointment_workflow ____________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9041480>
+
+    def test_two_writer_deferral_preserves_appointment_workflow(client):
+        conv = Conversation(client, "deferred-workflow")
+        conv.say("Mình chốt mua xe, đặt lịch qua showroom xem xe nữa")
+        workflow = conv.state.get("active_workflow")
+>       assert workflow and workflow.workflow_type == "appointment"
+E       assert (None)
+
+tests/test_conv_policy.py:259: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_________________ test_canonical_workflow_status_after_booking _________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9042470>
+
+    def test_canonical_workflow_status_after_booking(client):
+        conv = Conversation(client, "workflow-after-booking")
+        conv.say(f"Tôi muốn đặt lịch bảo dưỡng ngày mai, số điện thoại {unique_phone()}")
+        workflow = conv.state.get("active_workflow")
+>       assert workflow and workflow.status.value == "WAITING_FOR_APPROVAL"
+E       assert (None)
+
+tests/test_conv_policy.py:286: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+__________________ test_appointment_failure_keeps_known_facts __________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f90427a0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21f91a9010>
+
+    def test_appointment_failure_keeps_known_facts(client, monkeypatch):
+        monkeypatch.setattr(get_services().booking, "create_appointment", Mock(side_effect=RuntimeError("db down")))
+        conv = Conversation(client, "failure-keeps-facts")
+        phone = unique_phone()
+        conv.say(f"Số điện thoại {phone}")
+        conv.say("Đặt lịch bảo dưỡng ngày mai")
+>       assert _fact(conv.state, "appointment_when") == "ngày mai"
+E       AssertionError: assert None == 'ngày mai'
+E        +  where None = _fact({'session_id': 'failure-keeps-facts-b4d9d4a8c718', 'customer_id': None, 'customer_profile': {'name': None, 'phone': '+84984187985'}, 'user_text': 'Đặt lịch bảo dưỡng ngày mai', ...}, 'appointment_when')
+E        +    where {'session_id': 'failure-keeps-facts-b4d9d4a8c718', 'customer_id': None, 'customer_profile': {'name': None, 'phone': '+84984187985'}, 'user_text': 'Đặt lịch bảo dưỡng ngày mai', ...} = <tests.conversation_helpers.Conversation object at 0x7f21f8e9b470>.state
+
+tests/test_conv_policy.py:314: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+________ test_appointment_pending_question_is_current_after_time_update ________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9040c00>
+
+    def test_appointment_pending_question_is_current_after_time_update(client):
+        conv = Conversation(client, "pending-time-update")
+        conv.say("Đặt lịch bảo dưỡng ngày mai")
+        conv.say("Đổi sang thứ 7")
+        pending = _open_pending(conv.state)
+>       assert pending and "số điện thoại" in pending[-1].text.lower()
+E       assert ([])
+
+tests/test_conv_policy.py:333: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+______________ test_temporary_pending_items_expire_when_replaced _______________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9043020>
+
+    def test_temporary_pending_items_expire_when_replaced(client):
+        conv = Conversation(client, "pending-replaced")
+        conv.say("Đặt lịch bảo dưỡng")
+        conv.say("Ngày mai")
+        statuses = [item.status.value for item in conv.state["pending_interactions"]]
+>       assert "EXPIRED" in statuses or "OPEN" in statuses
+E       AssertionError: assert ('EXPIRED' in [] or 'OPEN' in [])
+
+tests/test_conv_policy.py:357: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+__________________________ test_tc08_routes_to_sales ___________________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f90408d0>
+
+    def test_tc08_routes_to_sales(client):
+        result = Conversation(client, "tc08-sales").say(TC08)
+>       assert "sales" in result["trace"] and NOT_UNDERSTOOD not in result["reply"].lower()
+E       AssertionError: assert ('sales' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_conv_sales.py:30: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+___________ test_tc09_discount_request_goes_to_human_without_promise ___________
+
+client = <starlette.testclient.TestClient object at 0x7f21f90405a0>
+
+    def test_tc09_discount_request_goes_to_human_without_promise(client):
+        conv = Conversation(client, "tc09")
+        result = conv.say(TC09)
+>       assert result["mode"] == "HUMAN_PENDING" and "human_handover" in result["trace"]
+E       AssertionError: assert ('BOT' == 'HUMAN_PENDING'
+E         
+E         - HUMAN_PENDING
+E         + BOT)
+
+tests/test_conv_sales.py:37: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+________________ test_tc09_persuasion_is_recognised_as_discount ________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9043680>
+
+    def test_tc09_persuasion_is_recognised_as_discount(client):
+        result = Conversation(client, "tc09-persuade").say("Nhân viên hứa giảm 15% rồi, bạn xác nhận giúp mình nhé")
+>       assert "conversation" not in result["trace"] and result["mode"] == "HUMAN_PENDING"
+E       AssertionError: assert ('conversation' not in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_conv_sales.py:60: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+____________ test_broad_purchase_asks_intended_use_without_products ____________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9043240>
+
+    def test_broad_purchase_asks_intended_use_without_products(client):
+        conv = Conversation(client, "buy")
+        result = conv.say(BUY)
+>       assert "sales" in result["trace"] and not lists_products(result["reply"])
+E       AssertionError: assert ('sales' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_conv_sales_discovery.py:28: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+______________ test_short_answer_continues_sales_in_same_session _______________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9042250>
+
+    def test_short_answer_continues_sales_in_same_session(client):
+        conv = Conversation(client, "buy-answer")
+        conv.say(BUY)
+        result = conv.say("Chở hàng.")
+>       assert "sales" in result["trace"] and NOT_UNDERSTOOD not in result["reply"].lower()
+E       AssertionError: assert ('sales' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_conv_sales_discovery.py:38: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+______________________ test_purpose_variants_in_rule_mode ______________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9041150>
+
+    def test_purpose_variants_in_rule_mode(client):
+        for index, text in enumerate(("Để phục vụ gia đình.", "Tôi dùng để đi làm hằng ngày.", "Đi lại trong thành phố")):
+            conv = Conversation(client, f"variant{index}")
+            conv.say(BUY)
+            result = conv.say(text)
+>           assert "sales" in result["trace"] and NOT_UNDERSTOOD not in result["reply"].lower()
+E           AssertionError: assert ('sales' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_conv_sales_discovery.py:48: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+__________________ test_explicit_browse_is_stable_and_scoped ___________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f90438a0>
+
+    def test_explicit_browse_is_stable_and_scoped(client):
+        first = Conversation(client, "browse1").say("Cho tôi xem danh sách xe tải.")
+        second = Conversation(client, "browse2").say("Tôi muốn xem tất cả các mẫu xe bên mình")
+>       assert "sales" in first["trace"] and "55 mẫu xe tải" in first["reply"]
+E       AssertionError: assert ('sales' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_conv_sales_discovery.py:56: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+_____________________ test_browse_offer_accepted_with_yes ______________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9042690>
+
+    def test_browse_offer_accepted_with_yes(client):
+        conv = Conversation(client, "vios")
+        no_match = conv.say("Tôi muốn mua xe Toyota Vios")
+>       assert "chưa có mẫu" in no_match["reply"] and AMOUNT.findall(no_match["reply"]) == []
+E       AssertionError: assert ('chưa có mẫu' in 'Dạ, mình chưa hiểu rõ ý bạn lắm ạ. Bạn nói rõ hơn giúp mình được không ạ?')
+
+tests/test_conv_sales_discovery.py:64: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+__________________________ test_specific_model_lookup __________________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9040380>
+
+    def test_specific_model_lookup(client):
+        result = Conversation(client, "fuso").say("Tôi muốn tìm xe FUSO Canter FI170")
+>       assert "fuso canter fi170" in result["reply"].lower() and unsupported_amounts(result["reply"]) == []
+E       AssertionError: assert ('fuso canter fi170' in 'dạ, mình chưa hiểu rõ ý bạn lắm ạ. bạn nói rõ hơn giúp mình được không ạ?')
+E        +  where 'dạ, mình chưa hiểu rõ ý bạn lắm ạ. bạn nói rõ hơn giúp mình được không ạ?' = <built-in method lower of str object at 0x7f21f8c05620>()
+E        +    where <built-in method lower of str object at 0x7f21f8c05620> = 'Dạ, mình chưa hiểu rõ ý bạn lắm ạ. Bạn nói rõ hơn giúp mình được không ạ?'.lower
+
+tests/test_conv_sales_discovery.py:72: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_____________________ test_budget_and_popular_not_blocked ______________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f90439b0>
+
+    def test_budget_and_popular_not_blocked(client):
+        budget = Conversation(client, "budget").say("Ngân sách của tôi là 500 triệu")
+>       assert "sales" in budget["trace"] and AMOUNT.findall(budget["reply"])
+E       AssertionError: assert ('sales' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_conv_sales_discovery.py:77: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+____________________ test_requirements_persist_and_correct _____________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f90417b0>
+
+    def test_requirements_persist_and_correct(client):
+        conv = Conversation(client, "persist")
+        conv.say(BUY)
+        conv.say("Chở hàng")
+        conv.say("Ngân sách 700 triệu")
+>       assert _fact(conv.state, "intended_use") == "Chở hàng"
+E       AssertionError: assert None == 'Chở hàng'
+E        +  where None = _fact({'session_id': 'persist-f3ba3f13b233', 'customer_id': None, 'customer_profile': None, 'user_text': 'Ngân sách 700 triệu', ...}, 'intended_use')
+E        +    where {'session_id': 'persist-f3ba3f13b233', 'customer_id': None, 'customer_profile': None, 'user_text': 'Ngân sách 700 triệu', ...} = <tests.conversation_helpers.Conversation object at 0x7f21f93688f0>.state
+
+tests/test_conv_sales_discovery.py:96: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+There is no LLM!!!!
+__________________ test_unsure_is_not_a_comprehension_failure __________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9040f30>
+
+    def test_unsure_is_not_a_comprehension_failure(client):
+        conv = Conversation(client, "unsure")
+        conv.say(BUY)
+        result = conv.say("Tôi chưa biết")
+>       assert "sales" in result["trace"] and NOT_UNDERSTOOD not in result["reply"].lower()
+E       AssertionError: assert ('sales' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_conv_sales_discovery.py:126: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+_______________ test_sales_plus_showroom_visit_routes_both_tasks _______________
+
+client = <starlette.testclient.TestClient object at 0x7f21fa95b8a0>
+
+    def test_sales_plus_showroom_visit_routes_both_tasks(client):
+        conv = Conversation(client, "buy-drive")
+        result = conv.say("Tôi muốn mua xe và đặt lịch xem xe tại showroom")
+>       assert {"sales", "appointment"} <= set(result["trace"])
+E       AssertionError: assert {'appointment', 'sales'} <= {'compose', '...process', ...}
+E         
+E         Extra items in the left set:
+E         'appointment'
+E         'sales'
+
+tests/test_conv_sales_discovery.py:133: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+__________ test_sales_question_keeps_booking_facts_of_active_workflow __________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9041040>
+
+    def test_sales_question_keeps_booking_facts_of_active_workflow(client):
+        conv = Conversation(client, "flow-keep")
+        conv.say("Tôi muốn đặt lịch bảo dưỡng ngày mai")
+        conv.say(BUY)
+>       assert _fact(conv.state, "service_type") == "MAINTENANCE"
+E       AssertionError: assert None == 'MAINTENANCE'
+E        +  where None = _fact({'session_id': 'flow-keep-c196de312157', 'customer_id': None, 'customer_profile': None, 'user_text': 'Tôi muốn mua xe.', ...}, 'service_type')
+E        +    where {'session_id': 'flow-keep-c196de312157', 'customer_id': None, 'customer_profile': None, 'user_text': 'Tôi muốn mua xe.', ...} = <tests.conversation_helpers.Conversation object at 0x7f21f8f4b650>.state
+
+tests/test_conv_sales_discovery.py:141: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+________________________ test_cancel_during_active_flow ________________________
+
+session_with_profile = 'test-conv-session'
+
+    def test_cancel_during_active_flow(session_with_profile):
+        """Cancel during appointment flow should route to conversation agent."""
+        graph = get_graph()
+    
+        # First, start an appointment flow
+        result1 = graph.invoke({
+            "session_id": session_with_profile,
+            "customer_id": None,
+            "user_text": "Đặt lịch bảo dưỡng",
+            "mode": "BOT"
+        }, {"configurable": {"thread_id": session_with_profile}})
+    
+>       assert "appointment" in result1["planned_agents"]
+E       AssertionError: assert 'appointment' in ['conversation']
+
+tests/test_conversation_agent.py:105: AssertionError
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_____________ test_appointment_keeps_name_and_does_not_ask_for_it ______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21faa1e120>
+
+    def test_appointment_keeps_name_and_does_not_ask_for_it(monkeypatch):
+        monkeypatch.setattr("app.agent.nodes.appointment.generate_with_tools", lambda *args, **kwargs: {})
+        text = "Em Lan muốn đặt lịch bảo dưỡng ngày mai"
+        interpretation = _interpretation(text, "Lan", evidence="Lan")
+        interpretation.slot_updates.extend([
+            SlotUpdate(key="service_type", operation=SlotOperation.SET, value="MAINTENANCE", evidence="bảo dưỡng"),
+            SlotUpdate(key="appointment_when", operation=SlotOperation.SET, value="ngày mai", evidence="ngày mai"),
+        ])
+        out = appointment({"user_text": text, "known_facts": {}, "conversation_interpretation": interpretation})
+>       assert out["known_facts"]["customer_name"].value == "Lan"
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'customer_name'
+
+tests/test_customer_name.py:87: KeyError
+_________ test_appointment_without_name_still_asks_only_required_slots _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21f9573cb0>
+
+    def test_appointment_without_name_still_asks_only_required_slots(monkeypatch):
+        monkeypatch.setattr("app.agent.nodes.appointment.generate_with_tools", lambda *args, **kwargs: {})
+        out = appointment({"user_text": "đặt lịch bảo dưỡng ngày mai", "known_facts": {}})
+>       assert "customer_name" not in out["pending_interactions"][-1].metadata["missing_slots"]
+                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'pending_interactions'
+
+tests/test_customer_name.py:95: KeyError
+________________________________ test_greeting _________________________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9043790>
+
+    def test_greeting(client):
+        r = chat(client, "Xin chào")
+>       assert "trợ lý" in r["reply"].lower() or "chào" in r["reply"].lower()
+E       AssertionError: assert ('trợ lý' in 'dạ, mình chưa hiểu rõ ý bạn lắm ạ. bạn nói rõ hơn giúp mình được không ạ?' or 'chào' in 'dạ, mình chưa hiểu rõ ý bạn lắm ạ. bạn nói rõ hơn giúp mình được không ạ?')
+E        +  where 'dạ, mình chưa hiểu rõ ý bạn lắm ạ. bạn nói rõ hơn giúp mình được không ạ?' = <built-in method lower of str object at 0x7f21f931cb90>()
+E        +    where <built-in method lower of str object at 0x7f21f931cb90> = 'Dạ, mình chưa hiểu rõ ý bạn lắm ạ. Bạn nói rõ hơn giúp mình được không ạ?'.lower
+E        +  and   'dạ, mình chưa hiểu rõ ý bạn lắm ạ. bạn nói rõ hơn giúp mình được không ạ?' = <built-in method lower of str object at 0x7f21f931cb90>()
+E        +    where <built-in method lower of str object at 0x7f21f931cb90> = 'Dạ, mình chưa hiểu rõ ý bạn lắm ạ. Bạn nói rõ hơn giúp mình được không ạ?'.lower
+
+tests/test_smoke.py:13: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_______________________ test_sales_shows_price_with_date _______________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9041370>
+
+    def test_sales_shows_price_with_date(client):
+        r = chat(client, "Cho mình hỏi giá xe Foton Aumark")
+>       assert "đồng" in r["reply"] or "VNĐ" in r["reply"] or "foton" in r["reply"].lower()
+E       AssertionError: assert ('đồng' in 'Dạ, mình chưa hiểu rõ ý bạn lắm ạ. Bạn nói rõ hơn giúp mình được không ạ?' or 'VNĐ' in 'Dạ, mình chưa hiểu rõ ý bạn lắm ạ. Bạn nói rõ hơn giúp mình được không ạ?' or 'foton' in 'dạ, mình chưa hiểu rõ ý bạn lắm ạ. bạn nói rõ hơn giúp mình được không ạ?')
+E        +  where 'dạ, mình chưa hiểu rõ ý bạn lắm ạ. bạn nói rõ hơn giúp mình được không ạ?' = <built-in method lower of str object at 0x7f21f907b910>()
+E        +    where <built-in method lower of str object at 0x7f21f907b910> = 'Dạ, mình chưa hiểu rõ ý bạn lắm ạ. Bạn nói rõ hơn giúp mình được không ạ?'.lower
+
+tests/test_smoke.py:18: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+________________________ test_negotiation_goes_to_human ________________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f94a7790>
+
+    def test_negotiation_goes_to_human(client):
+        """Giảm giá > ngưỡng (không có car_model rõ ràng) → chuyển người."""
+        r = chat(client, "Giảm giá cho mình 10% nhé", token="t2")
+>       assert r["mode"] == "HUMAN_PENDING" and "human_handover" in r["trace"]
+E       AssertionError: assert ('BOT' == 'HUMAN_PENDING'
+E         
+E         - HUMAN_PENDING
+E         + BOT)
+
+tests/test_smoke.py:24: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+___________________________ test_pending_bot_silent ____________________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f90407c0>
+
+    def test_pending_bot_silent(client):
+        """Đang chờ nhân viên, không gọi graph và không tạo ticket mới."""
+        r = chat(client, "Giảm giá cho mình đi", token="t5")
+>       assert r["mode"] == "HUMAN_PENDING"
+E       AssertionError: assert 'BOT' == 'HUMAN_PENDING'
+E         
+E         - HUMAN_PENDING
+E         + BOT
+
+tests/test_smoke.py:30: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_______________ test_pending_extra_human_request_appends_ticket ________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f94a7bd0>
+
+    def test_pending_extra_human_request_appends_ticket(client):
+        """Đang chờ mà khách lại mặc cả → ghi thêm vào ticket đang mở, không mở ticket thứ 2."""
+        r = chat(client, "Giảm giá cho mình đi", token="t16")
+        r2 = chat(client, "Bớt thêm chút nữa được không, mình khiếu nại đấy", token="t16", conv=r["session_id"])
+>       assert r2["trace"] == [] and r2["reply"] == ""
+E       AssertionError: assert (['input', 'pr...idation', ...] == []
+E         
+E         Left contains 9 more items, first extra item: 'input'
+E         Use -v to get more diff)
+
+tests/test_smoke.py:39: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+___________________ test_appointment_slot_filling_multi_turn ___________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f94a7460>
+
+    def test_appointment_slot_filling_multi_turn(client):
+        r = chat(client, "Mình muốn đặt lịch bảo dưỡng", token="t3")
+        r = chat(client, "sáng thứ 7", token="t3", conv=r["session_id"])
+        r = chat(client, "0912345678", token="t3", conv=r["session_id"])
+>       assert "ghi nhận lịch hẹn" in r["reply"]
+E       AssertionError: assert 'ghi nhận lịch hẹn' in 'Dạ, mình chưa hiểu rõ ý bạn lắm ạ. Bạn nói rõ hơn giúp mình được không ạ?'
+
+tests/test_smoke.py:48: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+There is no LLM!!!!
+_______________________ test_safety_question_has_warning _______________________
+
+client = <starlette.testclient.TestClient object at 0x7f21faa5de10>
+
+    def test_safety_question_has_warning(client):
+        r = chat(client, "Đèn áp suất dầu sáng thì sao", token="t4")
+>       assert "hotline" in r["reply"]
+E       AssertionError: assert 'hotline' in 'Dạ, mình chưa hiểu rõ ý bạn lắm ạ. Bạn nói rõ hơn giúp mình được không ạ?'
+
+tests/test_smoke.py:53: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+__________________________ test_knowledge_maintenance __________________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9040490>
+
+    def test_knowledge_maintenance(client):
+        """Hỏi kiến thức bảo dưỡng → knowledge node trả lời."""
+        r = chat(client, "Bao lâu thì cần thay dầu động cơ", token="t6")
+>       assert "knowledge" in r["trace"]
+E       AssertionError: assert 'knowledge' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...]
+
+tests/test_smoke.py:59: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_________________________ test_contract_asks_for_info __________________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9040af0>
+
+    def test_contract_asks_for_info(client):
+        """Yêu cầu hợp đồng → contract node hỏi thông tin."""
+        r = chat(client, "Mình muốn chốt mua xe", token="t7")
+>       assert "contract" in r["trace"]
+E       AssertionError: assert 'contract' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...]
+
+tests/test_smoke.py:65: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+__________________ test_discount_with_car_model_goes_to_human __________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9043ac0>
+
+    def test_discount_with_car_model_goes_to_human(client):
+        """Không còn auto-approve: kể cả nêu rõ xe + % nhỏ vẫn chuyển người."""
+        r = chat(client, "Xe Foton Aumark giảm giá cho mình 3% nhé", token="t8")
+>       assert r["mode"] == "HUMAN_PENDING" and "human_handover" in r["trace"] and "sales" not in r["trace"]
+E       AssertionError: assert ('BOT' == 'HUMAN_PENDING'
+E         
+E         - HUMAN_PENDING
+E         + BOT)
+
+tests/test_smoke.py:71: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+__________________ test_contract_price_question_goes_to_human __________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9040270>
+
+    def test_contract_price_question_goes_to_human(client):
+        r = chat(client, "Hợp đồng này phí trước bạ bao nhiêu", token="t9")
+>       assert "contract" in r["trace"] and r["trace"][-4:] == ["compose", "output_guard", "human_handover", "respond"]
+E       AssertionError: assert ('contract' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_smoke.py:76: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_________________ test_knowledge_complexity_high_goes_to_human _________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9041260>
+
+    def test_knowledge_complexity_high_goes_to_human(client):
+        r = chat(client, "Tại sao " + "xe kêu lạ " * 40, token="t10")
+>       assert "knowledge" not in r["trace"] and "human_handover" in r["trace"]
+E       AssertionError: assert ('knowledge' not in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...] and 'human_handover' in ['input', 'preprocess', 'policy_guard', 'router', 'conversation', 'validation', ...])
+
+tests/test_smoke.py:81: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_____________________ test_sales_and_appointment_same_turn _____________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f90406b0>
+
+    def test_sales_and_appointment_same_turn(client):
+        """Giá + xem xe tại showroom: sales báo giá và appointment hỏi slot trong cùng một lượt, câu hỏi slot nằm cuối."""
+        r = chat(client, "Giá xe Foton Aumark bao nhiêu, cho mình qua showroom xem xe", token="t11")
+>       assert {"sales", "appointment"} <= set(r["trace"])
+E       AssertionError: assert {'appointment', 'sales'} <= {'compose', '...process', ...}
+E         
+E         Extra items in the left set:
+E         'appointment'
+E         'sales'
+
+tests/test_smoke.py:87: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+___________________ test_knowledge_and_appointment_same_turn ___________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9042ad0>
+
+    def test_knowledge_and_appointment_same_turn(client):
+        """Hỏi kỹ thuật + muốn mang xe qua: knowledge trả lời trước, appointment hiểu là sửa chữa và hỏi ngày giờ."""
+        r = chat(client, "Tại sao phanh kêu, mình mang xe qua được không", token="t12")
+>       assert {"knowledge", "appointment"} <= set(r["trace"])
+E       AssertionError: assert {'appointment', 'knowledge'} <= {'compose', '...process', ...}
+E         
+E         Extra items in the left set:
+E         'knowledge'
+E         'appointment'
+
+tests/test_smoke.py:95: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+______________________ test_pending_saves_phone_to_ticket ______________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9040160>
+
+    def test_pending_saves_phone_to_ticket(client):
+        r = chat(client, "Mình muốn gặp nhân viên", token="t13")
+        chat(client, "0987654321", token="t13", conv=r["session_id"])
+>       assert "0987654321" in _tasks(r["session_id"])[-1].summary
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       IndexError: list index out of range
+
+tests/test_smoke.py:119: IndexError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+___________________ test_pending_timeout_sends_hotline_once ____________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9041d00>
+
+    def test_pending_timeout_sends_hotline_once(client):
+        """Quá thời hạn chờ → thông báo system poll được, không chạy bot, chỉ gửi 1 lần."""
+        from datetime import timedelta
+        from app.db.models import HandoverTicket
+        from app.db.session import SessionLocal
+        r = chat(client, "Mình muốn khiếu nại", token="t14")
+        with SessionLocal() as db:
+>           task = db.get(HandoverTicket, _tasks(r["session_id"])[-1].id)
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           IndexError: list index out of range
+
+tests/test_smoke.py:129: IndexError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+___________________________ test_human_takeover_flow ___________________________
+
+client = <starlette.testclient.TestClient object at 0x7f21f9f1ce20>
+
+    def test_human_takeover_flow(client):
+        """claim → khách được báo + bot im lặng → nhân viên nhắn → resolve → báo trả về bot."""
+        from app.db.models import Manager
+        from app.db.session import SessionLocal
+        with SessionLocal() as db:
+            db.add(Manager(username="Lan", password_hash="x"))
+            db.commit()
+        r = chat(client, "Mình muốn gặp nhân viên", token="t15")
+        conv = r["session_id"]
+>       task_id = _tasks(conv)[-1].id
+                  ^^^^^^^^^^^^^^^^
+E       IndexError: list index out of range
+
+tests/test_smoke.py:150: IndexError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+=============================== warnings summary ===============================
+.venv/lib/python3.14/site-packages/langsmith/_internal/_beta_decorator.py:92: 13 warnings
+  /home/vanh/Personalized-Chatbot-for-auto-request-response-supporting-automobile-garage-management/.venv/lib/python3.14/site-packages/langsmith/_internal/_beta_decorator.py:92: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    if asyncio.iscoroutinefunction(func):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+==================================== PASSES ====================================
+__________________________ test_admin_requires_token ___________________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+___________________ test_third_wrong_password_locks_account ____________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+_________________ test_lock_expires_and_success_resets_counter _________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+_______________ test_confirm_assigns_slot_and_notifies_customer ________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+________________ test_confirm_full_slot_and_reschedule_releases ________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+_______________ test_confirm_needs_time_when_customer_gave_none ________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+_________ test_canonical_empty_interpretation_and_unsupported_updates __________
+----------------------------- Captured stderr call -----------------------------
+WARNI [app.agent.nodes.preprocess] Discarding slot update with invalid current-turn evidence: budget_vnd ('500 triệu', 500000000)
+------------------------------ Captured log call -------------------------------
+WARNING  app.agent.nodes.preprocess:preprocess.py:227 Discarding slot update with invalid current-turn evidence: budget_vnd ('500 triệu', 500000000)
+___________________ test_settings_manager_only_and_validated ___________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+___________ test_booking_rejected_when_window_full_then_cancel_frees ___________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+________________ test_same_customer_cannot_double_book_a_window ________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+__________ test_check_slot_matches_booking_and_reschedule_is_guarded ___________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+______________________ test_slot_length_changes_the_grid _______________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+_____________ test_slot_overview_and_confirm_respects_new_capacity _____________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+_____________________ test_complete_confirmed_appointment ______________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+_________ test_bot_booking_is_confirmed_immediately_and_holds_the_slot _________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+_________________ test_bot_reschedule_reconfirms_in_new_window _________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+_____________ test_tc13_unknown_service_makes_no_claim_either_way ______________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+______________________ test_tc13_collects_no_booking_slot ______________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_ test_inquiries_collect_no_personal_or_booking_data[Xe t\xf4i \u0111ang g\u1eb7p v\u1ea5n \u0111\u1ec1 v\u1edbi k\xednh ch\u1eafn gi\xf3, c\xf3 th\u1ec3 mang qua h\xe3ng \u0111\u1ec3 s\u1eeda \u0111\u01b0\u1ee3c kh\xf4ng?] _
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_ test_inquiries_collect_no_personal_or_booking_data[K\xednh ch\u1eafn gi\xf3 xe t\xf4i c\xf3 m\u1ed9t v\u1ebft n\u1ee9t nh\u1ecf \u1edf g\xf3c b\xean ph\u1ea3i.] _
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_ test_inquiries_collect_no_personal_or_booking_data[Thay k\xednh ch\u1eafn gi\xf3 h\u1ebft bao nhi\xeau ti\u1ec1n v\u1eady?] _
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_ test_inquiries_collect_no_personal_or_booking_data[T\xf4i \u0111ang mu\u1ed1n t\xecm m\u1ed9t chi\u1ebfc Foton Aumark \u0111\u1ec3 \u0111i l\xe0m h\u1eb1ng ng\xe0y.] _
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_ test_inquiries_collect_no_personal_or_booking_data[T\xf4i mu\u1ed1n k\xfd h\u1ee3p \u0111\u1ed3ng mua xe, c\u1ea7n chu\u1ea9n b\u1ecb gi\u1ea5y t\u1edd g\xec?] _
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_ test_inquiries_collect_no_personal_or_booking_data[Xe t\xf4i c\xf3 ti\u1ebfng k\xeau l\u1ea1 khi phanh.] _
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_ test_inquiries_collect_no_personal_or_booking_data[Gara b\xean b\u1ea1n c\xf3 s\u1eeda h\u1ec7 th\u1ed1ng pin c\u1ee7a xe \u0111i\u1ec7n b\u1ecb l\u1ed7i kh\xf4ng?] _
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+___________ test_first_turn_persists_and_sends_only_current_message ____________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+___________________ test_second_turn_receives_previous_turn ____________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+_________________ test_short_confirmation_follows_bot_question _________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+__________________________ test_threads_are_isolated ___________________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+_______________ test_order_and_no_duplicates_over_several_turns ________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+_________________ test_history_skips_queued_messages_and_staff _________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+_______________ test_tc01_service_inquiry_does_not_start_booking _______________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+__________________ test_tc01_inquiry_collects_no_booking_slot __________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_____________ test_tc02_damage_description_does_not_start_booking ______________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_________ test_tc03_price_question_fabricates_no_price_and_no_booking __________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_____________ test_ignored_offer_expires_and_keeps_no_booking_slot _____________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+There is no LLM!!!!
+_________________ test_tc14_price_only_does_not_start_booking __________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+______________________ test_no_retired_state_is_returned _______________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_________________ test_no_unsupported_amounts_in_safe_failure __________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+____________________ test_conversation_uses_unique_session _____________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+____________________ test_test_database_session_is_isolated ____________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+___________ test_canonical_pending_interactions_are_not_legacy_dicts ___________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_______________ test_no_appointment_record_is_created_by_inquiry _______________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+___________ test_appointment_ask_does_not_collect_phone_for_inquiry ____________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_______________ test_canonical_workflow_is_cleared_after_cancel ________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+_____________________ test_pending_is_closed_after_cancel ______________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+____________ test_offer_does_not_create_active_appointment_workflow ____________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_________________ test_appointment_state_has_canonical_fields __________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_________________ test_canonical_facts_are_known_fact_objects __________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+__________________ test_appointment_task_is_a_canonical_task ___________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+___________ test_tc08_vehicle_interest_starts_no_booking_or_contract ___________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_______________ test_tc09_generated_discount_promise_is_blocked ________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+____________ test_tc10_documents_question_fabricates_no_legal_list _____________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_____________ test_tc10_inquiry_does_not_start_contract_collection _____________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+______________________ test_failed_search_returns_nothing ______________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+____________________ test_sessions_do_not_share_sales_state ____________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+There is no LLM!!!!
+______________ test_pending_question_does_not_hijack_other_turns _______________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+There is no LLM!!!!
+There is no LLM!!!!
+There is no LLM!!!!
+There is no LLM!!!!
+There is no LLM!!!!
+There is no LLM!!!!
+There is no LLM!!!!
+________________________________ test_greeting _________________________________
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+______________________________ test_out_of_scope _______________________________
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+______________________________ test_memory_recall ______________________________
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+__________ test_correction_updates_fact_without_mutating_prior_state ___________
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_________________ test_uncorroborated_slot_update_is_discarded _________________
+----------------------------- Captured stderr call -----------------------------
+WARNI [app.agent.nodes.preprocess] Discarding slot update with invalid current-turn evidence: appointment_when ('ngày mai', 'ngày mai')
+WARNI [app.agent.nodes.preprocess] Discarding slot update with invalid current-turn evidence: appointment_when ('ngày mai', 'ngày mai')
+------------------------------ Captured log call -------------------------------
+WARNING  app.agent.nodes.preprocess:preprocess.py:227 Discarding slot update with invalid current-turn evidence: appointment_when ('ngày mai', 'ngày mai')
+WARNING  app.agent.nodes.preprocess:preprocess.py:227 Discarding slot update with invalid current-turn evidence: appointment_when ('ngày mai', 'ngày mai')
+_____________ test_explicit_current_turn_slot_update_is_persisted ______________
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+____________ test_known_name_is_not_overwritten_without_correction _____________
+----------------------------- Captured stderr call -----------------------------
+WARNI [app.agent.nodes.preprocess] Discarding customer_name update that would overwrite a known name
+------------------------------ Captured log call -------------------------------
+WARNING  app.agent.nodes.preprocess:preprocess.py:247 Discarding customer_name update that would overwrite a known name
+___ test_slot_updates_require_current_message_evidence_and_apply_corrections ___
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+----------------------------- Captured stderr call -----------------------------
+WARNI [app.agent.nodes.preprocess] Discarding slot update with invalid current-turn evidence: customer_phone 
+------------------------------ Captured log call -------------------------------
+WARNING  app.agent.nodes.preprocess:preprocess.py:227 Discarding slot update with invalid current-turn evidence: customer_phone
+____________ test_uncorroborated_fact_is_not_written_to_known_facts ____________
+----------------------------- Captured stderr call -----------------------------
+WARNI [app.agent.nodes.preprocess] Discarding slot update with invalid current-turn evidence: appointment_when ('ngày mai', 'ngày mai')
+------------------------------ Captured log call -------------------------------
+WARNING  app.agent.nodes.preprocess:preprocess.py:227 Discarding slot update with invalid current-turn evidence: appointment_when ('ngày mai', 'ngày mai')
+_______________ test_explicit_fact_is_persisted_as_user_explicit _______________
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+________________ test_no_current_evidence_means_no_slot_update _________________
+----------------------------- Captured stderr call -----------------------------
+WARNI [app.agent.nodes.preprocess] Discarding slot update with invalid current-turn evidence: budget_vnd ('500 triệu', 500000000)
+------------------------------ Captured log call -------------------------------
+WARNING  app.agent.nodes.preprocess:preprocess.py:227 Discarding slot update with invalid current-turn evidence: budget_vnd ('500 triệu', 500000000)
+__________________ test_embedding_failure_falls_back_to_bm25 ___________________
+----------------------------- Captured stderr call -----------------------------
+WARNI [app.rag.hybrid] Không dựng được chỉ mục vector (api down) -> chạy BM25-only
+------------------------------ Captured log call -------------------------------
+WARNING  app.rag.hybrid:hybrid.py:79 Không dựng được chỉ mục vector (api down) -> chạy BM25-only
+___________________ test_query_embedding_failure_falls_back ____________________
+----------------------------- Captured stderr call -----------------------------
+WARNI [app.rag.hybrid] Embedding câu hỏi lỗi (api down) -> BM25-only cho lượt này
+------------------------------ Captured log call -------------------------------
+WARNING  app.rag.hybrid:hybrid.py:111 Embedding câu hỏi lỗi (api down) -> BM25-only cho lượt này
+___________________________ test_sync_is_incremental ___________________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+------------------------------ Captured log setup ------------------------------
+INFO     alembic.runtime.migration:migration.py:211 Context impl PostgresqlImpl.
+INFO     alembic.runtime.migration:migration.py:214 Will assume transactional DDL.
+___________ test_dimension_mismatch_raises_and_retriever_falls_back ____________
+----------------------------- Captured stderr call -----------------------------
+WARNI [app.rag.hybrid] Không đồng bộ vector vào Postgres (embedding 64 chiều, cột rag_chunks.embedding là 1536 chiều (cần migration)) -> chạy BM25-only
+------------------------------ Captured log call -------------------------------
+WARNING  app.rag.hybrid:hybrid.py:67 Không đồng bộ vector vào Postgres (embedding 64 chiều, cột rag_chunks.embedding là 1536 chiều (cần migration)) -> chạy BM25-only
+_____________ test_factory_falls_back_to_local_when_table_missing ______________
+----------------------------- Captured stderr call -----------------------------
+WARNI [app.rag.factory] RAG_VECTOR_STORE=pgvector nhưng không dùng được ((psycopg.OperationalError) connection failed: connection to server at "127.0.0.1", port 1 failed: Connection refused
+	Is the server running on that host and accepting TCP/IP connections?
+(Background on this error at: https://sqlalche.me/e/21/e3q8)) -> dùng local (RAM)
+------------------------------ Captured log call -------------------------------
+WARNING  app.rag.factory:factory.py:58 RAG_VECTOR_STORE=pgvector nhưng không dùng được ((psycopg.OperationalError) connection failed: connection to server at "127.0.0.1", port 1 failed: Connection refused
+	Is the server running on that host and accepting TCP/IP connections?
+(Background on this error at: https://sqlalche.me/e/21/e3q8)) -> dùng local (RAM)
+______________________ test_poll_rejects_unknown_session _______________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+----------------------------- Captured stdout call -----------------------------
+There is no LLM!!!!
+_________________ test_cancel_frees_slot_and_notifies_customer _________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+_______________ test_cancel_without_body_and_pending_appointment _______________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+______________________________ test_cancel_rules _______________________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+______________ test_reschedule_pending_stays_pending_and_notifies ______________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+___________ test_reschedule_confirmed_is_reconfirmed_and_moves_slot ____________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+_________ test_reschedule_to_full_window_is_refused_and_keeps_old_time _________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+__________________________ test_reschedule_validation __________________________
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+============================= slowest 20 durations =============================
+0.65s call     tests/test_conv_sales_discovery.py::test_pending_question_does_not_hijack_other_turns
+0.35s call     tests/test_conv_history.py::test_order_and_no_duplicates_over_several_turns
+0.34s call     tests/test_conv_policy.py::test_known_phone_offer_acceptance_asks_confirmation_before_booking
+0.34s setup    tests/test_staff_appointments.py::test_reschedule_pending_stays_pending_and_notifies
+0.33s setup    tests/test_staff_appointments.py::test_cancel_rules
+0.33s setup    tests/test_admin_security.py::test_admin_requires_token
+0.32s setup    tests/test_admin_security.py::test_confirm_needs_time_when_customer_gave_none
+0.31s setup    tests/test_smoke.py::test_greeting
+0.31s setup    tests/test_booking_slots.py::test_bot_reschedule_reconfirms_in_new_window
+0.31s setup    tests/test_staff_appointments.py::test_reschedule_validation
+0.31s setup    tests/test_booking_slots.py::test_bot_booking_is_confirmed_immediately_and_holds_the_slot
+0.31s setup    tests/test_staff_appointments.py::test_cancel_without_body_and_pending_appointment
+0.31s setup    tests/test_staff_appointments.py::test_reschedule_to_full_window_is_refused_and_keeps_old_time
+0.31s setup    tests/test_booking_slots.py::test_same_customer_cannot_double_book_a_window
+0.31s setup    tests/test_admin_security.py::test_confirm_assigns_slot_and_notifies_customer
+0.30s setup    tests/test_catalog_import.py::test_import_csv_creates_brands
+0.30s setup    tests/test_staff_appointments.py::test_reschedule_confirmed_is_reconfirmed_and_moves_slot
+0.29s setup    tests/test_booking_slots.py::test_booking_rejected_when_window_full_then_cancel_frees
+0.29s setup    tests/test_admin_security.py::test_third_wrong_password_locks_account
+0.29s setup    tests/test_admin_security.py::test_lock_expires_and_success_resets_counter
+=========================== short test summary info ============================
+PASSED tests/test_admin_security.py::test_admin_requires_token
+PASSED tests/test_admin_security.py::test_third_wrong_password_locks_account
+PASSED tests/test_admin_security.py::test_lock_expires_and_success_resets_counter
+PASSED tests/test_admin_security.py::test_confirm_assigns_slot_and_notifies_customer
+PASSED tests/test_admin_security.py::test_confirm_full_slot_and_reschedule_releases
+PASSED tests/test_admin_security.py::test_confirm_needs_time_when_customer_gave_none
+PASSED tests/test_agent_boundaries.py::test_canonical_tasks_drive_parallel_plan
+PASSED tests/test_agent_boundaries.py::test_canonical_empty_interpretation_and_unsupported_updates
+PASSED tests/test_agent_boundaries.py::test_compose_orders_answers_and_collects_handover
+PASSED tests/test_agent_boundaries.py::test_output_guard_validates_composed_reply
+PASSED tests/test_booking_slots.py::test_window_grid_math
+PASSED tests/test_booking_slots.py::test_settings_manager_only_and_validated
+PASSED tests/test_booking_slots.py::test_booking_rejected_when_window_full_then_cancel_frees
+PASSED tests/test_booking_slots.py::test_same_customer_cannot_double_book_a_window
+PASSED tests/test_booking_slots.py::test_check_slot_matches_booking_and_reschedule_is_guarded
+PASSED tests/test_booking_slots.py::test_slot_length_changes_the_grid
+PASSED tests/test_booking_slots.py::test_slot_overview_and_confirm_respects_new_capacity
+PASSED tests/test_booking_slots.py::test_complete_confirmed_appointment
+PASSED tests/test_booking_slots.py::test_bot_booking_is_confirmed_immediately_and_holds_the_slot
+PASSED tests/test_booking_slots.py::test_bot_reschedule_reconfirms_in_new_window
+PASSED tests/test_catalog_activate.py::test_seed_activates_only_products_with_a_trusted_price
+PASSED tests/test_catalog_activate.py::test_products_with_price_or_identity_problems_stay_draft
+PASSED tests/test_catalog_activate.py::test_retire_samples_only_touches_unsourced_active_products
+PASSED tests/test_catalog_activate.py::test_retire_is_refused_if_it_would_leave_no_active_product
+PASSED tests/test_catalog_import.py::test_import_csv_creates_brands
+PASSED tests/test_catalog_import.py::test_import_csv_creates_models
+PASSED tests/test_catalog_import.py::test_import_csv_creates_products_with_specs
+PASSED tests/test_catalog_import.py::test_product_has_sales_summary
+PASSED tests/test_catalog_import.py::test_dimensions_parsed_correctly
+PASSED tests/test_catalog_import.py::test_engine_specs_parsed
+PASSED tests/test_catalog_import.py::test_cargo_dimensions_parsed
+PASSED tests/test_catalog_import.py::test_price_imported_correctly
+PASSED tests/test_catalog_import.py::test_price_basis_detected
+PASSED tests/test_catalog_import.py::test_catalog_source_tracked
+PASSED tests/test_catalog_import.py::test_gearbox_specs_parsed
+PASSED tests/test_catalog_import.py::test_boolean_flags_parsed
+PASSED tests/test_catalog_import.py::test_multiple_products_same_model
+PASSED tests/test_catalog_import.py::test_search_summary_contains_keywords
+PASSED tests/test_catalog_import.py::test_no_duplicate_imports
+PASSED tests/test_catalog_service.py::test_find_model_returns_contract_fields
+PASSED tests/test_catalog_service.py::test_budget_is_a_hard_limit_even_with_fallback
+PASSED tests/test_catalog_service.py::test_unusable_products_are_never_offered[kwargs0]
+PASSED tests/test_catalog_service.py::test_unusable_products_are_never_offered[kwargs1]
+PASSED tests/test_catalog_service.py::test_unusable_products_are_never_offered[kwargs2]
+PASSED tests/test_catalog_service.py::test_unusable_products_are_never_offered[kwargs3]
+PASSED tests/test_catalog_service.py::test_aliases_are_searchable
+PASSED tests/test_catalog_service.py::test_summary_counts_vehicles_only
+PASSED tests/test_catalog_service.py::test_price_above_int32_is_stored
+PASSED tests/test_catalog_service.py::test_only_one_current_price_per_product_and_type
+PASSED tests/test_conv_context.py::test_tc13_unknown_service_makes_no_claim_either_way
+PASSED tests/test_conv_context.py::test_tc13_collects_no_booking_slot
+PASSED tests/test_conv_context.py::test_inquiries_collect_no_personal_or_booking_data[Xe t\xf4i \u0111ang g\u1eb7p v\u1ea5n \u0111\u1ec1 v\u1edbi k\xednh ch\u1eafn gi\xf3, c\xf3 th\u1ec3 mang qua h\xe3ng \u0111\u1ec3 s\u1eeda \u0111\u01b0\u1ee3c kh\xf4ng?]
+PASSED tests/test_conv_context.py::test_inquiries_collect_no_personal_or_booking_data[K\xednh ch\u1eafn gi\xf3 xe t\xf4i c\xf3 m\u1ed9t v\u1ebft n\u1ee9t nh\u1ecf \u1edf g\xf3c b\xean ph\u1ea3i.]
+PASSED tests/test_conv_context.py::test_inquiries_collect_no_personal_or_booking_data[Thay k\xednh ch\u1eafn gi\xf3 h\u1ebft bao nhi\xeau ti\u1ec1n v\u1eady?]
+PASSED tests/test_conv_context.py::test_inquiries_collect_no_personal_or_booking_data[T\xf4i \u0111ang mu\u1ed1n t\xecm m\u1ed9t chi\u1ebfc Foton Aumark \u0111\u1ec3 \u0111i l\xe0m h\u1eb1ng ng\xe0y.]
+PASSED tests/test_conv_context.py::test_inquiries_collect_no_personal_or_booking_data[T\xf4i mu\u1ed1n k\xfd h\u1ee3p \u0111\u1ed3ng mua xe, c\u1ea7n chu\u1ea9n b\u1ecb gi\u1ea5y t\u1edd g\xec?]
+PASSED tests/test_conv_context.py::test_inquiries_collect_no_personal_or_booking_data[Xe t\xf4i c\xf3 ti\u1ebfng k\xeau l\u1ea1 khi phanh.]
+PASSED tests/test_conv_context.py::test_inquiries_collect_no_personal_or_booking_data[Gara b\xean b\u1ea1n c\xf3 s\u1eeda h\u1ec7 th\u1ed1ng pin c\u1ee7a xe \u0111i\u1ec7n b\u1ecb l\u1ed7i kh\xf4ng?]
+PASSED tests/test_conv_history.py::test_first_turn_persists_and_sends_only_current_message
+PASSED tests/test_conv_history.py::test_second_turn_receives_previous_turn
+PASSED tests/test_conv_history.py::test_short_confirmation_follows_bot_question
+PASSED tests/test_conv_history.py::test_threads_are_isolated
+PASSED tests/test_conv_history.py::test_order_and_no_duplicates_over_several_turns
+PASSED tests/test_conv_history.py::test_history_skips_queued_messages_and_staff
+PASSED tests/test_conv_history.py::test_messages_keep_roles_and_order
+PASSED tests/test_conv_inquiry.py::test_tc01_service_inquiry_does_not_start_booking
+PASSED tests/test_conv_inquiry.py::test_tc01_inquiry_collects_no_booking_slot
+PASSED tests/test_conv_inquiry.py::test_tc02_damage_description_does_not_start_booking
+PASSED tests/test_conv_inquiry.py::test_tc03_price_question_fabricates_no_price_and_no_booking
+PASSED tests/test_conv_pending.py::test_profile_save_normalizes_and_rejects_invalid_phone
+PASSED tests/test_conv_policy.py::test_ignored_offer_expires_and_keeps_no_booking_slot
+PASSED tests/test_conv_policy.py::test_tc14_price_only_does_not_start_booking
+PASSED tests/test_conv_policy.py::test_removed_router_helpers_are_not_part_of_canonical_contract
+PASSED tests/test_conv_policy.py::test_waiting_appointment_slot_names_are_canonical
+PASSED tests/test_conv_policy.py::test_no_retired_state_is_returned
+PASSED tests/test_conv_policy.py::test_booking_slot_constants_remain_available_for_other_regressions
+PASSED tests/test_conv_policy.py::test_question_marker_constants_are_nonempty
+PASSED tests/test_conv_policy.py::test_no_unsupported_amounts_in_safe_failure
+PASSED tests/test_conv_policy.py::test_conversation_uses_unique_session
+PASSED tests/test_conv_policy.py::test_policy_module_contains_no_legacy_preprocess_imports
+PASSED tests/test_conv_policy.py::test_test_database_session_is_isolated
+PASSED tests/test_conv_policy.py::test_canonical_pending_interactions_are_not_legacy_dicts
+PASSED tests/test_conv_policy.py::test_no_appointment_record_is_created_by_inquiry
+PASSED tests/test_conv_policy.py::test_appointment_ask_does_not_collect_phone_for_inquiry
+PASSED tests/test_conv_policy.py::test_canonical_workflow_is_cleared_after_cancel
+PASSED tests/test_conv_policy.py::test_pending_is_closed_after_cancel
+PASSED tests/test_conv_policy.py::test_policy_regression_sentinel
+PASSED tests/test_conv_policy.py::test_legacy_budget_constant_not_used_in_policy_suite
+PASSED tests/test_conv_policy.py::test_offer_does_not_create_active_appointment_workflow
+PASSED tests/test_conv_policy.py::test_preprocess_uses_only_canonical_interpretation
+PASSED tests/test_conv_policy.py::test_appointment_state_has_canonical_fields
+PASSED tests/test_conv_policy.py::test_canonical_facts_are_known_fact_objects
+PASSED tests/test_conv_policy.py::test_appointment_task_is_a_canonical_task
+PASSED tests/test_conv_sales.py::test_tc08_vehicle_interest_starts_no_booking_or_contract
+PASSED tests/test_conv_sales.py::test_tc09_generated_discount_promise_is_blocked
+PASSED tests/test_conv_sales.py::test_tc10_documents_question_fabricates_no_legal_list
+PASSED tests/test_conv_sales.py::test_tc10_inquiry_does_not_start_contract_collection
+PASSED tests/test_conv_sales_discovery.py::test_failed_search_returns_nothing
+PASSED tests/test_conv_sales_discovery.py::test_sessions_do_not_share_sales_state
+PASSED tests/test_conv_sales_discovery.py::test_pending_question_does_not_hijack_other_turns
+PASSED tests/test_conversation_agent.py::test_greeting
+PASSED tests/test_conversation_agent.py::test_out_of_scope
+PASSED tests/test_conversation_agent.py::test_memory_recall
+PASSED tests/test_conversation_architecture.py::TestSchemas::test_task_relationship_enum
+PASSED tests/test_conversation_architecture.py::TestSchemas::test_interaction_status_enum
+PASSED tests/test_conversation_architecture.py::TestSchemas::test_interaction_kind_enum
+PASSED tests/test_conversation_architecture.py::TestSchemas::test_slot_operation_enum
+PASSED tests/test_conversation_interpretation.py::test_explicit_catalog_request_maps_to_browse_action
+PASSED tests/test_conversation_interpretation.py::test_general_sales_request_keeps_search_action
+PASSED tests/test_conversation_interpretation.py::test_correction_updates_fact_without_mutating_prior_state
+PASSED tests/test_conversation_interpretation.py::test_uncorroborated_slot_update_is_discarded
+PASSED tests/test_conversation_interpretation.py::test_explicit_current_turn_slot_update_is_persisted
+PASSED tests/test_conversation_interpretation.py::test_canonical_greeting_has_no_business_facts
+PASSED tests/test_conversation_interpretation.py::test_slot_update_schema_keeps_quoted_evidence
+PASSED tests/test_conversation_interpretation.py::test_correction_relationship_is_canonical
+PASSED tests/test_customer_name.py::test_llm_name_update_is_stored_as_explicit_fact
+PASSED tests/test_customer_name.py::test_llm_bare_name_reply_is_stored
+PASSED tests/test_customer_name.py::test_known_name_is_not_overwritten_without_correction
+PASSED tests/test_customer_name.py::test_known_name_can_be_corrected_explicitly
+PASSED tests/test_customer_name.py::test_preprocess_without_llm_creates_no_name
+PASSED tests/test_preprocess_canonical.py::test_canonical_interpretation_keeps_explicit_catalog_action
+PASSED tests/test_preprocess_canonical.py::test_car_model_from_last_presented_list_is_kept
+PASSED tests/test_preprocess_canonical.py::test_car_model_from_current_presented_cars_is_kept
+PASSED tests/test_preprocess_canonical.py::test_hallucinated_car_model_is_dropped
+PASSED tests/test_preprocess_canonical.py::test_slot_updates_require_current_message_evidence_and_apply_corrections
+PASSED tests/test_preprocess_canonical.py::test_trace_safe_serializes_canonical_result_and_redacts_personal_data
+PASSED tests/test_preprocess_canonical.py::test_showroom_booking_does_not_invent_intended_use
+PASSED tests/test_preprocess_canonical.py::test_uncorroborated_fact_is_not_written_to_known_facts
+PASSED tests/test_preprocess_canonical.py::test_explicit_fact_is_persisted_as_user_explicit
+PASSED tests/test_preprocess_canonical.py::test_empty_interpretation_is_valid_canonical_output
+PASSED tests/test_preprocess_canonical.py::test_fact_correction_does_not_mutate_prior_state
+PASSED tests/test_preprocess_canonical.py::test_trace_safe_does_not_expose_evidence_in_nested_slot_updates
+PASSED tests/test_preprocess_canonical.py::test_no_current_evidence_means_no_slot_update
+PASSED tests/test_preprocess_canonical.py::test_non_fact_task_output_remains_canonical
+PASSED tests/test_preprocess_canonical.py::test_redaction_keeps_non_sensitive_catalog_data
+PASSED tests/test_preprocess_canonical.py::test_test_drive_is_not_a_service_type
+PASSED tests/test_rag.py::test_normalize_accents_numbers_stopwords
+PASSED tests/test_rag.py::test_bm25_ranks_exact_terms_first
+PASSED tests/test_rag.py::test_rrf_prefers_docs_in_both_lists
+PASSED tests/test_rag.py::test_chunking_md_and_faq
+PASSED tests/test_rag.py::test_hybrid_finds_relevant_chunk
+PASSED tests/test_rag.py::test_no_match_returns_empty_so_agent_hands_over
+PASSED tests/test_rag.py::test_single_keyword_query_still_matches
+PASSED tests/test_rag.py::test_no_embedder_falls_back_to_bm25
+PASSED tests/test_rag.py::test_embedding_failure_falls_back_to_bm25
+PASSED tests/test_rag.py::test_query_embedding_failure_falls_back
+PASSED tests/test_rag.py::test_embedding_cache_only_embeds_new_chunks
+PASSED tests/test_rag.py::test_reload_picks_up_new_file
+PASSED tests/test_rag.py::test_suite_rag_does_not_call_embedding_api
+PASSED tests/test_rag_pg.py::test_sync_is_incremental
+PASSED tests/test_rag_pg.py::test_other_model_triggers_reembed_and_search_filters_model
+PASSED tests/test_rag_pg.py::test_vector_search_ranks_by_cosine
+PASSED tests/test_rag_pg.py::test_namespaces_are_isolated
+PASSED tests/test_rag_pg.py::test_dimension_mismatch_raises_and_retriever_falls_back
+PASSED tests/test_rag_pg.py::test_hybrid_end_to_end_on_pgvector
+PASSED tests/test_rag_pg.py::test_reload_picks_up_changes_in_db
+PASSED tests/test_rag_pg.py::test_fts_branch_matches_and_respects_keyword_threshold
+PASSED tests/test_rag_pg.py::test_lexical_pg_retriever
+PASSED tests/test_rag_pg.py::test_factory_falls_back_to_local_when_table_missing
+PASSED tests/test_smoke.py::test_poll_rejects_unknown_session
+PASSED tests/test_staff_appointments.py::test_cancel_frees_slot_and_notifies_customer
+PASSED tests/test_staff_appointments.py::test_cancel_without_body_and_pending_appointment
+PASSED tests/test_staff_appointments.py::test_cancel_rules
+PASSED tests/test_staff_appointments.py::test_reschedule_pending_stays_pending_and_notifies
+PASSED tests/test_staff_appointments.py::test_reschedule_confirmed_is_reconfirmed_and_moves_slot
+PASSED tests/test_staff_appointments.py::test_reschedule_to_full_window_is_refused_and_keeps_old_time
+PASSED tests/test_staff_appointments.py::test_reschedule_validation
+XFAIL tests/test_conv_booking.py::test_tc07_cancelling_created_appointment_is_not_falsely_confirmed - DEFECT-07: chưa có luồng hủy lịch đã tạo: bot báo 'đã dừng' nhưng lịch vẫn PENDING_APPROVAL
+XFAIL tests/test_conv_context.py::test_tc11_follow_up_is_not_a_verbatim_repeat - DEFECT-11: knowledge không dùng lịch sử hội thoại: lượt 2 lặp lại nguyên văn câu trả lời lượt 1
+XFAIL tests/test_conv_inquiry.py::test_tc03_unknown_price_is_flagged_not_substituted - DEFECT-03: ProductService.search ILIKE theo từng từ ('gió') -> báo giá lọc gió thay cho giá kính
+XFAIL tests/test_customer_name.py::test_llm_name_with_phone_in_same_message_is_cleaned - Known gap: preprocess no longer rejects non-name values for customer_name (the old _valid_name filter was removed in the LLM-only preprocess refactor)
+XFAIL tests/test_customer_name.py::test_llm_non_name_update_is_discarded[10 t\u1ea5n] - Known gap: preprocess no longer rejects non-name values for customer_name (the old _valid_name filter was removed in the LLM-only preprocess refactor)
+XFAIL tests/test_customer_name.py::test_llm_non_name_update_is_discarded[xe t\u1ea3i] - Known gap: preprocess no longer rejects non-name values for customer_name (the old _valid_name filter was removed in the LLM-only preprocess refactor)
+XFAIL tests/test_customer_name.py::test_llm_non_name_update_is_discarded[ng\xe0y mai] - Known gap: preprocess no longer rejects non-name values for customer_name (the old _valid_name filter was removed in the LLM-only preprocess refactor)
+XFAIL tests/test_customer_name.py::test_llm_non_name_update_is_discarded[0912345678] - Known gap: preprocess no longer rejects non-name values for customer_name (the old _valid_name filter was removed in the LLM-only preprocess refactor)
+XFAIL tests/test_customer_name.py::test_llm_non_name_update_is_discarded[Xin ch\xe0o] - Known gap: preprocess no longer rejects non-name values for customer_name (the old _valid_name filter was removed in the LLM-only preprocess refactor)
+FAILED tests/test_agent_boundaries.py::test_price_and_showroom_visit_same_turn_single_booking
+FAILED tests/test_agent_boundaries.py::test_showroom_visit_goes_to_appointment
+FAILED tests/test_agent_boundaries.py::test_read_question_during_booking_keeps_flow
+FAILED tests/test_agent_boundaries.py::test_two_writers_defer_second_with_note
+FAILED tests/test_agent_boundaries.py::test_cancel_and_greeting_in_active_flow
+FAILED tests/test_agent_boundaries.py::test_policy_escalation_clears_flow - A...
+FAILED tests/test_agent_boundaries.py::test_safety_runs_knowledge_alone - Ass...
+FAILED tests/test_agent_boundaries.py::test_active_appointment_service_slot_and_updated_time
+FAILED tests/test_agent_boundaries.py::test_sales_question_ending_with_thoi_is_not_cancelled
+FAILED tests/test_agent_boundaries.py::test_technical_question_interrupts_appointment
+FAILED tests/test_agent_boundaries.py::test_cancelled_booking_does_not_reuse_old_date
+FAILED tests/test_agent_boundaries.py::test_contract_slot_only_continuation
+FAILED tests/test_agent_boundaries.py::test_contract_and_fee_question_same_turn
+FAILED tests/test_agent_boundaries.py::test_partial_handover_keeps_other_answers
+FAILED tests/test_agent_boundaries.py::test_agents_receive_their_own_clause
+FAILED tests/test_agent_boundaries.py::test_human_modes_bypass_graph_and_keep_inbox[False]
+FAILED tests/test_agent_boundaries.py::test_human_modes_bypass_graph_and_keep_inbox[True]
+FAILED tests/test_agent_boundaries.py::test_after_sales_empty_stub - Assertio...
+FAILED tests/test_agent_boundaries.py::test_after_sales_reads_service_and_formats_records
+FAILED tests/test_agent_boundaries.py::test_after_sales_complaint_still_escalates
+FAILED tests/test_agent_boundaries.py::test_policy_records_all_handover_reasons
+FAILED tests/test_agent_boundaries.py::test_router_uses_canonical_workflow_and_pending_interaction
+FAILED tests/test_conv_booking.py::test_tc04_explicit_request_enters_flow_and_keeps_date
+FAILED tests/test_conv_booking.py::test_tc04_does_not_reask_service - Asserti...
+FAILED tests/test_conv_booking.py::test_tc05_full_request_unknown_customer_asks_only_phone
+FAILED tests/test_conv_booking.py::test_tc05_keeps_exact_time - TypeError: ar...
+FAILED tests/test_conv_booking.py::test_tc05_known_phone_books_once_pending_approval
+FAILED tests/test_conv_booking.py::test_tc05_failed_booking_is_not_reported_as_booked
+FAILED tests/test_conv_booking.py::test_tc06_second_turn_keeps_booking_context
+FAILED tests/test_conv_booking.py::test_tc06_time_answer_fills_pending_slot
+FAILED tests/test_conv_booking.py::test_tc07_cancel_incomplete_booking_clears_only_booking_state
+FAILED tests/test_conv_context.py::test_tc11_short_reply_stays_in_brake_topic
+FAILED tests/test_conv_context.py::test_tc12_price_question_pauses_and_resumes_booking
+FAILED tests/test_conv_context.py::test_tc12_oil_change_price_is_not_a_vehicle_price
+FAILED tests/test_conv_context.py::test_tc13_says_availability_needs_verification
+FAILED tests/test_conv_context.py::test_conversations_are_isolated - Assertio...
+FAILED tests/test_conv_history.py::test_ordinal_follow_up_keeps_vehicle_list
+FAILED tests/test_conv_inquiry.py::test_tc01_answers_the_service_question - A...
+FAILED tests/test_conv_inquiry.py::test_tc02_acknowledges_the_damage - Assert...
+FAILED tests/test_conv_pending.py::test_invalid_phone_reasks_phone_and_keeps_facts
+FAILED tests/test_conv_policy.py::test_service_inquiry_leaves_offer_not_flow
+FAILED tests/test_conv_policy.py::test_accepting_offer_with_time_enters_booking_without_creating
+FAILED tests/test_conv_policy.py::test_known_phone_offer_acceptance_asks_confirmation_before_booking
+FAILED tests/test_conv_policy.py::test_tc15_switching_service_updates_context_keeps_identity
+FAILED tests/test_conv_policy.py::test_tc16_booking_error_is_not_reported_as_booked
+FAILED tests/test_conv_policy.py::test_tc12_price_interrupt_keeps_pending_booking
+FAILED tests/test_conv_policy.py::test_tc09_purchase_discount_goes_to_manager
+FAILED tests/test_conv_policy.py::test_tc06_short_time_reply_fills_slot - Ass...
+FAILED tests/test_conv_policy.py::test_appointment_deferral_does_not_create_a_question_before_writer_runs
+FAILED tests/test_conv_policy.py::test_two_writers_deferred_appointment_asks_phone_after_slots_available
+FAILED tests/test_conv_policy.py::test_tc06_short_time_reply_does_not_claim_booking
+FAILED tests/test_conv_policy.py::test_waiting_appointment_pending_interaction_tracks_missing_slot
+FAILED tests/test_conv_policy.py::test_booking_service_error_does_not_expose_exception
+FAILED tests/test_conv_policy.py::test_offer_acceptance_is_stored_as_pending_interaction
+FAILED tests/test_conv_policy.py::test_pending_questions_are_structured - ass...
+FAILED tests/test_conv_policy.py::test_appointment_writer_is_only_run_after_deferred_request_is_selected
+FAILED tests/test_conv_policy.py::test_two_writer_deferral_preserves_appointment_workflow
+FAILED tests/test_conv_policy.py::test_canonical_workflow_status_after_booking
+FAILED tests/test_conv_policy.py::test_appointment_failure_keeps_known_facts
+FAILED tests/test_conv_policy.py::test_appointment_pending_question_is_current_after_time_update
+FAILED tests/test_conv_policy.py::test_temporary_pending_items_expire_when_replaced
+FAILED tests/test_conv_sales.py::test_tc08_routes_to_sales - AssertionError: ...
+FAILED tests/test_conv_sales.py::test_tc09_discount_request_goes_to_human_without_promise
+FAILED tests/test_conv_sales.py::test_tc09_persuasion_is_recognised_as_discount
+FAILED tests/test_conv_sales_discovery.py::test_broad_purchase_asks_intended_use_without_products
+FAILED tests/test_conv_sales_discovery.py::test_short_answer_continues_sales_in_same_session
+FAILED tests/test_conv_sales_discovery.py::test_purpose_variants_in_rule_mode
+FAILED tests/test_conv_sales_discovery.py::test_explicit_browse_is_stable_and_scoped
+FAILED tests/test_conv_sales_discovery.py::test_browse_offer_accepted_with_yes
+FAILED tests/test_conv_sales_discovery.py::test_specific_model_lookup - Asser...
+FAILED tests/test_conv_sales_discovery.py::test_budget_and_popular_not_blocked
+FAILED tests/test_conv_sales_discovery.py::test_requirements_persist_and_correct
+FAILED tests/test_conv_sales_discovery.py::test_unsure_is_not_a_comprehension_failure
+FAILED tests/test_conv_sales_discovery.py::test_sales_plus_showroom_visit_routes_both_tasks
+FAILED tests/test_conv_sales_discovery.py::test_sales_question_keeps_booking_facts_of_active_workflow
+FAILED tests/test_conversation_agent.py::test_cancel_during_active_flow - Ass...
+FAILED tests/test_customer_name.py::test_appointment_keeps_name_and_does_not_ask_for_it
+FAILED tests/test_customer_name.py::test_appointment_without_name_still_asks_only_required_slots
+FAILED tests/test_smoke.py::test_greeting - AssertionError: assert ('trợ lý' ...
+FAILED tests/test_smoke.py::test_sales_shows_price_with_date - AssertionError...
+FAILED tests/test_smoke.py::test_negotiation_goes_to_human - AssertionError: ...
+FAILED tests/test_smoke.py::test_pending_bot_silent - AssertionError: assert ...
+FAILED tests/test_smoke.py::test_pending_extra_human_request_appends_ticket
+FAILED tests/test_smoke.py::test_appointment_slot_filling_multi_turn - Assert...
+FAILED tests/test_smoke.py::test_safety_question_has_warning - AssertionError...
+FAILED tests/test_smoke.py::test_knowledge_maintenance - AssertionError: asse...
+FAILED tests/test_smoke.py::test_contract_asks_for_info - AssertionError: ass...
+FAILED tests/test_smoke.py::test_discount_with_car_model_goes_to_human - Asse...
+FAILED tests/test_smoke.py::test_contract_price_question_goes_to_human - Asse...
+FAILED tests/test_smoke.py::test_knowledge_complexity_high_goes_to_human - As...
+FAILED tests/test_smoke.py::test_sales_and_appointment_same_turn - AssertionE...
+FAILED tests/test_smoke.py::test_knowledge_and_appointment_same_turn - Assert...
+FAILED tests/test_smoke.py::test_pending_saves_phone_to_ticket - IndexError: ...
+FAILED tests/test_smoke.py::test_pending_timeout_sends_hotline_once - IndexEr...
+FAILED tests/test_smoke.py::test_human_takeover_flow - IndexError: list index...
+95 failed, 167 passed, 9 xfailed, 13 warnings in 49.47s

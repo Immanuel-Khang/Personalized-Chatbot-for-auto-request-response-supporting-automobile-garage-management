@@ -1,0 +1,272 @@
+tests/test_admin_security.py::test_admin_requires_token
+tests/test_admin_security.py::test_third_wrong_password_locks_account
+tests/test_admin_security.py::test_lock_expires_and_success_resets_counter
+tests/test_admin_security.py::test_confirm_assigns_slot_and_notifies_customer
+tests/test_admin_security.py::test_confirm_full_slot_and_reschedule_releases
+tests/test_admin_security.py::test_confirm_needs_time_when_customer_gave_none
+tests/test_booking_slots.py::test_window_grid_math
+tests/test_booking_slots.py::test_settings_manager_only_and_validated
+tests/test_booking_slots.py::test_booking_rejected_when_window_full_then_cancel_frees
+tests/test_booking_slots.py::test_same_customer_cannot_double_book_a_window
+tests/test_booking_slots.py::test_check_slot_matches_booking_and_reschedule_is_guarded
+tests/test_booking_slots.py::test_slot_length_changes_the_grid
+tests/test_booking_slots.py::test_slot_overview_and_confirm_respects_new_capacity
+tests/test_booking_slots.py::test_complete_confirmed_appointment
+tests/test_booking_slots.py::test_bot_booking_is_confirmed_immediately_and_holds_the_slot
+tests/test_booking_slots.py::test_bot_reschedule_reconfirms_in_new_window
+tests/test_catalog_activate.py::test_seed_activates_only_products_with_a_trusted_price
+tests/test_catalog_activate.py::test_products_with_price_or_identity_problems_stay_draft
+tests/test_catalog_activate.py::test_retire_samples_only_touches_unsourced_active_products
+tests/test_catalog_activate.py::test_retire_is_refused_if_it_would_leave_no_active_product
+tests/test_catalog_import.py::test_import_csv_creates_brands
+tests/test_catalog_import.py::test_import_csv_creates_models
+tests/test_catalog_import.py::test_import_csv_creates_products_with_specs
+tests/test_catalog_import.py::test_product_has_sales_summary
+tests/test_catalog_import.py::test_dimensions_parsed_correctly
+tests/test_catalog_import.py::test_engine_specs_parsed
+tests/test_catalog_import.py::test_cargo_dimensions_parsed
+tests/test_catalog_import.py::test_price_imported_correctly
+tests/test_catalog_import.py::test_price_basis_detected
+tests/test_catalog_import.py::test_catalog_source_tracked
+tests/test_catalog_import.py::test_gearbox_specs_parsed
+tests/test_catalog_import.py::test_boolean_flags_parsed
+tests/test_catalog_import.py::test_multiple_products_same_model
+tests/test_catalog_import.py::test_search_summary_contains_keywords
+tests/test_catalog_import.py::test_no_duplicate_imports
+tests/test_catalog_service.py::test_find_model_returns_contract_fields
+tests/test_catalog_service.py::test_budget_is_a_hard_limit_even_with_fallback
+tests/test_catalog_service.py::test_unusable_products_are_never_offered[kwargs0]
+tests/test_catalog_service.py::test_unusable_products_are_never_offered[kwargs1]
+tests/test_catalog_service.py::test_unusable_products_are_never_offered[kwargs2]
+tests/test_catalog_service.py::test_unusable_products_are_never_offered[kwargs3]
+tests/test_catalog_service.py::test_aliases_are_searchable
+tests/test_catalog_service.py::test_summary_counts_vehicles_only
+tests/test_catalog_service.py::test_price_above_int32_is_stored
+tests/test_catalog_service.py::test_only_one_current_price_per_product_and_type
+tests/test_conv_booking.py::test_tc04_explicit_request_enters_flow_and_keeps_date
+tests/test_conv_booking.py::test_tc04_does_not_reask_service
+tests/test_conv_booking.py::test_tc05_full_request_unknown_customer_asks_only_phone
+tests/test_conv_booking.py::test_tc05_keeps_exact_time
+tests/test_conv_booking.py::test_tc05_known_phone_books_once_pending_approval
+tests/test_conv_booking.py::test_tc05_failed_booking_is_not_reported_as_booked
+tests/test_conv_booking.py::test_tc06_second_turn_keeps_booking_context
+tests/test_conv_booking.py::test_tc06_time_answer_fills_pending_slot
+tests/test_conv_booking.py::test_tc07_cancel_incomplete_booking_clears_only_booking_state
+tests/test_conv_booking.py::test_tc07_cancelling_created_appointment_is_not_falsely_confirmed
+tests/test_conv_context.py::test_tc11_short_reply_stays_in_brake_topic
+tests/test_conv_context.py::test_tc11_follow_up_is_not_a_verbatim_repeat
+tests/test_conv_context.py::test_tc12_price_question_pauses_and_resumes_booking
+tests/test_conv_context.py::test_tc12_oil_change_price_is_not_a_vehicle_price
+tests/test_conv_context.py::test_tc13_unknown_service_makes_no_claim_either_way
+tests/test_conv_context.py::test_tc13_says_availability_needs_verification
+tests/test_conv_context.py::test_tc13_collects_no_booking_slot
+tests/test_conv_context.py::test_inquiries_collect_no_personal_or_booking_data[Xe t\xf4i \u0111ang g\u1eb7p v\u1ea5n \u0111\u1ec1 v\u1edbi k\xednh ch\u1eafn gi\xf3, c\xf3 th\u1ec3 mang qua h\xe3ng \u0111\u1ec3 s\u1eeda \u0111\u01b0\u1ee3c kh\xf4ng?]
+tests/test_conv_context.py::test_inquiries_collect_no_personal_or_booking_data[K\xednh ch\u1eafn gi\xf3 xe t\xf4i c\xf3 m\u1ed9t v\u1ebft n\u1ee9t nh\u1ecf \u1edf g\xf3c b\xean ph\u1ea3i.]
+tests/test_conv_context.py::test_inquiries_collect_no_personal_or_booking_data[Thay k\xednh ch\u1eafn gi\xf3 h\u1ebft bao nhi\xeau ti\u1ec1n v\u1eady?]
+tests/test_conv_context.py::test_inquiries_collect_no_personal_or_booking_data[T\xf4i \u0111ang mu\u1ed1n t\xecm m\u1ed9t chi\u1ebfc Foton Aumark \u0111\u1ec3 \u0111i l\xe0m h\u1eb1ng ng\xe0y.]
+tests/test_conv_context.py::test_inquiries_collect_no_personal_or_booking_data[T\xf4i mu\u1ed1n k\xfd h\u1ee3p \u0111\u1ed3ng mua xe, c\u1ea7n chu\u1ea9n b\u1ecb gi\u1ea5y t\u1edd g\xec?]
+tests/test_conv_context.py::test_inquiries_collect_no_personal_or_booking_data[Xe t\xf4i c\xf3 ti\u1ebfng k\xeau l\u1ea1 khi phanh.]
+tests/test_conv_context.py::test_inquiries_collect_no_personal_or_booking_data[Gara b\xean b\u1ea1n c\xf3 s\u1eeda h\u1ec7 th\u1ed1ng pin c\u1ee7a xe \u0111i\u1ec7n b\u1ecb l\u1ed7i kh\xf4ng?]
+tests/test_conv_context.py::test_conversations_are_isolated
+tests/test_conv_history.py::test_first_turn_persists_and_sends_only_current_message
+tests/test_conv_history.py::test_second_turn_receives_previous_turn
+tests/test_conv_history.py::test_short_confirmation_follows_bot_question
+tests/test_conv_history.py::test_ordinal_follow_up_keeps_vehicle_list
+tests/test_conv_history.py::test_threads_are_isolated
+tests/test_conv_history.py::test_order_and_no_duplicates_over_several_turns
+tests/test_conv_history.py::test_history_skips_queued_messages_and_staff
+tests/test_conv_history.py::test_messages_keep_roles_and_order
+tests/test_conv_inquiry.py::test_tc01_service_inquiry_does_not_start_booking
+tests/test_conv_inquiry.py::test_tc01_answers_the_service_question
+tests/test_conv_inquiry.py::test_tc01_inquiry_collects_no_booking_slot
+tests/test_conv_inquiry.py::test_tc02_damage_description_does_not_start_booking
+tests/test_conv_inquiry.py::test_tc02_acknowledges_the_damage
+tests/test_conv_inquiry.py::test_tc03_price_question_fabricates_no_price_and_no_booking
+tests/test_conv_inquiry.py::test_tc03_unknown_price_is_flagged_not_substituted
+tests/test_conv_policy.py::test_service_inquiry_leaves_offer_not_flow
+tests/test_conv_policy.py::test_accepting_offer_with_time_enters_booking_without_creating
+tests/test_conv_policy.py::test_known_phone_offer_acceptance_asks_confirmation_before_booking
+tests/test_conv_policy.py::test_ignored_offer_expires_and_keeps_no_booking_slot
+tests/test_conv_policy.py::test_tc14_price_only_does_not_start_booking
+tests/test_conv_policy.py::test_tc15_switching_service_updates_context_keeps_identity
+tests/test_conv_policy.py::test_tc16_booking_error_is_not_reported_as_booked
+tests/test_conv_policy.py::test_tc12_price_interrupt_keeps_pending_booking
+tests/test_conv_policy.py::test_tc09_purchase_discount_goes_to_manager
+tests/test_conv_policy.py::test_tc06_short_time_reply_fills_slot
+tests/test_conv_policy.py::test_appointment_deferral_does_not_create_a_question_before_writer_runs
+tests/test_conv_policy.py::test_two_writers_deferred_appointment_asks_phone_after_slots_available
+tests/test_conv_policy.py::test_removed_router_helpers_are_not_part_of_canonical_contract
+tests/test_conv_policy.py::test_tc06_short_time_reply_does_not_claim_booking
+tests/test_conv_policy.py::test_waiting_appointment_pending_interaction_tracks_missing_slot
+tests/test_conv_policy.py::test_waiting_appointment_slot_names_are_canonical
+tests/test_conv_policy.py::test_booking_service_error_does_not_expose_exception
+tests/test_conv_policy.py::test_offer_acceptance_is_stored_as_pending_interaction
+tests/test_conv_policy.py::test_no_retired_state_is_returned
+tests/test_conv_policy.py::test_booking_slot_constants_remain_available_for_other_regressions
+tests/test_conv_policy.py::test_question_marker_constants_are_nonempty
+tests/test_conv_policy.py::test_no_unsupported_amounts_in_safe_failure
+tests/test_conv_policy.py::test_conversation_uses_unique_session
+tests/test_conv_policy.py::test_policy_module_contains_no_legacy_preprocess_imports
+tests/test_conv_policy.py::test_pending_questions_are_structured
+tests/test_conv_policy.py::test_test_database_session_is_isolated
+tests/test_conv_policy.py::test_appointment_writer_is_only_run_after_deferred_request_is_selected
+tests/test_conv_policy.py::test_two_writer_deferral_preserves_appointment_workflow
+tests/test_conv_policy.py::test_canonical_pending_interactions_are_not_legacy_dicts
+tests/test_conv_policy.py::test_no_appointment_record_is_created_by_inquiry
+tests/test_conv_policy.py::test_appointment_ask_does_not_collect_phone_for_inquiry
+tests/test_conv_policy.py::test_canonical_workflow_status_after_booking
+tests/test_conv_policy.py::test_canonical_workflow_is_cleared_after_cancel
+tests/test_conv_policy.py::test_pending_is_closed_after_cancel
+tests/test_conv_policy.py::test_policy_regression_sentinel
+tests/test_conv_policy.py::test_appointment_failure_keeps_known_facts
+tests/test_conv_policy.py::test_legacy_budget_constant_not_used_in_policy_suite
+tests/test_conv_policy.py::test_offer_does_not_create_active_appointment_workflow
+tests/test_conv_policy.py::test_appointment_pending_question_is_current_after_time_update
+tests/test_conv_policy.py::test_preprocess_uses_only_canonical_interpretation
+tests/test_conv_policy.py::test_appointment_state_has_canonical_fields
+tests/test_conv_policy.py::test_temporary_pending_items_expire_when_replaced
+tests/test_conv_policy.py::test_canonical_facts_are_known_fact_objects
+tests/test_conv_policy.py::test_appointment_task_is_a_canonical_task
+tests/test_conv_sales.py::test_tc08_vehicle_interest_starts_no_booking_or_contract
+tests/test_conv_sales.py::test_tc08_routes_to_sales
+tests/test_conv_sales.py::test_tc09_discount_request_goes_to_human_without_promise
+tests/test_conv_sales.py::test_tc09_generated_discount_promise_is_blocked
+tests/test_conv_sales.py::test_tc09_persuasion_is_recognised_as_discount
+tests/test_conv_sales.py::test_tc10_documents_question_fabricates_no_legal_list
+tests/test_conv_sales.py::test_tc10_inquiry_does_not_start_contract_collection
+tests/test_conv_sales_discovery.py::test_broad_purchase_asks_intended_use_without_products
+tests/test_conv_sales_discovery.py::test_short_answer_continues_sales_in_same_session
+tests/test_conv_sales_discovery.py::test_purpose_variants_in_rule_mode
+tests/test_conv_sales_discovery.py::test_explicit_browse_is_stable_and_scoped
+tests/test_conv_sales_discovery.py::test_browse_offer_accepted_with_yes
+tests/test_conv_sales_discovery.py::test_specific_model_lookup
+tests/test_conv_sales_discovery.py::test_budget_and_popular_not_blocked
+tests/test_conv_sales_discovery.py::test_failed_search_returns_nothing
+tests/test_conv_sales_discovery.py::test_requirements_persist_and_correct
+tests/test_conv_sales_discovery.py::test_sessions_do_not_share_sales_state
+tests/test_conv_sales_discovery.py::test_pending_question_does_not_hijack_other_turns
+tests/test_conv_sales_discovery.py::test_unsure_is_not_a_comprehension_failure
+tests/test_conv_sales_discovery.py::test_sales_plus_showroom_visit_routes_both_tasks
+tests/test_conv_sales_discovery.py::test_sales_question_keeps_booking_facts_of_active_workflow
+tests/test_conversation_agent.py::test_greeting
+tests/test_conversation_agent.py::test_out_of_scope
+tests/test_conversation_agent.py::test_memory_recall
+tests/test_conversation_agent.py::test_cancel_during_active_flow
+tests/test_conversation_architecture.py::TestSchemas::test_task_relationship_enum
+tests/test_conversation_architecture.py::TestSchemas::test_interaction_status_enum
+tests/test_conversation_architecture.py::TestSchemas::test_interaction_kind_enum
+tests/test_conversation_architecture.py::TestSchemas::test_slot_operation_enum
+tests/test_rag.py::test_normalize_accents_numbers_stopwords
+tests/test_rag.py::test_bm25_ranks_exact_terms_first
+tests/test_rag.py::test_rrf_prefers_docs_in_both_lists
+tests/test_rag.py::test_chunking_md_and_faq
+tests/test_rag.py::test_hybrid_finds_relevant_chunk
+tests/test_rag.py::test_no_match_returns_empty_so_agent_hands_over
+tests/test_rag.py::test_single_keyword_query_still_matches
+tests/test_rag.py::test_no_embedder_falls_back_to_bm25
+tests/test_rag.py::test_embedding_failure_falls_back_to_bm25
+tests/test_rag.py::test_query_embedding_failure_falls_back
+tests/test_rag.py::test_embedding_cache_only_embeds_new_chunks
+tests/test_rag.py::test_reload_picks_up_new_file
+tests/test_rag.py::test_suite_rag_does_not_call_embedding_api
+tests/test_rag_pg.py::test_sync_is_incremental
+tests/test_rag_pg.py::test_other_model_triggers_reembed_and_search_filters_model
+tests/test_rag_pg.py::test_vector_search_ranks_by_cosine
+tests/test_rag_pg.py::test_namespaces_are_isolated
+tests/test_rag_pg.py::test_dimension_mismatch_raises_and_retriever_falls_back
+tests/test_rag_pg.py::test_hybrid_end_to_end_on_pgvector
+tests/test_rag_pg.py::test_reload_picks_up_changes_in_db
+tests/test_rag_pg.py::test_fts_branch_matches_and_respects_keyword_threshold
+tests/test_rag_pg.py::test_lexical_pg_retriever
+tests/test_rag_pg.py::test_factory_falls_back_to_local_when_table_missing
+tests/test_smoke.py::test_greeting
+tests/test_smoke.py::test_sales_shows_price_with_date
+tests/test_smoke.py::test_negotiation_goes_to_human
+tests/test_smoke.py::test_pending_bot_silent
+tests/test_smoke.py::test_pending_extra_human_request_appends_ticket
+tests/test_smoke.py::test_appointment_slot_filling_multi_turn
+tests/test_smoke.py::test_safety_question_has_warning
+tests/test_smoke.py::test_knowledge_maintenance
+tests/test_smoke.py::test_contract_asks_for_info
+tests/test_smoke.py::test_discount_with_car_model_goes_to_human
+tests/test_smoke.py::test_contract_price_question_goes_to_human
+tests/test_smoke.py::test_knowledge_complexity_high_goes_to_human
+tests/test_smoke.py::test_sales_and_appointment_same_turn
+tests/test_smoke.py::test_knowledge_and_appointment_same_turn
+tests/test_smoke.py::test_pending_saves_phone_to_ticket
+tests/test_smoke.py::test_pending_timeout_sends_hotline_once
+tests/test_smoke.py::test_human_takeover_flow
+tests/test_smoke.py::test_poll_rejects_unknown_session
+tests/test_staff_appointments.py::test_cancel_frees_slot_and_notifies_customer
+tests/test_staff_appointments.py::test_cancel_without_body_and_pending_appointment
+tests/test_staff_appointments.py::test_cancel_rules
+tests/test_staff_appointments.py::test_reschedule_pending_stays_pending_and_notifies
+tests/test_staff_appointments.py::test_reschedule_confirmed_is_reconfirmed_and_moves_slot
+tests/test_staff_appointments.py::test_reschedule_to_full_window_is_refused_and_keeps_old_time
+tests/test_staff_appointments.py::test_reschedule_validation
+
+==================================== ERRORS ====================================
+_______________ ERROR collecting tests/test_agent_boundaries.py ________________
+ImportError while importing test module '/home/vanh/Personalized-Chatbot-for-auto-request-response-supporting-automobile-garage-management/tests/test_agent_boundaries.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.14/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_agent_boundaries.py:10: in <module>
+    from app.agent.nodes.preprocess import _apply_interpretation, _trace_safe, validate_interpretation
+E   ImportError: cannot import name 'validate_interpretation' from 'app.agent.nodes.preprocess' (/home/vanh/Personalized-Chatbot-for-auto-request-response-supporting-automobile-garage-management/app/agent/nodes/preprocess.py)
+_________________ ERROR collecting tests/test_conv_pending.py __________________
+ImportError while importing test module '/home/vanh/Personalized-Chatbot-for-auto-request-response-supporting-automobile-garage-management/tests/test_conv_pending.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.14/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_conv_pending.py:4: in <module>
+    from app.agent.nodes.appointment import PHONE_INVALID
+E   ImportError: cannot import name 'PHONE_INVALID' from 'app.agent.nodes.appointment' (/home/vanh/Personalized-Chatbot-for-auto-request-response-supporting-automobile-garage-management/app/agent/nodes/appointment.py)
+__________ ERROR collecting tests/test_conversation_interpretation.py __________
+ImportError while importing test module '/home/vanh/Personalized-Chatbot-for-auto-request-response-supporting-automobile-garage-management/tests/test_conversation_interpretation.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.14/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_conversation_interpretation.py:2: in <module>
+    from app.agent.nodes.preprocess import _apply_interpretation, validate_interpretation
+E   ImportError: cannot import name 'validate_interpretation' from 'app.agent.nodes.preprocess' (/home/vanh/Personalized-Chatbot-for-auto-request-response-supporting-automobile-garage-management/app/agent/nodes/preprocess.py)
+_________________ ERROR collecting tests/test_customer_name.py _________________
+ImportError while importing test module '/home/vanh/Personalized-Chatbot-for-auto-request-response-supporting-automobile-garage-management/tests/test_customer_name.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.14/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_customer_name.py:6: in <module>
+    from app.agent.nodes.preprocess import _apply_interpretation, _valid_name
+E   ImportError: cannot import name '_valid_name' from 'app.agent.nodes.preprocess' (/home/vanh/Personalized-Chatbot-for-auto-request-response-supporting-automobile-garage-management/app/agent/nodes/preprocess.py)
+_____________ ERROR collecting tests/test_preprocess_canonical.py ______________
+ImportError while importing test module '/home/vanh/Personalized-Chatbot-for-auto-request-response-supporting-automobile-garage-management/tests/test_preprocess_canonical.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.14/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_preprocess_canonical.py:4: in <module>
+    from app.agent.nodes.preprocess import _apply_interpretation, _canonical_value, _trace_safe, validate_interpretation
+E   ImportError: cannot import name 'validate_interpretation' from 'app.agent.nodes.preprocess' (/home/vanh/Personalized-Chatbot-for-auto-request-response-supporting-automobile-garage-management/app/agent/nodes/preprocess.py)
+=============================== warnings summary ===============================
+.venv/lib/python3.14/site-packages/langsmith/_internal/_beta_decorator.py:92: 13 warnings
+  /home/vanh/Personalized-Chatbot-for-auto-request-response-supporting-automobile-garage-management/.venv/lib/python3.14/site-packages/langsmith/_internal/_beta_decorator.py:92: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    if asyncio.iscoroutinefunction(func):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR tests/test_agent_boundaries.py
+ERROR tests/test_conv_pending.py
+ERROR tests/test_conversation_interpretation.py
+ERROR tests/test_customer_name.py
+ERROR tests/test_preprocess_canonical.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 5 errors during collection !!!!!!!!!!!!!!!!!!!!
+206 tests collected, 5 errors in 0.14s

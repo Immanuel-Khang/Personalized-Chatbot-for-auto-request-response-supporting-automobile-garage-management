@@ -1,0 +1,29 @@
+
+22 câu trong phạm vi + 4 câu ngoài phạm vi
+
+chỉ số                       keyword      bm25
+Recall@1                        0.77      0.95
+Recall@3                        0.82      1.00
+Recall@5                        0.86      1.00
+MRR@5                           0.81      0.98
+Chuyển oan (thấp tốt)           0.14      0.00
+Trả bừa (thấp tốt)              0.25      0.50
+
+Recall@3 theo nhóm câu hỏi
+an_toan                         1.00      1.00
+co_dau                          1.00      1.00
+dien_dat_lai                    1.00      1.00
+khong_dau                       0.00      1.00
+moc_km                          0.83      1.00
+ten_xe                          1.00      1.00
+
+== keyword: câu trượt ==
+  [oil_interval_noaccent] rank=None got=0 q='bao lau thi thay dau dong co' top=[]
+  [brake_noise_noaccent] rank=None got=0 q='phanh keu rit thi sao' top=[]
+  [tire_pressure_noaccent] rank=None got=0 q='ap suat lop bao nhieu la chuan' top=[]
+  [spark_plug] rank=4 got=5 q='khi nào cần thay bugi' top=['maintenance.md', 'maintenance.md', 'maintenance.md']
+  [oos_loan] TRẢ BỪA 2 chunk, q='lãi suất vay mua xe trả góp'
+
+== bm25: câu trượt ==
+  [oos_weather] TRẢ BỪA 2 chunk, q='thời tiết hôm nay ở Hà Nội thế nào'
+  [oos_loan] TRẢ BỪA 5 chunk, q='lãi suất vay mua xe trả góp'

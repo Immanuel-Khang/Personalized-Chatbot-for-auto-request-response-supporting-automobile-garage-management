@@ -1,0 +1,152 @@
+import os
+
+# Phải đặt TRƯỚC khi import app. Test chạy trên DB Postgres riêng, bị xóa sạch mỗi lần chạy.
+# Dùng 127.0.0.1 thay vì localhost: localhost thử IPv6 (::1) trước và chờ hết timeout mới sang IPv4.
+os.environ["DATABASE_URL"] = os.getenv(
+    "TEST_DATABASE_URL", "postgresql+psycopg://garage:garage@127.0.0.1:5433/garage_test?connect_timeout=5")
+# Mặc định test KHÔNG gọi LLM thật (nhanh, xác định, không tốn tiền) dù .env có LLM_PROVIDER=openai.
+# Muốn chạy test với LLM thật (tầng L5): RUN_LLM_TESTS=1 pytest <file> (dùng ở Đợt 3)
+if os.getenv("RUN_LLM_TESTS") != "1":
+    os.environ["LLM_PROVIDER"] = "none"
+# RAG chạy BM25-only: không gọi OpenAI embeddings (mỗi câu hỏi 1 request mạng, mạng chậm -> treo cả suite)
+os.environ["EMBEDDING_PROVIDER"] = "none"
+os.environ["ADMIN_AUTH_REQUIRED"] = "false"  # test admin API không đăng nhập
+
+# Temporary skip list: conversation tests that need an LLM/FakeLLM (see tests/needs_llm.txt).
+NEEDS_LLM = set()
+_needs_llm_file = os.path.join(os.path.dirname(__file__), "needs_llm.txt")
+if os.path.exists(_needs_llm_file):
+    with open(_needs_llm_file, encoding="utf-8") as _fh:
+        NEEDS_LLM = {line.strip() for line in _fh if line.strip() and not line.startswith("#")}
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
+
+TEST_URL = make_url(os.environ["DATABASE_URL"])
+assert TEST_URL.database.endswith("_test"), "Test chỉ được chạy trên DB có tên *_test"
+
+
+def _ensure_test_database() -> None:
+    """Tạo DB *_test nếu chưa có (kết nối qua DB 'postgres'); lỗi kết nối báo rõ thay vì treo."""
+    admin = create_engine(TEST_URL.set(database="postgres"), isolation_level="AUTOCOMMIT")
+    try:
+        with admin.connect() as conn:
+            exists = conn.execute(text("SELECT 1 FROM pg_database WHERE datname = :n"),
+                                  {"n": TEST_URL.database}).scalar()
+            if not exists:
+                conn.execute(text(f'CREATE DATABASE "{TEST_URL.database}"'))
+    except Exception as e:
+        pytest.exit(f"Không kết nối được Postgres tại {TEST_URL.host}:{TEST_URL.port} "
+                    f"(đã bật container DB chưa?): {e}", returncode=2)
+    finally:
+        admin.dispose()
+
+
+_ensure_test_database()
+
+from app.config import settings  # noqa: E402
+from app.main import app  # noqa: E402
+from app.db.session import engine, SessionLocal, Base, init_db  # noqa: E402
+from app.db import models  # noqa: E402, F401 - Import to register models
+
+# Reset schema mỗi lần chạy rồi dựng bằng Alembic (giống production): lifespan của app gọi
+# `alembic upgrade head` lần nữa sẽ là no-op. create_all không ghi alembic_version -> CREATE TABLE trùng.
+with engine.begin() as conn:
+    assert engine.url.database and engine.url.database.endswith("_test"), \
+    f"Từ chối DROP SCHEMA trên DB {engine.url.database!r}"
+    conn.execute(text("DROP SCHEMA public CASCADE; CREATE SCHEMA public"))
+init_db()
+
+
+@pytest.fixture()
+def client():
+    with TestClient(app) as c:
+        yield c
+
+
+@pytest.fixture()
+def db_session():
+    """Provide a clean database session for each test."""
+    db = SessionLocal()
+    try:
+        # Clean all tables before test
+        for table in reversed(Base.metadata.sorted_tables):
+            db.execute(table.delete())
+        db.commit()
+        yield db
+    finally:
+        db.close()
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "llm: gọi LLM thật (chỉ chạy khi RUN_LLM_TESTS=1, tốn tiền)")
+    config.addinivalue_line("markers", "slow: chậm (đồng thời, E2E, benchmark lặp)")
+
+
+def pytest_runtest_setup(item):
+    """Đợt 3: chạm trần ngân sách (L5_BUDGET_USD) thì dừng cả lần chạy, báo cáo một phần vẫn được ghi."""
+    if os.getenv("RUN_LLM_TESTS") == "1":
+        from tests import llm_budget
+        if llm_budget.exceeded():
+            pytest.exit(f"Dừng: chạm trần ngân sách. {llm_budget.summary()}", returncode=3)
+
+
+def pytest_terminal_summary(terminalreporter):
+    if os.getenv("RUN_LLM_TESTS") != "1":
+        return
+    from tests import l5, llm_budget
+    terminalreporter.write_line(llm_budget.summary())
+    if l5.RESULTS:
+        json_path, md_path = l5.write_reports(
+            os.path.join(os.path.dirname(__file__), "..", "reports", "l5"), settings.openai_model,
+            os.getenv("L5_REASONING_EFFORT", "low"), llm_budget.summary())
+        terminalreporter.write_line(f"Báo cáo L5: {md_path} (chi tiết {json_path})")
+
+
+def pytest_collection_modifyitems(config, items):
+    from app.agent.llm import _get_llm
+    if os.getenv("RUN_LLM_TESTS") != "1":
+        no_llm = pytest.mark.skip(reason="Test LLM thật: đặt RUN_LLM_TESTS=1 (tốn tiền, xem tests/llm_budget.py)")
+        for item in items:
+            if "llm" in item.keywords:
+                item.add_marker(no_llm)
+    if _get_llm() is not None:
+        return
+    skip = pytest.mark.skip(reason="Needs LLM/FakeLLM: preprocess has no rule-based branch (see tests/needs_llm.txt)")
+    for item in items:
+        if item.nodeid in NEEDS_LLM:
+            item.add_marker(skip)
+
+
+@pytest.fixture()
+def rag_chunk(monkeypatch):
+    """RAG trả đúng một đoạn tài liệu cố định: L3 không đo chất lượng truy xuất (đó là L4)."""
+    from app.contracts.schemas import KnowledgeChunk
+    from app.services import get_services
+
+    def set_chunk(text: str) -> None:
+        monkeypatch.setattr(get_services().knowledge, "retrieve",
+                            lambda question, k=3: [KnowledgeChunk(text=text, source="test", score=1.0)])
+    return set_chunk
+
+
+# Fixture FakeLLM (Đợt 2): thay LLM bằng kịch bản; tool_call_spy ghi công cụ nào được chạy ở node nào.
+from tests.fake_llm import fake_llm, tool_call_spy  # noqa: E402, F401
+
+if os.getenv("RUN_LLM_TESTS") == "1":  # Đợt 3: LLM thật có đếm token + reasoning_effort thấp
+    from tests import llm_budget  # noqa: E402
+    llm_budget.install()
+
+
+@pytest.fixture()
+def clean_bookings():
+    """Lịch/ticket của test trước không được chiếm sức chứa khung giờ của test sau (mặc định 2 lịch/khung).
+    Chỉ xóa dữ liệu đặt lịch và hội thoại, KHÔNG đụng catalog."""
+    from app.db.models import Appointment, AppointmentSlot, HandoverTicket, Message
+    from app.db.session import SessionLocal
+    with SessionLocal() as db:
+        for model in (Appointment, AppointmentSlot, HandoverTicket, Message):
+            db.query(model).delete()
+        db.commit()

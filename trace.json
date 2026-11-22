@@ -1,0 +1,85 @@
+{
+  "preprocess_result": {
+    "conversation_interpretation": {
+      "message_summary": "Khách hỏi có mẫu xe dưới 500 triệu không và muốn xem trực tiếp.",
+      "tasks": [
+        {
+          "task_id": "t1",
+          "domain": "SALES",
+          "action": "SALES search_catalog",
+          "text": "có mẫu xe nào dưới 500 triệu không",
+          "relationship": "NEW_REQUEST",
+          "referenced_interaction_id": null,
+          "requires_clarification": false,
+          "car_model": null,
+          "inquiry_only": false
+        },
+        {
+          "task_id": "t2",
+          "domain": "APPOINTMENT",
+          "action": "APPOINTMENT book_appointment",
+          "text": "tôi muốn xem trực tiếp",
+          "relationship": "NEW_REQUEST",
+          "referenced_interaction_id": null,
+          "requires_clarification": false,
+          "car_model": null,
+          "inquiry_only": false
+        }
+      ],
+      "slot_updates": [
+        {
+          "key": "budget_vnd",
+          "operation": "SET",
+          "value": 500000000,
+          "evidence": "[REDACTED]",
+          "source_message_id": null,
+          "related_task_id": null
+        }
+      ],
+      "presented_cars": [],
+      "signals": {
+        "wants_human": false,
+        "complaint": false,
+        "safety_risk": false,
+        "discount_request": false,
+        "deal_change": false,
+        "note": null
+      },
+      "complexity": "LOW",
+      "accepts_offer": null,
+      "uncertain": false
+    },
+    "known_facts": {
+      "intended_use": {
+        "key": "intended_use",
+        "value": "phù hợp vận chuyển đường dài",
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "budget_vnd": {
+        "key": "budget_vnd",
+        "value": 500000000,
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      }
+    },
+    "rejected_slots": [],
+    "proposed_slots": [
+      "budget_vnd"
+    ],
+    "dropped_slots": [],
+    "trace": [
+      "preprocess"
+    ]
+  },
+  "fields": [
+    "conversation_interpretation",
+    "known_facts",
+    "rejected_slots",
+    "proposed_slots",
+    "dropped_slots",
+    "trace"
+  ]
+}

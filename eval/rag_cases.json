@@ -1,0 +1,510 @@
+[
+  {
+    "id": "oil_interval",
+    "cat": "co_dau",
+    "query": "Bao lâu thì cần thay dầu động cơ",
+    "gold_contains": [
+      "5.000 km"
+    ]
+  },
+  {
+    "id": "oil_interval_noaccent",
+    "cat": "khong_dau",
+    "query": "bao lau thi thay dau dong co",
+    "gold_contains": [
+      "5.000 km"
+    ]
+  },
+  {
+    "id": "oil_synthetic",
+    "cat": "co_dau",
+    "query": "dầu tổng hợp đi được tối đa bao nhiêu km",
+    "gold_contains": [
+      "tổng hợp",
+      "10.000 km"
+    ]
+  },
+  {
+    "id": "oil_light",
+    "cat": "an_toan",
+    "query": "đèn báo áp suất dầu sáng",
+    "gold_contains": [
+      "áp suất dầu",
+      "hotline"
+    ]
+  },
+  {
+    "id": "oil_light_paraphrase",
+    "cat": "dien_dat_lai",
+    "query": "xe bật đèn dầu đỏ trên taplo có chạy tiếp được không",
+    "gold_contains": [
+      "áp suất dầu",
+      "hotline"
+    ]
+  },
+  {
+    "id": "brake_noise",
+    "cat": "an_toan",
+    "query": "phanh kêu rít",
+    "gold_contains": [
+      "má phanh"
+    ]
+  },
+  {
+    "id": "brake_noise_noaccent",
+    "cat": "khong_dau",
+    "query": "phanh keu rit thi sao",
+    "gold_contains": [
+      "má phanh"
+    ]
+  },
+  {
+    "id": "brake_soft_paraphrase",
+    "cat": "dien_dat_lai",
+    "query": "đạp phanh thấy mềm và lún xuống sàn",
+    "gold_contains": [
+      "bàn đạp phanh bị chùng"
+    ]
+  },
+  {
+    "id": "brake_replace",
+    "cat": "moc_km",
+    "query": "khi nào cần thay má phanh",
+    "gold_contains": [
+      "30.000-50.000"
+    ]
+  },
+  {
+    "id": "tire_pressure",
+    "cat": "co_dau",
+    "query": "áp suất lốp chuẩn là bao nhiêu",
+    "gold_contains": [
+      "30-35 PSI"
+    ]
+  },
+  {
+    "id": "tire_pressure_noaccent",
+    "cat": "khong_dau",
+    "query": "ap suat lop bao nhieu la chuan",
+    "gold_contains": [
+      "30-35 PSI"
+    ]
+  },
+  {
+    "id": "tire_rotate",
+    "cat": "moc_km",
+    "query": "bao lâu thì đảo lốp một lần",
+    "gold_contains": [
+      "lốp",
+      "10.000 km"
+    ]
+  },
+  {
+    "id": "major_service_cost",
+    "cat": "moc_km",
+    "query": "bảo dưỡng lớn tốn khoảng bao nhiêu tiền",
+    "gold_contains": [
+      "3.800.000"
+    ]
+  },
+  {
+    "id": "coolant",
+    "cat": "moc_km",
+    "query": "bao lâu thì thay nước làm mát",
+    "gold_contains": [
+      "nước làm mát",
+      "40.000 km"
+    ]
+  },
+  {
+    "id": "battery_hard_start",
+    "cat": "dien_dat_lai",
+    "query": "sáng nào xe cũng khó nổ máy, đèn mờ",
+    "gold_contains": [
+      "ắc quy"
+    ]
+  },
+  {
+    "id": "battery_life",
+    "cat": "co_dau",
+    "query": "ắc quy dùng được mấy năm",
+    "gold_contains": [
+      "2-3 năm"
+    ]
+  },
+  {
+    "id": "spark_plug",
+    "cat": "moc_km",
+    "query": "khi nào cần thay bugi",
+    "gold_contains": [
+      "bugi",
+      "40.000 km"
+    ]
+  },
+  {
+    "id": "spark_plug_iridium",
+    "cat": "moc_km",
+    "query": "bugi iridium thay sau bao nhiêu km",
+    "gold_contains": [
+      "100.000 km"
+    ]
+  },
+  {
+    "id": "gearbox_oil",
+    "cat": "dien_dat_lai",
+    "query": "xe giật khi sang số có phải do dầu hộp số không",
+    "gold_contains": [
+      "dầu hộp số"
+    ]
+  },
+  {
+    "id": "car_vios",
+    "cat": "ten_xe",
+    "query": "Vios G dùng động cơ gì",
+    "gold_contains": [
+      "Vios G",
+      "1.5L"
+    ]
+  },
+  {
+    "id": "car_cross_fuel",
+    "cat": "ten_xe",
+    "query": "Corolla Cross tiêu thụ bao nhiêu lít trên 100km",
+    "gold_contains": [
+      "Corolla Cross",
+      "4.3L"
+    ]
+  },
+  {
+    "id": "car_camry_gearbox",
+    "cat": "ten_xe",
+    "query": "Camry 2.5Q hộp số mấy cấp",
+    "gold_contains": [
+      "Camry",
+      "8 cấp"
+    ]
+  },
+  {
+    "id": "oos_bread",
+    "cat": "ngoai_pham_vi",
+    "query": "cách làm bánh mì",
+    "expect_empty": true
+  },
+  {
+    "id": "oos_weather",
+    "cat": "ngoai_pham_vi",
+    "query": "thời tiết hôm nay ở Hà Nội thế nào",
+    "expect_empty": true
+  },
+  {
+    "id": "oos_insurance",
+    "cat": "ngoai_pham_vi",
+    "query": "giá bảo hiểm thân vỏ bao nhiêu",
+    "expect_empty": true
+  },
+  {
+    "id": "oos_loan",
+    "cat": "ngoai_pham_vi",
+    "query": "lãi suất vay mua xe trả góp",
+    "expect_empty": true
+  },
+  {
+    "id": "oil_interval_time",
+    "cat": "moc_thoi_gian",
+    "query": "Xe ít chạy thì có cần thay dầu sau 6 tháng không",
+    "gold_contains": [
+      "5.000 km",
+      "6 tháng"
+    ]
+  },
+  {
+    "id": "oil_synthetic_limit",
+    "cat": "loai_dau",
+    "query": "Dầu tổng hợp có thể dùng tối đa bao nhiêu km",
+    "gold_contains": [
+      "tổng hợp",
+      "10.000 km"
+    ]
+  },
+  {
+    "id": "oil_light_action",
+    "cat": "an_toan",
+    "query": "Đèn dầu đỏ trên bảng táp lô bật lên, cần làm gì trước tiên",
+    "gold_contains": [
+      "dừng xe",
+      "tắt máy",
+      "hotline"
+    ]
+  },
+  {
+    "id": "brake_soft_action",
+    "cat": "an_toan",
+    "query": "Đạp phanh thấy bàn đạp mềm và lún sâu thì nên kiểm tra gì",
+    "gold_contains": [
+      "bàn đạp bị chùng",
+      "má phanh",
+      "dầu phanh"
+    ]
+  },
+  {
+    "id": "brake_noise_action",
+    "cat": "an_toan",
+    "query": "Xe phát tiếng rít mỗi lần đạp phanh có thể liên quan bộ phận nào",
+    "gold_contains": [
+      "má phanh",
+      "dầu phanh"
+    ]
+  },
+  {
+    "id": "brake_lifespan_min",
+    "cat": "moc_km",
+    "query": "Má phanh thường thay ở mốc km thấp nhất là bao nhiêu",
+    "gold_contains": [
+      "30.000-50.000 km"
+    ]
+  },
+  {
+    "id": "brake_lifespan_max",
+    "cat": "moc_km",
+    "query": "Má phanh có thể dùng đến khoảng 50 nghìn km không",
+    "gold_contains": [
+      "30.000-50.000 km"
+    ]
+  },
+  {
+    "id": "tire_rotate_when",
+    "cat": "moc_km",
+    "query": "Bao nhiêu km nên đảo lốp để các bánh mòn đều",
+    "gold_contains": [
+      "đảo",
+      "10.000 km"
+    ]
+  },
+  {
+    "id": "tire_pressure_toyota",
+    "cat": "thong_so",
+    "query": "Xe Toyota nên bơm lốp trong khoảng PSI nào",
+    "gold_contains": [
+      "Toyota",
+      "30-35 PSI"
+    ]
+  },
+  {
+    "id": "tire_maintenance",
+    "cat": "moc_km",
+    "query": "Ngoài kiểm tra áp suất thì lốp xe cần được đảo định kỳ thế nào",
+    "gold_contains": [
+      "đảo",
+      "10.000 km"
+    ]
+  },
+  {
+    "id": "major_service_tasks",
+    "cat": "bao_duong",
+    "query": "Một lần bảo dưỡng lớn thường gồm những hạng mục nào",
+    "gold_contains": [
+      "lọc dầu",
+      "lọc gió",
+      "hệ thống treo",
+      "nước làm mát"
+    ]
+  },
+  {
+    "id": "major_service_cost_low",
+    "cat": "chi_phi",
+    "query": "Chi phí thấp nhất được nêu cho bảo dưỡng lớn là bao nhiêu",
+    "gold_contains": [
+      "3.800.000",
+      "8.000.000 VNĐ"
+    ]
+  },
+  {
+    "id": "major_service_cost_high",
+    "cat": "chi_phi",
+    "query": "Bảo dưỡng lớn có thể tốn đến 8 triệu đồng không",
+    "gold_contains": [
+      "3.800.000",
+      "8.000.000 VNĐ"
+    ]
+  },
+  {
+    "id": "coolant_interval_km",
+    "cat": "moc_km",
+    "query": "Nước làm mát ô tô cần thay mới sau bao nhiêu km",
+    "gold_contains": [
+      "nước làm mát",
+      "40.000 km"
+    ]
+  },
+  {
+    "id": "coolant_interval_years",
+    "cat": "moc_thoi_gian",
+    "query": "Nếu tính theo thời gian thì bao lâu nên thay nước làm mát",
+    "gold_contains": [
+      "nước làm mát",
+      "2 năm"
+    ]
+  },
+  {
+    "id": "coolant_maintenance",
+    "cat": "bao_duong",
+    "query": "Cần kiểm tra bộ phận nào định kỳ để tránh ăn mòn hệ thống làm mát",
+    "gold_contains": [
+      "mức nước làm mát",
+      "ăn mòn"
+    ]
+  },
+  {
+    "id": "battery_life_years",
+    "cat": "dien_dat_lai",
+    "query": "Tuổi thọ thông thường của ắc quy xe là bao lâu",
+    "gold_contains": [
+      "ắc quy",
+      "2-3 năm"
+    ]
+  },
+  {
+    "id": "battery_symptoms",
+    "cat": "dien_dat_lai",
+    "query": "Buổi sáng đề khó nổ và đèn xe yếu hơn thường ngày thì nên kiểm tra gì",
+    "gold_contains": [
+      "khó khởi động",
+      "đèn mờ",
+      "ắc quy"
+    ]
+  },
+  {
+    "id": "spark_plug_normal",
+    "cat": "moc_km",
+    "query": "Bugi thường nên thay ở mốc bảo dưỡng nào",
+    "gold_contains": [
+      "bugi thường",
+      "40.000 km"
+    ]
+  },
+  {
+    "id": "spark_plug_iridium_interval",
+    "cat": "moc_km",
+    "query": "Loại bugi iridium có chu kỳ thay thế bao nhiêu km",
+    "gold_contains": [
+      "bugi iridium",
+      "100.000 km"
+    ]
+  },
+  {
+    "id": "spark_plug_symptoms",
+    "cat": "bao_duong",
+    "query": "Bugi bị mòn có thể làm xe gặp những vấn đề gì",
+    "gold_contains": [
+      "Bugi mòn",
+      "tiêu hao nhiên liệu",
+      "giảm hiệu suất"
+    ]
+  },
+  {
+    "id": "gearbox_oil_interval",
+    "cat": "moc_km",
+    "query": "Dầu hộp số nên được thay định kỳ sau mỗi bao nhiêu km",
+    "gold_contains": [
+      "dầu hộp số",
+      "40.000 km"
+    ]
+  },
+  {
+    "id": "gearbox_jerking",
+    "cat": "dien_dat_lai",
+    "query": "Xe bị giật khi chuyển số, tài liệu có nhắc đến dầu hộp số không",
+    "gold_contains": [
+      "giật khi sang số",
+      "dầu hộp số"
+    ]
+  },
+  {
+    "id": "vios_engine",
+    "cat": "ten_xe",
+    "query": "Động cơ của Toyota Vios phiên bản G là loại nào",
+    "gold_contains": [
+      "Vios G",
+      "1.5L Dual VVT-i"
+    ]
+  },
+  {
+    "id": "vios_gearbox",
+    "cat": "ten_xe",
+    "query": "Vios G dùng hộp số CVT hay số tự động nhiều cấp",
+    "gold_contains": [
+      "Vios G",
+      "hộp số CVT"
+    ]
+  },
+  {
+    "id": "vios_fuel",
+    "cat": "ten_xe",
+    "query": "Mức tiêu thụ nhiên liệu trung bình của Vios G là bao nhiêu",
+    "gold_contains": [
+      "Vios G",
+      "5.3L/100km"
+    ]
+  },
+  {
+    "id": "cross_hybrid",
+    "cat": "ten_xe",
+    "query": "Corolla Cross bản được nhắc trong tài liệu dùng hệ truyền động nào",
+    "gold_contains": [
+      "Corolla Cross",
+      "Hybrid 1.8L",
+      "E-CVT"
+    ]
+  },
+  {
+    "id": "cross_fuel",
+    "cat": "ten_xe",
+    "query": "Corolla Cross Hybrid tiêu hao trung bình bao nhiêu lít xăng mỗi 100 km",
+    "gold_contains": [
+      "Corolla Cross",
+      "4.3L/100km"
+    ]
+  },
+  {
+    "id": "camry_engine",
+    "cat": "ten_xe",
+    "query": "Toyota Camry 2.5Q được trang bị động cơ dung tích bao nhiêu",
+    "gold_contains": [
+      "Camry 2.5Q",
+      "2.5L Dynamic Force"
+    ]
+  },
+  {
+    "id": "camry_gearbox",
+    "cat": "ten_xe",
+    "query": "Hộp số của Camry 2.5Q có bao nhiêu cấp",
+    "gold_contains": [
+      "Camry 2.5Q",
+      "8 cấp tự động"
+    ]
+  },
+  {
+    "id": "oos_restaurant",
+    "cat": "ngoai_pham_vi",
+    "query": "Đặt bàn ăn tối cho hai người ở nhà hàng gần đây",
+    "expect_empty": true
+  },
+  {
+    "id": "oos_laptop",
+    "cat": "ngoai_pham_vi",
+    "query": "Cách thay màn hình laptop bị vỡ",
+    "expect_empty": true
+  },
+  {
+    "id": "oos_flight",
+    "cat": "ngoai_pham_vi",
+    "query": "Giá vé máy bay từ Hà Nội đi Đà Nẵng tuần tới",
+    "expect_empty": true
+  },
+  {
+    "id": "oos_stock",
+    "cat": "ngoai_pham_vi",
+    "query": "Hôm nay nên mua cổ phiếu ngân hàng nào",
+    "expect_empty": true
+  }
+]
