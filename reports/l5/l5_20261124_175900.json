@@ -1,0 +1,483 @@
+{
+ "model": "gpt-5.4-nano",
+ "reasoning_effort": "low",
+ "aggregate": {
+  "cases": 10,
+  "passed": 0,
+  "critical_cases": 0,
+  "price_error_turns": 0,
+  "turns": 11,
+  "groups": {
+   "dependency": [
+    0,
+    10
+   ]
+  },
+  "tool_recall": [
+   0,
+   9
+  ],
+  "tool_precision": [
+   0,
+   0
+  ],
+  "latency_p50": 3.7445215240004472,
+  "latency_p95": 3.7445215240004472,
+  "cost_usd": 0.0024673
+ },
+ "results": [
+  {
+   "id": "DP_IF_FOUND_VISIT",
+   "group": "dependency",
+   "priority": "critical",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Nếu có xe FOTON AUMARK-9T (3800) thì đặt lịch cho mình xem xe lúc 9 giờ sáng ngày mai, tên Nguyễn Văn An, SĐT 0919873051",
+     "reply": "Mình hiểu bạn muốn:\n- Xem xe FOTON AUMARK-9T (3800)\n- Lúc 9:00 sáng ngày mai\n- Tên: Nguyễn Văn An\n- SĐT: 0919873051\n\nMình cần bạn xác nhận thêm giúp 1 ý để đặt lịch đúng: bạn muốn xem tại chi nhánh/cơ sở nào của Foton (khu vực bạn tiện đến nhất)?  \nBạn cho mình xin tên chi nhánh hoặc địa chỉ gần bạn nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 5.274307152001711,
+     "first": true,
+     "failures": [
+      "thiếu node sales",
+      "thiếu node coordinator_resume",
+      "thiếu node appointment"
+     ]
+    },
+    {
+     "message": "Đúng rồi, xác nhận giúp mình",
+     "reply": "Mình xác nhận lại giúp bạn: bạn muốn xem xe FOTON AUMARK-9T (3800) lúc 9:00 sáng ngày mai, bạn là Nguyễn Văn An (SĐT 0919873051).\n\nĐể mình chốt lịch chính xác, bạn cho mình xin thêm 1 thông tin: bạn muốn xem tại chi nhánh/khu vực nào (hoặc địa chỉ gần bạn nhất)?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 3.7445215240004472,
+     "first": false,
+     "failures": [
+      "thiếu node appointment",
+      "DB: lịch hiệu lực 0 != 1"
+     ]
+    }
+   ],
+   "failures": [
+    "lượt 1: thiếu node sales",
+    "lượt 1: thiếu node coordinator_resume",
+    "lượt 1: thiếu node appointment",
+    "lượt 2: thiếu node appointment",
+    "lượt 2: DB: lịch hiệu lực 0 != 1",
+    "thiếu công cụ trong [['search_products', 'find_by_model_name', 'search_by_description', 'browse_catalog', 'find_by_price_range'], ['create_appointment']], đã gọi: []"
+   ],
+   "critical": [],
+   "tools": [],
+   "needs_tool": true,
+   "tool_groups_hit": false,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.000453,
+   "price_errors": 0,
+   "passed": false
+  },
+  {
+   "id": "DP_IF_MISSING_VISIT",
+   "group": "dependency",
+   "priority": "critical",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Nếu có xe Tesla Cybertruck thì đặt lịch cho mình xem xe lúc 9 giờ sáng ngày mai, tên Nguyễn Văn An, SĐT 0961407435",
+     "reply": "Mình hiểu bạn muốn:\n- Xem xe Tesla Cybertruck\n- Thời gian: 9 giờ sáng ngày mai\n- Tên: Nguyễn Văn An\n- SĐT: 0961407435\n\nMình xin xác nhận thêm 2 ý để mình chuyển bộ phận đặt lịch cho đúng:\n- Bạn cho mình hỏi “ngày mai” là ngày/tháng nào theo lịch của bạn ạ?\n- Bạn muốn xem xe tại chi nhánh showroom Foton khu vực nào (tỉnh/thành hoặc quận) ạ?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 3.5107427069997357,
+     "first": true,
+     "failures": [
+      "thiếu node sales"
+     ]
+    }
+   ],
+   "failures": [
+    "lượt 1: thiếu node sales",
+    "thiếu công cụ trong [['search_products', 'find_by_model_name', 'search_by_description', 'browse_catalog', 'find_by_price_range']], đã gọi: []"
+   ],
+   "critical": [],
+   "tools": [],
+   "needs_tool": true,
+   "tool_groups_hit": false,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00021869999999999998,
+   "price_errors": 0,
+   "passed": false
+  },
+  {
+   "id": "DP_IF_BOTH_ONE_MISSING",
+   "group": "dependency",
+   "priority": "critical",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Nếu cả FOTON AUMARK-9T (3800) và Tesla Cybertruck đều có thì đặt lịch cho mình xem xe lúc 9 giờ sáng ngày mai, tên Nguyễn Văn An, SĐT 0966173744",
+     "reply": "Mình hiểu ý bạn là muốn xem trực tiếp 2 mẫu xe: FOTON AUMARK-9T (phiên bản 3800) và Tesla Cybertruck vào 9 giờ sáng ngày mai, đứng tên Nguyễn Văn An.\n\nHiện mình cần bạn xác nhận thêm giúp 2 ý để mình làm đúng yêu cầu:\n- Ngày mai bạn đang muốn tính theo ngày nào (dd/mm) ạ?\n- Bạn muốn xem tại showroom/khu vực nào của Foton (tỉnh/thành phố hoặc địa chỉ cụ thể)?\n\nNgoài ra, mình xin nói trước: bên mình không có dịch vụ lái thử, chỉ hỗ trợ tư vấn và cho bạn xem xe trực tiếp. Bạn xác nhận giúp mình 2 thông tin trên nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 2.830717085998913,
+     "first": true,
+     "failures": [
+      "thiếu node sales"
+     ]
+    }
+   ],
+   "failures": [
+    "lượt 1: thiếu node sales",
+    "thiếu công cụ trong [['search_products', 'find_by_model_name', 'search_by_description', 'browse_catalog', 'find_by_price_range']], đã gọi: []"
+   ],
+   "critical": [],
+   "tools": [],
+   "needs_tool": true,
+   "tool_groups_hit": false,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00023569999999999998,
+   "price_errors": 0,
+   "passed": false
+  },
+  {
+   "id": "DP_IF_BOTH_FOUND",
+   "group": "dependency",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Nếu cả FOTON AUMARK-9T (3800) và FUSO FI170 đều có thì đặt lịch cho mình xem xe lúc 9 giờ sáng ngày mai, tên Nguyễn Văn An, SĐT 0958253583",
+     "reply": "Mình hiểu ý bạn là bạn muốn xem 2 xe: FOTON AUMARK-9T (3800) và FUSO FI170, và bạn đề nghị thời gian 9 giờ sáng ngày mai.\n\nTrước khi mình hỗ trợ đặt lịch xem xe cho bạn Nguyễn Văn An (0958253583), mình xin làm rõ nhanh 2 ý:\n- Bạn xác nhận “9:00 sáng ngày mai” theo ngày nào (dương lịch) ạ?\n- Bạn muốn mình đặt xem cùng lúc 2 xe trong 1 buổi, hay ưu tiên xe nào trước ạ?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 2.907816573002492,
+     "first": true,
+     "failures": [
+      "thiếu node sales",
+      "thiếu node coordinator_resume",
+      "thiếu node appointment"
+     ]
+    }
+   ],
+   "failures": [
+    "lượt 1: thiếu node sales",
+    "lượt 1: thiếu node coordinator_resume",
+    "lượt 1: thiếu node appointment",
+    "thiếu công cụ trong [['search_products', 'find_by_model_name', 'search_by_description', 'browse_catalog', 'find_by_price_range']], đã gọi: []"
+   ],
+   "critical": [],
+   "tools": [],
+   "needs_tool": true,
+   "tool_groups_hit": false,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.0001989,
+   "price_errors": 0,
+   "passed": false
+  },
+  {
+   "id": "DP_SIMILAR_MODEL",
+   "group": "dependency",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Nếu có xe Foton Aumark 9T thì đặt lịch cho mình xem xe lúc 9 giờ sáng ngày mai, tên Nguyễn Văn An, SĐT 0905830766",
+     "reply": "Mình hiểu bạn đang muốn:\n- Xem xe Foton Aumark 9T\n- Lúc 9:00 sáng ngày mai\n- Tên Nguyễn Văn An\n- SĐT: 0905830766\n\nTrước khi mình hỗ trợ đặt lịch, bạn giúp mình xác nhận giúp 2 ý này với:\n1) Bạn muốn xem tại cơ sở/chi nhánh nào của Foton (quận/khu vực hoặc tên cửa hàng)?\n2) “Ngày mai” bạn đang tính theo ngày nào (dd/mm) để mình chốt đúng lịch ạ?\n\nLưu ý thêm: bên mình có hỗ trợ xem xe, còn dịch vụ lái thử hiện tại không có.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 3.015240800999891,
+     "first": true,
+     "failures": [
+      "thiếu node sales"
+     ]
+    }
+   ],
+   "failures": [
+    "lượt 1: thiếu node sales",
+    "thiếu công cụ trong [['search_products', 'find_by_model_name', 'search_by_description', 'browse_catalog', 'find_by_price_range']], đã gọi: []"
+   ],
+   "critical": [],
+   "tools": [],
+   "needs_tool": true,
+   "tool_groups_hit": false,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.0002262,
+   "price_errors": 0,
+   "passed": false
+  },
+  {
+   "id": "DP_IF_FOUND_CONTRACT",
+   "group": "dependency",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Nếu có FOTON AUMARK-9T (3800) thì mình chốt mua luôn",
+     "reply": "Mình hiểu bạn đang quan tâm FOTON AUMARK-9T (bạn ghi “3800”) và muốn chốt mua luôn nếu đúng loại.\n\nNhưng mình cần bạn xác nhận giúp 2 ý để check đúng xe và báo giá chính xác:\n- “3800” là thông số tải trọng hay chiều dài cơ sở/thùng (hay là giá dự kiến)?\n- Bạn muốn phiên bản nào: thùng dài/thùng tiêu chuẩn và nhu cầu dùng chở hàng (chở nặng thường xuyên hay chạy đô thị)?\n\nBạn cho mình biết thêm 1 chút thông tin trên, mình sẽ kiểm tra đúng cấu hình AUMARK-9T bạn cần và gửi bạn phương án phù hợp để bạn chốt.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 3.1819961830005923,
+     "first": true,
+     "failures": [
+      "thiếu node sales",
+      "thiếu node coordinator_resume",
+      "thiếu node contract",
+      "câu trả lời không khớp regex nào trong ['họ|tên', 'số điện thoại|sđt', 'địa chỉ']"
+     ]
+    }
+   ],
+   "failures": [
+    "lượt 1: thiếu node sales",
+    "lượt 1: thiếu node coordinator_resume",
+    "lượt 1: thiếu node contract",
+    "lượt 1: câu trả lời không khớp regex nào trong ['họ|tên', 'số điện thoại|sđt', 'địa chỉ']",
+    "thiếu công cụ trong [['search_products', 'find_by_model_name', 'search_by_description', 'browse_catalog', 'find_by_price_range']], đã gọi: []"
+   ],
+   "critical": [],
+   "tools": [],
+   "needs_tool": true,
+   "tool_groups_hit": false,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.0002547,
+   "price_errors": 0,
+   "passed": false
+  },
+  {
+   "id": "DP_IF_MISSING_CONTRACT",
+   "group": "dependency",
+   "priority": "critical",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Nếu có Tesla Cybertruck thì mình chốt mua luôn",
+     "reply": "Hiện tại mình chưa có thông tin trong hệ thống về việc xưởng có Tesla Cybertruck sẵn để bán hay không nên mình chưa thể chốt giúp bạn ngay được.\n\nBạn có thể cho mình biết họ tên để thuận tiện xưng hô được không ạ?  \nVà bạn muốn hỏi “Cybertruck” theo cấu hình nào (bản tiêu chuẩn hay bản khác) hoặc bạn đang cần xe mới/tháng sản xuất gần nhất?\n\nNếu bạn cần, mình sẽ kiểm tra và báo lại trạng thái có hàng/khả năng đặt về, nhưng mình chưa thực hiện đặt mua khi bạn chưa xác nhận cấu hình. (Xưởng cũng không có dịch vụ lái thử ạ.)",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 2.532671381999535,
+     "first": true,
+     "failures": [
+      "thiếu node sales"
+     ]
+    }
+   ],
+   "failures": [
+    "lượt 1: thiếu node sales",
+    "thiếu công cụ trong [['search_products', 'find_by_model_name', 'search_by_description', 'browse_catalog', 'find_by_price_range']], đã gọi: []"
+   ],
+   "critical": [],
+   "tools": [],
+   "needs_tool": true,
+   "tool_groups_hit": false,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.0002147,
+   "price_errors": 0,
+   "passed": false
+  },
+  {
+   "id": "DP_NO_ACCENT",
+   "group": "dependency",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "neu co xe FOTON AUMARK-9T (3800) thi dat lich xem xe 9 gio sang mai, ten Nguyen Van An, SDT 0959878182",
+     "reply": "Mình hiểu bạn đang muốn hỏi và đặt lịch xem xe Foton AUMARK-9T (3800) vào 9 giờ sáng mai. Mình ghi nhận thông tin tên là Nguyễn Văn An, SĐT 0959878182.\n\nBạn giúp mình xác nhận thêm 2 ý để mình chốt lịch cho đúng:\n- Bạn muốn xem xe tại chi nhánh/khu vực nào của Foton (bạn cho mình xin địa chỉ hoặc tên chi nhánh)?\n- 9 giờ sáng mai bạn muốn theo khung giờ nào (ví dụ: đúng 9:00 hay khoảng 9:00–9:30) để shop sắp xếp chính xác?\n\nLưu ý nhỏ: xưởng mình hỗ trợ xem xe, không có dịch vụ lái thử.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 3.4633666800000356,
+     "first": true,
+     "failures": [
+      "thiếu node sales",
+      "thiếu node coordinator_resume",
+      "thiếu node appointment"
+     ]
+    }
+   ],
+   "failures": [
+    "lượt 1: thiếu node sales",
+    "lượt 1: thiếu node coordinator_resume",
+    "lượt 1: thiếu node appointment",
+    "thiếu công cụ trong [['search_products', 'find_by_model_name', 'search_by_description', 'browse_catalog', 'find_by_price_range']], đã gọi: []"
+   ],
+   "critical": [],
+   "tools": [],
+   "needs_tool": true,
+   "tool_groups_hit": false,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.0002372,
+   "price_errors": 0,
+   "passed": false
+  },
+  {
+   "id": "DP_CONTROL_INDEPENDENT",
+   "group": "dependency",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Giá FOTON AUMARK-9T (3800) bao nhiêu, cho mình qua showroom xem xe lúc 9 giờ sáng ngày mai, tên Nguyễn Văn An, SĐT 0903602396",
+     "reply": "Mình hiểu bạn đang hỏi 2 ý: (1) giá FOTON AUMARK-9T (3800) là bao nhiêu; (2) bạn muốn qua showroom xem xe vào 9 giờ sáng ngày mai.\n\n- Về giá: hiện mình chưa có bảng giá chính xác ngay trong tin nhắn này, nên mình chưa thể chốt “giá bao nhiêu” cho bạn. Bạn cho mình xin thêm đúng phiên bản theo xe bạn muốn (có phải AUMARK-9T thùng/ben hay dạng cabin gì, máy/động cơ theo thông tin nào không) để mình kiểm tra đúng giá áp dụng từ ngày hiện tại.\n- Về việc xem xe lúc 9 giờ sáng ngày mai: mình ghi nhận bạn tên Nguyễn Văn An, SĐT 0903602396. Bạn cho mình xin địa chỉ showroom bạn muốn đến (chi nhánh/quận nào) để mình sắp xếp phù hợp nhé.\n\nNếu bạn chỉ cần mình kiểm tra nhanh theo đúng “AUMARK-9T (3800)” như bạn ghi, bạn xác nhận giúp mình là xe dòng này đúng phiên bản bạn đang quan tâm nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 2.902941672000452,
+     "first": true,
+     "failures": [
+      "thiếu node sales",
+      "thiếu node appointment"
+     ]
+    }
+   ],
+   "failures": [
+    "lượt 1: thiếu node sales",
+    "lượt 1: thiếu node appointment",
+    "thiếu công cụ trong [['search_products', 'find_by_model_name', 'search_by_description', 'browse_catalog', 'find_by_price_range']], đã gọi: []"
+   ],
+   "critical": [],
+   "tools": [],
+   "needs_tool": true,
+   "tool_groups_hit": false,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.0002313,
+   "price_errors": 0,
+   "passed": false
+  },
+  {
+   "id": "DP_CONTROL_UNCONDITIONAL",
+   "group": "dependency",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Mình muốn đến showroom xem xe FOTON AUMARK-9T (3800) lúc 9 giờ sáng ngày mai, tên Nguyễn Văn An, SĐT 0963636151",
+     "reply": "Mình hiểu bạn muốn đến showroom để xem xe FOTON AUMARK-9T (3800) lúc 9 giờ sáng ngày mai, bạn tên Nguyễn Văn An, SĐT 0963636151.\n\nBạn cho mình hỏi thêm giúp mình 2 ý để mình sắp xếp đúng nhé:\n- Ngày “mai” theo lịch của bạn là ngày nào (dd/mm)?\n- Bạn muốn đến chi nhánh/showroom Foton ở khu vực nào (tỉnh/thành hoặc địa chỉ)?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "conversation",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 2.464479351998307,
+     "first": true,
+     "failures": [
+      "thiếu node appointment"
+     ]
+    }
+   ],
+   "failures": [
+    "lượt 1: thiếu node appointment"
+   ],
+   "critical": [],
+   "tools": [],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 0,
+   "cost_usd": 0.00019690000000000002,
+   "price_errors": 0,
+   "passed": false
+  }
+ ]
+}

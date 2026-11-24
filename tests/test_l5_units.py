@@ -114,7 +114,7 @@ def test_meter_reads_usage_metadata_from_generations():
 
 
 def test_benchmark_file_is_well_formed():
-    assert len(CASES) == 40 and len({c["id"] for c in CASES}) == 40
+    assert len(CASES) == 50 and len({c["id"] for c in CASES}) == 50   # 40 ca gốc + 10 ca dependency (Đợt 3B)
     groups = {}
     for case in CASES:
         groups[case["group"]] = groups.get(case["group"], 0) + 1
@@ -128,7 +128,7 @@ def test_benchmark_file_is_well_formed():
         assert case["req"] in {"R01", "R02", "R03", "R04", "R05", "R06", "R07", "R08", "-"}, case["id"]
         assert known >= set(case.get("ok_tools", [])) | {t for g in case.get("required_tool_groups", []) for t in g}, case["id"]
     assert sum(bool(c.get("needs_tool")) for c in CASES) >= 15   # recall cần đủ ca để khoảng tin cậy không quá rộng
-    assert groups == {"sales": 8, "knowledge": 8, "booking": 8, "policy": 8, "multi": 4, "oos": 4}   # đúng bảng kế hoạch B7
+    assert groups == {"sales": 8, "knowledge": 8, "booking": 8, "policy": 8, "multi": 4, "oos": 4, "dependency": 10}   # bảng B7 + C4
 
 
 def test_unknown_capability_accepts_uncertainty_but_rejects_explicit_claim():

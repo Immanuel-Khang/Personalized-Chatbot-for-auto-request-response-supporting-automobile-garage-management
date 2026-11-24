@@ -1090,5 +1090,402 @@
       }
     ],
     "expect_handover": false
+  },
+  {
+    "id": "DP_IF_FOUND_VISIT",
+    "group": "dependency",
+    "req": "R05",
+    "priority": "critical",
+    "turns": [
+      {
+        "message": "Nếu có xe FOTON AUMARK-9T (3800) thì đặt lịch cho mình xem xe lúc 9 giờ sáng ngày mai, tên Nguyễn Văn An, SĐT {phone}",
+        "expect_path": [
+          "sales",
+          "coordinator_resume",
+          "appointment"
+        ],
+        "expect_db": {
+          "appointments": 0
+        }
+      },
+      {
+        "message": "Đúng rồi, xác nhận giúp mình",
+        "expect_path": [
+          "appointment"
+        ],
+        "expect_db": {
+          "appointments": 1
+        }
+      }
+    ],
+    "expect_handover": false,
+    "needs_tool": true,
+    "required_tool_groups": [
+      [
+        "search_products",
+        "find_by_model_name",
+        "search_by_description",
+        "browse_catalog",
+        "find_by_price_range"
+      ],
+      [
+        "create_appointment"
+      ]
+    ],
+    "ok_tools": [
+      "cancel_appointment",
+      "check_availability",
+      "create_appointment",
+      "get_appointment_details",
+      "reschedule_appointment"
+    ]
+  },
+  {
+    "id": "DP_IF_MISSING_VISIT",
+    "group": "dependency",
+    "req": "R05",
+    "priority": "critical",
+    "turns": [
+      {
+        "message": "Nếu có xe Tesla Cybertruck thì đặt lịch cho mình xem xe lúc 9 giờ sáng ngày mai, tên Nguyễn Văn An, SĐT {phone}",
+        "expect_path": [
+          "sales",
+          "coordinator_resume"
+        ],
+        "forbid_path": [
+          "appointment"
+        ],
+        "reply_must_not_match": [
+          "đã đặt lịch",
+          "đặt lịch thành công",
+          "ghi nhận lịch hẹn"
+        ],
+        "expect_db": {
+          "appointments": 0
+        }
+      }
+    ],
+    "expect_handover": false,
+    "needs_tool": true,
+    "required_tool_groups": [
+      [
+        "search_products",
+        "find_by_model_name",
+        "search_by_description",
+        "browse_catalog",
+        "find_by_price_range"
+      ]
+    ],
+    "ok_tools": [
+      "cancel_appointment",
+      "check_availability",
+      "create_appointment",
+      "get_appointment_details",
+      "reschedule_appointment"
+    ]
+  },
+  {
+    "id": "DP_IF_BOTH_ONE_MISSING",
+    "group": "dependency",
+    "req": "R05",
+    "priority": "critical",
+    "turns": [
+      {
+        "message": "Nếu cả FOTON AUMARK-9T (3800) và Tesla Cybertruck đều có thì đặt lịch cho mình xem xe lúc 9 giờ sáng ngày mai, tên Nguyễn Văn An, SĐT {phone}",
+        "expect_path": [
+          "sales",
+          "coordinator_resume"
+        ],
+        "forbid_path": [
+          "appointment"
+        ],
+        "reply_must_not_match": [
+          "đã đặt lịch",
+          "đặt lịch thành công",
+          "ghi nhận lịch hẹn"
+        ],
+        "expect_db": {
+          "appointments": 0
+        }
+      }
+    ],
+    "expect_handover": false,
+    "needs_tool": true,
+    "required_tool_groups": [
+      [
+        "search_products",
+        "find_by_model_name",
+        "search_by_description",
+        "browse_catalog",
+        "find_by_price_range"
+      ]
+    ],
+    "ok_tools": [
+      "cancel_appointment",
+      "check_availability",
+      "create_appointment",
+      "get_appointment_details",
+      "reschedule_appointment"
+    ]
+  },
+  {
+    "id": "DP_IF_BOTH_FOUND",
+    "group": "dependency",
+    "req": "R05",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Nếu cả FOTON AUMARK-9T (3800) và FUSO FI170 đều có thì đặt lịch cho mình xem xe lúc 9 giờ sáng ngày mai, tên Nguyễn Văn An, SĐT {phone}",
+        "expect_path": [
+          "sales",
+          "coordinator_resume",
+          "appointment"
+        ],
+        "expect_db": {
+          "appointments": 0
+        }
+      }
+    ],
+    "expect_handover": false,
+    "needs_tool": true,
+    "required_tool_groups": [
+      [
+        "search_products",
+        "find_by_model_name",
+        "search_by_description",
+        "browse_catalog",
+        "find_by_price_range"
+      ]
+    ],
+    "ok_tools": [
+      "cancel_appointment",
+      "check_availability",
+      "create_appointment",
+      "get_appointment_details",
+      "reschedule_appointment"
+    ]
+  },
+  {
+    "id": "DP_SIMILAR_MODEL",
+    "group": "dependency",
+    "req": "R05",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Nếu có xe Foton Aumark 9T thì đặt lịch cho mình xem xe lúc 9 giờ sáng ngày mai, tên Nguyễn Văn An, SĐT {phone}",
+        "expect_path": [
+          "sales",
+          "coordinator_resume"
+        ],
+        "forbid_path": [
+          "appointment"
+        ],
+        "reply_must_not_match": [
+          "đã đặt lịch",
+          "đặt lịch thành công",
+          "ghi nhận lịch hẹn"
+        ],
+        "expect_db": {
+          "appointments": 0
+        }
+      }
+    ],
+    "expect_handover": false,
+    "needs_tool": true,
+    "required_tool_groups": [
+      [
+        "search_products",
+        "find_by_model_name",
+        "search_by_description",
+        "browse_catalog",
+        "find_by_price_range"
+      ]
+    ],
+    "ok_tools": [
+      "cancel_appointment",
+      "check_availability",
+      "create_appointment",
+      "get_appointment_details",
+      "reschedule_appointment"
+    ]
+  },
+  {
+    "id": "DP_IF_FOUND_CONTRACT",
+    "group": "dependency",
+    "req": "R05",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Nếu có FOTON AUMARK-9T (3800) thì mình muốn làm hợp đồng mua xe luôn",
+        "expect_path": [
+          "sales",
+          "coordinator_resume",
+          "contract"
+        ],
+        "reply_must_match_any": [
+          "họ|tên",
+          "số điện thoại|sđt",
+          "địa chỉ"
+        ]
+      }
+    ],
+    "expect_handover": false,
+    "needs_tool": true,
+    "required_tool_groups": [
+      [
+        "search_products",
+        "find_by_model_name",
+        "search_by_description",
+        "browse_catalog",
+        "find_by_price_range"
+      ]
+    ],
+    "ok_tools": [
+      "cancel_appointment",
+      "check_availability",
+      "create_appointment",
+      "get_appointment_details",
+      "reschedule_appointment"
+    ]
+  },
+  {
+    "id": "DP_IF_MISSING_CONTRACT",
+    "group": "dependency",
+    "req": "R05",
+    "priority": "critical",
+    "turns": [
+      {
+        "message": "Nếu có Tesla Cybertruck thì mình muốn làm hợp đồng mua xe luôn",
+        "expect_path": [
+          "sales",
+          "coordinator_resume"
+        ],
+        "forbid_path": [
+          "contract"
+        ]
+      }
+    ],
+    "expect_handover": false,
+    "needs_tool": true,
+    "required_tool_groups": [
+      [
+        "search_products",
+        "find_by_model_name",
+        "search_by_description",
+        "browse_catalog",
+        "find_by_price_range"
+      ]
+    ],
+    "ok_tools": [
+      "cancel_appointment",
+      "check_availability",
+      "create_appointment",
+      "get_appointment_details",
+      "reschedule_appointment"
+    ]
+  },
+  {
+    "id": "DP_NO_ACCENT",
+    "group": "dependency",
+    "req": "R05",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "neu co xe FOTON AUMARK-9T (3800) thi dat lich xem xe 9 gio sang mai, ten Nguyen Van An, SDT {phone}",
+        "expect_path": [
+          "sales",
+          "coordinator_resume",
+          "appointment"
+        ],
+        "expect_db": {
+          "appointments": 0
+        }
+      }
+    ],
+    "expect_handover": false,
+    "needs_tool": true,
+    "required_tool_groups": [
+      [
+        "search_products",
+        "find_by_model_name",
+        "search_by_description",
+        "browse_catalog",
+        "find_by_price_range"
+      ]
+    ],
+    "ok_tools": [
+      "cancel_appointment",
+      "check_availability",
+      "create_appointment",
+      "get_appointment_details",
+      "reschedule_appointment"
+    ]
+  },
+  {
+    "id": "DP_CONTROL_INDEPENDENT",
+    "group": "dependency",
+    "req": "R05",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Giá FOTON AUMARK-9T (3800) bao nhiêu, cho mình qua showroom xem xe lúc 9 giờ sáng ngày mai, tên Nguyễn Văn An, SĐT {phone}",
+        "expect_path": [
+          "sales",
+          "appointment"
+        ],
+        "forbid_path": [
+          "coordinator_resume"
+        ],
+        "expect_db": {
+          "appointments": 0
+        }
+      }
+    ],
+    "expect_handover": false,
+    "needs_tool": true,
+    "required_tool_groups": [
+      [
+        "search_products",
+        "find_by_model_name",
+        "search_by_description",
+        "browse_catalog",
+        "find_by_price_range"
+      ]
+    ],
+    "ok_tools": [
+      "cancel_appointment",
+      "check_availability",
+      "create_appointment",
+      "get_appointment_details",
+      "reschedule_appointment"
+    ]
+  },
+  {
+    "id": "DP_CONTROL_UNCONDITIONAL",
+    "group": "dependency",
+    "req": "R05",
+    "priority": "normal",
+    "turns": [
+      {
+        "message": "Mình muốn đến showroom xem xe FOTON AUMARK-9T (3800) lúc 9 giờ sáng ngày mai, tên Nguyễn Văn An, SĐT {phone}",
+        "expect_path": [
+          "appointment"
+        ],
+        "forbid_path": [
+          "coordinator_resume"
+        ],
+        "expect_db": {
+          "appointments": 0
+        }
+      }
+    ],
+    "expect_handover": false,
+    "ok_tools": [
+      "cancel_appointment",
+      "check_availability",
+      "create_appointment",
+      "get_appointment_details",
+      "reschedule_appointment"
+    ]
   }
 ]

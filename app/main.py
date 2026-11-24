@@ -25,6 +25,11 @@ async def lifespan(app: FastAPI):
 
     init_db()
     seed_catalog()
+    # Build the graph (and its Postgres checkpoint tables) before any request. handle_message reads the
+    # memory checkpoint while a DB session is open; building the graph lazily there makes LangGraph's
+    # CREATE INDEX CONCURRENTLY wait for that very session and hang the first chat request on a fresh DB.
+    from app.agent.graph import get_graph
+    get_graph()
     # Build the process-local product BM25 index and establish the embedding client
     # before the first customer request pays that initialization cost.
     try:

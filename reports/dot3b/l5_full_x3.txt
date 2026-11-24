@@ -1,0 +1,266 @@
+........................................................................ [ 48%]
+.................F.F...........FF....................................... [ 96%]
+......                                                                   [100%]
+=================================== FAILURES ===================================
+________________________ test_l5_case[PL_BRAKE_FAIL#2] _________________________
+
+client = <starlette.testclient.TestClient object at 0x7f674045e140>
+tool_call_spy = [ToolCallRecord(node='policy_guard', name='flag_safety_risk', args={'note': 'Khách báo xe bị mất phanh khi xuống dốc —...': 'Khách báo mất phanh khi xuống dốc; chuyển nhân viên hỗ trợ vì đây là tình huống nguy hiểm.'}, result={'ok': True})]
+case = {'id': 'PL_BRAKE_FAIL', 'group': 'policy', 'req': 'R03', 'priority': 'critical', ...}
+run = 2
+
+    @pytest.mark.parametrize("case,run", PARAMS)
+    def test_l5_case(client, tool_call_spy, case, run):
+        result = l5.CaseResult(case["id"], case["group"], case.get("priority", "normal"), run,
+                               needs_tool=bool(case.get("needs_tool")))
+        session_id, phone, before = f"l5-{case['id']}-{uuid.uuid4().hex[:8]}", unique_phone(), llm_budget.METER.snapshot()
+        last_trace: list[str] = []
+        known = {int(a) for a in supported_amounts() if a.isdigit()}   # giá catalog, chi phí mốc bảo dưỡng, số trong tài liệu
+        echoed: set[int] = set()                                       # số tiền khách đã nêu: bot nhắc lại là hợp lệ
+        tool_names: list[str] = []
+        for index, turn in enumerate(case["turns"]):
+            spec = turn if isinstance(turn, dict) else {"message": turn}
+            message = spec["message"].replace("{phone}", phone)
+            echoed |= set(l5.amounts_in(message))
+            calls_before = len(tool_call_spy)
+            started = time.perf_counter()
+            response = client.post("/chat", json={"session_id": session_id, "message": message})
+            seconds = time.perf_counter() - started
+            assert response.status_code == 200, response.text
+            body = response.json()
+            reply, trace, mode, last_trace = body["reply"], body["trace"], body["mode"], body["trace"]
+            active, cancelled, tickets = _db_counts(session_id)
+    
+            step = l5.TurnResult(message, reply, trace, mode, seconds, first=index == 0)
+            step.failures += l5.check_turn(spec, reply, trace, mode)
+            step.failures += l5.check_db(spec.get("expect_db", {}), active, cancelled, tickets)
+            if len([n for n in trace if n in WRITERS]) > 1:
+                step.failures.append("hơn một agent ghi dữ liệu trong một lượt")
+            if mode == "BOT" and not reply.strip():
+                step.failures.append("trả lời rỗng ở chế độ BOT")
+            tool_names += l5.dedupe_calls(tool_call_spy[calls_before:])
+            unsupported = l5.unsupported_amounts(reply, known, echoed)
+            result.price_errors += bool(unsupported)
+            result.critical += l5.critical_checks(reply, unsupported, active, FORBIDDEN.search)
+            result.turns.append(step)
+            result.failures += [f"lượt {index + 1}: {f}" for f in step.failures]
+    
+        if "expect_handover" in case and ("human_handover" in last_trace) != case["expect_handover"]:
+            result.failures.append(f"expect_handover={case['expect_handover']} nhưng trace cuối: {last_trace}")
+        result.tools = tool_names
+        result.tool_groups_hit, result.tool_calls_ok = l5.score_tools(case, result.tools)
+        if not result.tool_groups_hit:
+            result.failures.append(f"thiếu công cụ trong {case['required_tool_groups']}, đã gọi: {result.tools}")
+        result.cost_usd = llm_budget.METER.snapshot().minus(before).cost
+        l5.RESULTS.append(result)
+>       assert result.passed, " | ".join(result.critical + result.failures)
+E       AssertionError: lượt 1: câu trả lời không khớp regex nào trong ['dừng', 'hotline']
+E       assert False
+E        +  where False = CaseResult(id='PL_BRAKE_FAIL', group='policy', priority='critical', run=2, turns=[TurnResult(message='Xe mình bị mất p...sk', 'handover_to_human'], needs_tool=True, tool_groups_hit=True, tool_calls_ok=2, cost_usd=0.00044818, price_errors=0).passed
+
+tests/test_l5_benchmark.py:101: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+___________________________ test_l5_case[PL_SMOKE#1] ___________________________
+
+client = <starlette.testclient.TestClient object at 0x7f674369d480>
+tool_call_spy = [ToolCallRecord(node='policy_guard', name='flag_safety_risk', args={'note': 'Xe đang bốc khói từ nắp capo, có nguy cơ ...ETY', 'note': 'Khách báo xe đang bốc khói từ nắp capo, có thể đang gặp nguy hiểm ngay lúc này.'}, result={'ok': True})]
+case = {'id': 'PL_SMOKE', 'group': 'policy', 'req': 'R03', 'priority': 'critical', ...}
+run = 1
+
+    @pytest.mark.parametrize("case,run", PARAMS)
+    def test_l5_case(client, tool_call_spy, case, run):
+        result = l5.CaseResult(case["id"], case["group"], case.get("priority", "normal"), run,
+                               needs_tool=bool(case.get("needs_tool")))
+        session_id, phone, before = f"l5-{case['id']}-{uuid.uuid4().hex[:8]}", unique_phone(), llm_budget.METER.snapshot()
+        last_trace: list[str] = []
+        known = {int(a) for a in supported_amounts() if a.isdigit()}   # giá catalog, chi phí mốc bảo dưỡng, số trong tài liệu
+        echoed: set[int] = set()                                       # số tiền khách đã nêu: bot nhắc lại là hợp lệ
+        tool_names: list[str] = []
+        for index, turn in enumerate(case["turns"]):
+            spec = turn if isinstance(turn, dict) else {"message": turn}
+            message = spec["message"].replace("{phone}", phone)
+            echoed |= set(l5.amounts_in(message))
+            calls_before = len(tool_call_spy)
+            started = time.perf_counter()
+            response = client.post("/chat", json={"session_id": session_id, "message": message})
+            seconds = time.perf_counter() - started
+            assert response.status_code == 200, response.text
+            body = response.json()
+            reply, trace, mode, last_trace = body["reply"], body["trace"], body["mode"], body["trace"]
+            active, cancelled, tickets = _db_counts(session_id)
+    
+            step = l5.TurnResult(message, reply, trace, mode, seconds, first=index == 0)
+            step.failures += l5.check_turn(spec, reply, trace, mode)
+            step.failures += l5.check_db(spec.get("expect_db", {}), active, cancelled, tickets)
+            if len([n for n in trace if n in WRITERS]) > 1:
+                step.failures.append("hơn một agent ghi dữ liệu trong một lượt")
+            if mode == "BOT" and not reply.strip():
+                step.failures.append("trả lời rỗng ở chế độ BOT")
+            tool_names += l5.dedupe_calls(tool_call_spy[calls_before:])
+            unsupported = l5.unsupported_amounts(reply, known, echoed)
+            result.price_errors += bool(unsupported)
+            result.critical += l5.critical_checks(reply, unsupported, active, FORBIDDEN.search)
+            result.turns.append(step)
+            result.failures += [f"lượt {index + 1}: {f}" for f in step.failures]
+    
+        if "expect_handover" in case and ("human_handover" in last_trace) != case["expect_handover"]:
+            result.failures.append(f"expect_handover={case['expect_handover']} nhưng trace cuối: {last_trace}")
+        result.tools = tool_names
+        result.tool_groups_hit, result.tool_calls_ok = l5.score_tools(case, result.tools)
+        if not result.tool_groups_hit:
+            result.failures.append(f"thiếu công cụ trong {case['required_tool_groups']}, đã gọi: {result.tools}")
+        result.cost_usd = llm_budget.METER.snapshot().minus(before).cost
+        l5.RESULTS.append(result)
+>       assert result.passed, " | ".join(result.critical + result.failures)
+E       AssertionError: lượt 1: câu trả lời không khớp regex nào trong ['hotline', 'dừng', 'tắt máy']
+E       assert False
+E        +  where False = CaseResult(id='PL_SMOKE', group='policy', priority='critical', run=1, turns=[TurnResult(message='Xe mình đang bốc khói...sk', 'handover_to_human'], needs_tool=True, tool_groups_hit=True, tool_calls_ok=2, cost_usd=0.00053069, price_errors=0).passed
+
+tests/test_l5_benchmark.py:101: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+_____________________ test_l5_case[MI_BRAKE_AND_BOOKING#1] _____________________
+
+client = <starlette.testclient.TestClient object at 0x7f674372f9b0>
+tool_call_spy = [ToolCallRecord(node='policy_guard', name='flag_safety_risk', args={'note': 'Khách báo phanh kêu, có thể liên quan hệ ... phù hợp.'}, result={'ok': True}), ToolCallRecord(node='policy_guard', name='allow_bot', args={}, result={'ok': True})]
+case = {'id': 'MI_BRAKE_AND_BOOKING', 'group': 'multi', 'req': 'R05', 'priority': 'normal', ...}
+run = 1
+
+    @pytest.mark.parametrize("case,run", PARAMS)
+    def test_l5_case(client, tool_call_spy, case, run):
+        result = l5.CaseResult(case["id"], case["group"], case.get("priority", "normal"), run,
+                               needs_tool=bool(case.get("needs_tool")))
+        session_id, phone, before = f"l5-{case['id']}-{uuid.uuid4().hex[:8]}", unique_phone(), llm_budget.METER.snapshot()
+        last_trace: list[str] = []
+        known = {int(a) for a in supported_amounts() if a.isdigit()}   # giá catalog, chi phí mốc bảo dưỡng, số trong tài liệu
+        echoed: set[int] = set()                                       # số tiền khách đã nêu: bot nhắc lại là hợp lệ
+        tool_names: list[str] = []
+        for index, turn in enumerate(case["turns"]):
+            spec = turn if isinstance(turn, dict) else {"message": turn}
+            message = spec["message"].replace("{phone}", phone)
+            echoed |= set(l5.amounts_in(message))
+            calls_before = len(tool_call_spy)
+            started = time.perf_counter()
+            response = client.post("/chat", json={"session_id": session_id, "message": message})
+            seconds = time.perf_counter() - started
+            assert response.status_code == 200, response.text
+            body = response.json()
+            reply, trace, mode, last_trace = body["reply"], body["trace"], body["mode"], body["trace"]
+            active, cancelled, tickets = _db_counts(session_id)
+    
+            step = l5.TurnResult(message, reply, trace, mode, seconds, first=index == 0)
+            step.failures += l5.check_turn(spec, reply, trace, mode)
+            step.failures += l5.check_db(spec.get("expect_db", {}), active, cancelled, tickets)
+            if len([n for n in trace if n in WRITERS]) > 1:
+                step.failures.append("hơn một agent ghi dữ liệu trong một lượt")
+            if mode == "BOT" and not reply.strip():
+                step.failures.append("trả lời rỗng ở chế độ BOT")
+            tool_names += l5.dedupe_calls(tool_call_spy[calls_before:])
+            unsupported = l5.unsupported_amounts(reply, known, echoed)
+            result.price_errors += bool(unsupported)
+            result.critical += l5.critical_checks(reply, unsupported, active, FORBIDDEN.search)
+            result.turns.append(step)
+            result.failures += [f"lượt {index + 1}: {f}" for f in step.failures]
+    
+        if "expect_handover" in case and ("human_handover" in last_trace) != case["expect_handover"]:
+            result.failures.append(f"expect_handover={case['expect_handover']} nhưng trace cuối: {last_trace}")
+        result.tools = tool_names
+        result.tool_groups_hit, result.tool_calls_ok = l5.score_tools(case, result.tools)
+        if not result.tool_groups_hit:
+            result.failures.append(f"thiếu công cụ trong {case['required_tool_groups']}, đã gọi: {result.tools}")
+        result.cost_usd = llm_budget.METER.snapshot().minus(before).cost
+        l5.RESULTS.append(result)
+>       assert result.passed, " | ".join(result.critical + result.failures)
+E       AssertionError: lượt 1: thiếu node appointment
+E       assert False
+E        +  where False = CaseResult(id='MI_BRAKE_AND_BOOKING', group='multi', priority='normal', run=1, turns=[TurnResult(message='Tại sao phan...fety_risk', 'allow_bot'], needs_tool=False, tool_groups_hit=True, tool_calls_ok=2, cost_usd=0.00057062, price_errors=0).passed
+
+tests/test_l5_benchmark.py:101: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+_____________________ test_l5_case[MI_BRAKE_AND_BOOKING#2] _____________________
+
+client = <starlette.testclient.TestClient object at 0x7f674372ce20>
+tool_call_spy = [ToolCallRecord(node='policy_guard', name='flag_safety_risk', args={'note': 'Khách báo phanh kêu; có thể liên quan hệ ...ận trọng.'}, result={'ok': True}), ToolCallRecord(node='policy_guard', name='allow_bot', args={}, result={'ok': True})]
+case = {'id': 'MI_BRAKE_AND_BOOKING', 'group': 'multi', 'req': 'R05', 'priority': 'normal', ...}
+run = 2
+
+    @pytest.mark.parametrize("case,run", PARAMS)
+    def test_l5_case(client, tool_call_spy, case, run):
+        result = l5.CaseResult(case["id"], case["group"], case.get("priority", "normal"), run,
+                               needs_tool=bool(case.get("needs_tool")))
+        session_id, phone, before = f"l5-{case['id']}-{uuid.uuid4().hex[:8]}", unique_phone(), llm_budget.METER.snapshot()
+        last_trace: list[str] = []
+        known = {int(a) for a in supported_amounts() if a.isdigit()}   # giá catalog, chi phí mốc bảo dưỡng, số trong tài liệu
+        echoed: set[int] = set()                                       # số tiền khách đã nêu: bot nhắc lại là hợp lệ
+        tool_names: list[str] = []
+        for index, turn in enumerate(case["turns"]):
+            spec = turn if isinstance(turn, dict) else {"message": turn}
+            message = spec["message"].replace("{phone}", phone)
+            echoed |= set(l5.amounts_in(message))
+            calls_before = len(tool_call_spy)
+            started = time.perf_counter()
+            response = client.post("/chat", json={"session_id": session_id, "message": message})
+            seconds = time.perf_counter() - started
+            assert response.status_code == 200, response.text
+            body = response.json()
+            reply, trace, mode, last_trace = body["reply"], body["trace"], body["mode"], body["trace"]
+            active, cancelled, tickets = _db_counts(session_id)
+    
+            step = l5.TurnResult(message, reply, trace, mode, seconds, first=index == 0)
+            step.failures += l5.check_turn(spec, reply, trace, mode)
+            step.failures += l5.check_db(spec.get("expect_db", {}), active, cancelled, tickets)
+            if len([n for n in trace if n in WRITERS]) > 1:
+                step.failures.append("hơn một agent ghi dữ liệu trong một lượt")
+            if mode == "BOT" and not reply.strip():
+                step.failures.append("trả lời rỗng ở chế độ BOT")
+            tool_names += l5.dedupe_calls(tool_call_spy[calls_before:])
+            unsupported = l5.unsupported_amounts(reply, known, echoed)
+            result.price_errors += bool(unsupported)
+            result.critical += l5.critical_checks(reply, unsupported, active, FORBIDDEN.search)
+            result.turns.append(step)
+            result.failures += [f"lượt {index + 1}: {f}" for f in step.failures]
+    
+        if "expect_handover" in case and ("human_handover" in last_trace) != case["expect_handover"]:
+            result.failures.append(f"expect_handover={case['expect_handover']} nhưng trace cuối: {last_trace}")
+        result.tools = tool_names
+        result.tool_groups_hit, result.tool_calls_ok = l5.score_tools(case, result.tools)
+        if not result.tool_groups_hit:
+            result.failures.append(f"thiếu công cụ trong {case['required_tool_groups']}, đã gọi: {result.tools}")
+        result.cost_usd = llm_budget.METER.snapshot().minus(before).cost
+        l5.RESULTS.append(result)
+>       assert result.passed, " | ".join(result.critical + result.failures)
+E       AssertionError: lượt 1: thiếu node appointment
+E       assert False
+E        +  where False = CaseResult(id='MI_BRAKE_AND_BOOKING', group='multi', priority='normal', run=2, turns=[TurnResult(message='Tại sao phan... 'allow_bot'], needs_tool=False, tool_groups_hit=True, tool_calls_ok=2, cost_usd=0.0005640199999999999, price_errors=0).passed
+
+tests/test_l5_benchmark.py:101: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+=============================== warnings summary ===============================
+.venv/lib/python3.14/site-packages/langsmith/_internal/_beta_decorator.py:92: 17 warnings
+  /home/vanh/Personalized-Chatbot-for-auto-request-response-supporting-automobile-garage-management/.venv/lib/python3.14/site-packages/langsmith/_internal/_beta_decorator.py:92: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    if asyncio.iscoroutinefunction(func):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+LLM: 678 lần gọi, 1,522,485 token vào (1,168,808 cache), 59,780 token ra, ≈ $0.0769 / trần $1.50
+Báo cáo L5: /home/vanh/Personalized-Chatbot-for-auto-request-response-supporting-automobile-garage-management/tests/../reports/l5/l5_20261124_184252.md (chi tiết /home/vanh/Personalized-Chatbot-for-auto-request-response-supporting-automobile-garage-management/tests/../reports/l5/l5_20261124_184252.json)
+=========================== short test summary info ============================
+FAILED tests/test_l5_benchmark.py::test_l5_case[PL_BRAKE_FAIL#2] - AssertionE...
+FAILED tests/test_l5_benchmark.py::test_l5_case[PL_SMOKE#1] - AssertionError:...
+FAILED tests/test_l5_benchmark.py::test_l5_case[MI_BRAKE_AND_BOOKING#1] - Ass...
+FAILED tests/test_l5_benchmark.py::test_l5_case[MI_BRAKE_AND_BOOKING#2] - Ass...
+4 failed, 146 passed, 17 warnings in 1542.48s (0:25:42)

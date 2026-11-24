@@ -1,0 +1,10 @@
+..........                                                               [100%]
+=============================== warnings summary ===============================
+.venv/lib/python3.14/site-packages/langsmith/_internal/_beta_decorator.py:92: 17 warnings
+  /home/vanh/Personalized-Chatbot-for-auto-request-response-supporting-automobile-garage-management/.venv/lib/python3.14/site-packages/langsmith/_internal/_beta_decorator.py:92: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    if asyncio.iscoroutinefunction(func):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+LLM: 56 lần gọi, 123,521 token vào (103,711 cache), 6,263 token ra, ≈ $0.0061 / trần $1.50
+Báo cáo L5: /home/vanh/Personalized-Chatbot-for-auto-request-response-supporting-automobile-garage-management/tests/../reports/l5/l5_20261124_181628.md (chi tiết /home/vanh/Personalized-Chatbot-for-auto-request-response-supporting-automobile-garage-management/tests/../reports/l5/l5_20261124_181628.json)
+10 passed, 17 warnings in 142.42s (0:02:22)

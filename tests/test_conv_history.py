@@ -167,8 +167,11 @@ def test_history_skips_queued_messages_and_staff(client):
                 [("user", "u1"), ("user", "u2"), ("ai", "a1"), ("system", "s"), ("staff", "nv"), ("user", "u3")]]
         db.add_all(rows)
         db.commit()
-        assert _history(db, sid, rows[1].id) == [{"role": "user", "content": "u1"}, {"role": "ai", "content": "a1"}]
-        assert _history(db, sid, rows[0].id) == [{"role": "ai", "content": "a1"}]
+        # Từ Đợt 3B mỗi tin kèm "id" (con trỏ tóm tắt theo ID tin nhắn); nội dung/vai/thứ tự vẫn như cũ.
+        plain = lambda found: [{"role": m["role"], "content": m["content"]} for m in found]  # noqa: E731
+        assert plain(_history(db, sid, rows[1].id)) == [{"role": "user", "content": "u1"}, {"role": "ai", "content": "a1"}]
+        assert [m["id"] for m in _history(db, sid, rows[1].id)] == [rows[0].id, rows[2].id]
+        assert plain(_history(db, sid, rows[0].id)) == [{"role": "ai", "content": "a1"}]
         assert _history(db, new_session(), rows[0].id) == []
 
 

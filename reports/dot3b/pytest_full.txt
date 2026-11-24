@@ -1,0 +1,14 @@
+........................................................................ [ 14%]
+..................x.s.........................x......................... [ 29%]
+............................sssssss.s..sss..................xxxxxx...xx. [ 43%]
+...................................x...x................................ [ 58%]
+........................................................................ [ 73%]
+........................................................................ [ 87%]
+.....xxxxxxxxxxx...........................................              [100%]
+=============================== warnings summary ===============================
+.venv/lib/python3.14/site-packages/langsmith/_internal/_beta_decorator.py:92: 17 warnings
+  /home/vanh/Personalized-Chatbot-for-auto-request-response-supporting-automobile-garage-management/.venv/lib/python3.14/site-packages/langsmith/_internal/_beta_decorator.py:92: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    if asyncio.iscoroutinefunction(func):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+456 passed, 12 skipped, 50 deselected, 23 xfailed, 17 warnings in 62.08s (0:01:02)

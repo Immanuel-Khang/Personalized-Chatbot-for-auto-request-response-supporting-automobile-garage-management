@@ -1,4 +1,4 @@
-"""Đợt 3 / L5: benchmark hội thoại với LLM thật (benchmark/l5_cases.json, 40 ca). KHÔNG chạy mặc định.
+"""Đợt 3 / L5: benchmark hội thoại với LLM thật (benchmark/l5_cases.json, 50 ca: 40 ca gốc + 10 ca dependency, nhóm 'dependency'). KHÔNG chạy mặc định.
 
   RUN_LLM_TESTS=1 pytest tests/test_l5_benchmark.py -m llm -q                 # chạy hết (repeat=1)
   RUN_LLM_TESTS=1 L5_GROUPS=policy,booking pytest tests/test_l5_benchmark.py -m llm

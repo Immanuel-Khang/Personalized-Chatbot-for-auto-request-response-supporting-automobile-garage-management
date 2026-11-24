@@ -1,0 +1,462 @@
+{
+ "model": "gpt-6-luna",
+ "reasoning_effort": "low",
+ "aggregate": {
+  "cases": 10,
+  "passed": 10,
+  "critical_cases": 0,
+  "price_error_turns": 0,
+  "turns": 11,
+  "groups": {
+   "dependency": [
+    10,
+    10
+   ]
+  },
+  "tool_recall": [
+   9,
+   9
+  ],
+  "tool_precision": [
+   17,
+   20
+  ],
+  "latency_p50": 5.763184535997425,
+  "latency_p95": 5.763184535997425,
+  "cost_usd": 0.006149610000000001
+ },
+ "results": [
+  {
+   "id": "DP_IF_FOUND_VISIT",
+   "group": "dependency",
+   "priority": "critical",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Nếu có xe FOTON AUMARK-9T (3800) thì đặt lịch cho mình xem xe lúc 9 giờ sáng ngày mai, tên Nguyễn Văn An, SĐT 0903581260",
+     "reply": "Có mẫu FOTON AUMARK-9T (3800), giá niêm yết 555 triệu đồng, áp dụng từ ngày 18/10/2026; đây là giá xe chassis, chưa gồm thùng. Xe có tải trọng 7.200 kg, tổng khối lượng 12.000 kg, động cơ diesel Euro 5 và hộp số 6 cấp, hướng đến vận tải đường dài, tiết kiệm nhiên liệu và vốn đầu tư.\n\nMình đề xuất đặt lịch xem xe tại showroom vào Thứ 4 25/11/2026 lúc 09:00 cho Nguyễn Văn An, SĐT 0903581260. Bạn xác nhận giúp mình nhé?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "coordinator",
+      "sales",
+      "coordinator_resume",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 19.15813277900088,
+     "first": true,
+     "failures": []
+    },
+    {
+     "message": "Đúng rồi, xác nhận giúp mình",
+     "reply": "Mình đã đặt và xác nhận lịch xem xe FOTON AUMARK-9T (3800) tại showroom vào Thứ 4 25/11/2026 lúc 09:00 cho bạn.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 5.763184535997425,
+     "first": false,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "find_by_model_name",
+    "create_appointment",
+    "submit_reply",
+    "create_appointment"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 3,
+   "cost_usd": 0.0014163000000000001,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "DP_IF_MISSING_VISIT",
+   "group": "dependency",
+   "priority": "critical",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Nếu có xe Tesla Cybertruck thì đặt lịch cho mình xem xe lúc 9 giờ sáng ngày mai, tên Nguyễn Văn An, SĐT 0938155137",
+     "reply": "Hiện mình chưa tìm thấy Tesla Cybertruck trong danh mục xe của xưởng. Xưởng chỉ tư vấn xe tải và xe thương mại; bạn đang cần xe cho nhu cầu nào?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "coordinator",
+      "sales",
+      "coordinator_resume",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 12.740201241998875,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "find_by_model_name"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00040342000000000004,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "DP_IF_BOTH_ONE_MISSING",
+   "group": "dependency",
+   "priority": "critical",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Nếu cả FOTON AUMARK-9T (3800) và Tesla Cybertruck đều có thì đặt lịch cho mình xem xe lúc 9 giờ sáng ngày mai, tên Nguyễn Văn An, SĐT 0945991976",
+     "reply": "Bạn đang hỏi điểm nào về FOTON AUMARK-9T (3800) và Tesla Cybertruck? Mình tìm thấy thông tin AUMARK-9T (3800), nhưng chưa có dữ liệu Tesla Cybertruck trong danh mục để đối chiếu.\n\nMình chưa tìm thấy đúng mẫu bạn nêu. Mẫu gần nhất là FOTON AUMARK-9T (3800). Bạn có muốn đặt lịch xem mẫu này không?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "coordinator",
+      "sales",
+      "coordinator_resume",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 12.902105922999908,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "find_by_model_name",
+    "find_by_model_name"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.00050114,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "DP_IF_BOTH_FOUND",
+   "group": "dependency",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Nếu cả FOTON AUMARK-9T (3800) và FUSO FI170 đều có thì đặt lịch cho mình xem xe lúc 9 giờ sáng ngày mai, tên Nguyễn Văn An, SĐT 0912767812",
+     "reply": "Bạn đang hỏi nếu cả hai đều có cùng một tiêu chí thì tiêu chí đó chưa hiện trong tin nhắn. Điểm khác biệt chính: FOTON AUMARK-9T (3800) có tải trọng 7.200 kg, giá chassis 555 triệu đồng; FUSO FI170 có tải trọng 8.300 kg, giá chassis 809 triệu đồng. Giá áp dụng từ 18/10/2026, chưa gồm thùng. FOTON được giới thiệu là tiết kiệm nhiên liệu và vốn đầu tư thấp hơn; FUSO nổi bật về độ bền, hợp chạy tuyến dài cường độ cao. Bạn muốn so sánh cụ thể về giá, tải trọng hay mức tiêu hao nhiên liệu?\n\nMình đề xuất đặt lịch xem xe tại showroom vào Thứ 4 25/11/2026 lúc 09:00, xem FOTON AUMARK-9T (3800) và FUSO FI170, tên Nguyễn Văn An, SĐT 0912767812. Bạn xác nhận giúp mình nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "coordinator",
+      "sales",
+      "coordinator_resume",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 17.790026029000728,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "find_by_model_name",
+    "find_by_model_name",
+    "create_appointment"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 3,
+   "cost_usd": 0.0006761100000000001,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "DP_SIMILAR_MODEL",
+   "group": "dependency",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Nếu có xe Foton Aumark 9T thì đặt lịch cho mình xem xe lúc 9 giờ sáng ngày mai, tên Nguyễn Văn An, SĐT 0971061977",
+     "reply": "Mình chưa thể xác nhận có xe Foton Aumark 9T để bạn xem lúc 9 giờ sáng ngày mai. Hiện có hai phiên bản gần nhất là Aumark 9T (3800) và Aumark 9T (4500); giá niêm yết lần lượt là 555 triệu đồng và 580 triệu đồng, áp dụng từ ngày 18/10/2026. Giá xe chassis, chưa gồm thùng. Bạn muốn đặt lịch xem phiên bản nào?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "coordinator",
+      "sales",
+      "coordinator_resume",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 14.791817626999546,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "find_by_model_name",
+    "submit_reply"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.0007113900000000001,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "DP_IF_FOUND_CONTRACT",
+   "group": "dependency",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Nếu có FOTON AUMARK-9T (3800) thì mình muốn làm hợp đồng mua xe luôn",
+     "reply": "Có mẫu FOTON AUMARK-9T (3800). Giá niêm yết 555 triệu đồng cho xe chassis, chưa gồm thùng; giá áp dụng từ 18/10/2026. Xe có tải trọng 7,2 tấn, phù hợp vận tải tuyến dài và hàng hóa như thực phẩm, đồ uống.\n\nBạn muốn mình cung cấp thêm thông số nào của xe?\n\nMình ghi nhận bạn muốn làm hợp đồng mua xe FOTON AUMARK-9T (3800); bạn vui lòng cung cấp họ và tên đầy đủ, số điện thoại, địa chỉ nhận xe hoặc hộ khẩu và mức giá chốt hợp đồng (VNĐ) nhé.",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "coordinator",
+      "sales",
+      "coordinator_resume",
+      "contract",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 10.419387861002178,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "find_by_model_name"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00041004,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "DP_IF_MISSING_CONTRACT",
+   "group": "dependency",
+   "priority": "critical",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Nếu có Tesla Cybertruck thì mình muốn làm hợp đồng mua xe luôn",
+     "reply": "Mình chưa tìm thấy Tesla Cybertruck trong danh mục xe của xưởng. Xưởng hiện chỉ tư vấn xe tải và xe thương mại; bạn đang cần xe cho nhu cầu gì?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "coordinator",
+      "sales",
+      "coordinator_resume",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 8.69426905400178,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "find_by_model_name"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.00022119999999999998,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "DP_NO_ACCENT",
+   "group": "dependency",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "neu co xe FOTON AUMARK-9T (3800) thi dat lich xem xe 9 gio sang mai, ten Nguyen Van An, SDT 0932650890",
+     "reply": "Có mẫu FOTON AUMARK-9T (3800). Giá niêm yết 555 triệu đồng cho xe chassis, chưa gồm thùng; giá áp dụng từ ngày 18/10/2026. Xe có tải trọng 7.200 kg, động cơ diesel Euro 5, hộp số 6 cấp và bình nhiên liệu 200 lít, phù hợp chạy tuyến đường dài.\n\nMình đề xuất đặt lịch xem xe tại showroom vào Thứ 4 25/11/2026 lúc 09:00 cho Nguyen Van An, SĐT +84932650890. Bạn xác nhận để mình đặt lịch nhé?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "coordinator",
+      "sales",
+      "coordinator_resume",
+      "appointment",
+      "coordinator_resume",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 18.402850391001266,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "find_by_model_name",
+    "create_appointment",
+    "submit_reply"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.0008116500000000001,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "DP_CONTROL_INDEPENDENT",
+   "group": "dependency",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Giá FOTON AUMARK-9T (3800) bao nhiêu, cho mình qua showroom xem xe lúc 9 giờ sáng ngày mai, tên Nguyễn Văn An, SĐT 0915201129",
+     "reply": "FOTON AUMARK-9T (3800) có giá niêm yết 555.000.000 đồng, áp dụng từ ngày 18/10/2026. Đây là giá xe chassis, chưa gồm thùng.\n\nGiá FOTON AUMARK-9T (3800) mình chưa có dữ liệu để báo chính xác, cần nhân viên xác nhận. Mình đề xuất đặt lịch xem xe tại showroom vào Thứ 4 25/11/2026 lúc 09:00 cho Nguyễn Văn An, SĐT +84915201129. Bạn xác nhận đặt lịch này nhé?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "coordinator",
+      "sales",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 10.413428723000834,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment",
+    "find_by_model_name"
+   ],
+   "needs_tool": true,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 2,
+   "cost_usd": 0.00056606,
+   "price_errors": 0,
+   "passed": true
+  },
+  {
+   "id": "DP_CONTROL_UNCONDITIONAL",
+   "group": "dependency",
+   "priority": "normal",
+   "run": 0,
+   "turns": [
+    {
+     "message": "Mình muốn đến showroom xem xe FOTON AUMARK-9T (3800) lúc 9 giờ sáng ngày mai, tên Nguyễn Văn An, SĐT 0906066263",
+     "reply": "Mình đề xuất đặt lịch xem xe tại showroom vào Thứ 4 25/11/2026 lúc 09:00, xe FOTON AUMARK-9T (3800), cho Nguyễn Văn An, SĐT +84906066263. Bạn xác nhận đặt lịch nhé?",
+     "trace": [
+      "input",
+      "preprocess",
+      "policy_guard",
+      "router",
+      "appointment",
+      "validation",
+      "compose",
+      "output_guard",
+      "respond"
+     ],
+     "mode": "BOT",
+     "seconds": 8.65089754300061,
+     "first": true,
+     "failures": []
+    }
+   ],
+   "failures": [],
+   "critical": [],
+   "tools": [
+    "create_appointment"
+   ],
+   "needs_tool": false,
+   "tool_groups_hit": true,
+   "tool_calls_ok": 1,
+   "cost_usd": 0.0004323,
+   "price_errors": 0,
+   "passed": true
+  }
+ ]
+}
