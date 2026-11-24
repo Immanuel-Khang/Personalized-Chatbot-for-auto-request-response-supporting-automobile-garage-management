@@ -98,12 +98,14 @@ def router(state: AgentState) -> dict:
     for order, task in enumerate(tasks, start=len(plan)):
         agent, task_reason = _route_task(state, task)
         reason = reason or task_reason
-        existing = next((item for item in plan if item["agent"] == agent), None)
-        if existing:  # one specialist call per agent; it receives all of its task texts
+        existing = next((item for item in plan if item["agent"] == agent
+                         and not task.depends_on and not item.get("depends_on")), None)
+        if existing:  # Independent tasks share one call; their task IDs still map structured results precisely.
             existing["text"] = f"{existing['text']}, {task.text}" if task.text not in existing["text"] else existing["text"]
             existing["task_ids"].append(task.task_id)
         else:
-            plan.append({"agent": agent, "text": task.text or text, "order": order, "task_ids": [task.task_id]})
+            plan.append({"agent": agent, "text": task.text or text, "order": order, "task_ids": [task.task_id],
+                         "depends_on": list(task.depends_on)})
     if not plan:
         plan = [{"agent": "conversation", "text": text, "order": 0, "task_ids": []}]
     return {**update, "plan": plan, "planned_agents": [item["agent"] for item in plan], "route_reason": reason}
@@ -111,7 +113,9 @@ def router(state: AgentState) -> dict:
 
 def send_all(state: AgentState, plan: list[dict]) -> list[Send]:
     return [Send(item["agent"], {**state, "task_text": item["text"], "task_order": item["order"],
-                                 "task_ids": item.get("task_ids", [])}) for item in plan]
+                                 "task_ids": item.get("task_ids", []),
+                                 "dependency_task_ids": item.get("dependency_task_ids", []),
+                                 "verified_vehicle": item.get("verified_vehicle")}) for item in plan]
 
 
 def dispatch(state: AgentState):

@@ -23,7 +23,8 @@ class AgentState(TypedDict, total=False):
     # [{"role": "summary"} of older turns, *recent window] (agent/memory.py) before any LLM call.
     history: list[dict]
     conversation_summary: str | None
-    summarized_messages: int  # leading DB history messages already folded into conversation_summary
+    summarized_messages: int  # messages folded from the current DB delta; each turn loads after the ID cursor
+    summarized_through_message_id: int | None  # DB message ID at the end of the running summary
     turn: int  # full history length before this turn; identifies the turn independent of the window
     negotiation_active: bool
     safety: bool
@@ -34,6 +35,11 @@ class AgentState(TypedDict, total=False):
     task_text: str
     task_order: int
     task_ids: list[str]
+    dependency_task_ids: list[str]
+    dependency_phase: str | None
+    waiting_tasks: list[dict]
+    verified_vehicle: str | None
+    task_results: Annotated[list[dict], operator.add]
     # Second writer requested in the same turn; validation turns it into an open offer.
     deferred_workflow: dict | None
     # Result Validation -> Preprocessing loop (at most once per turn).
@@ -96,7 +102,8 @@ def answer(state: AgentState, agent: str, text: str = "", needs_human: bool = Fa
     nhiều task thì compose ghép theo task_order.
     executed=True chỉ khi service xác nhận hành động (đặt lịch/hợp đồng) thành công trong lượt này."""
     return {"agent": agent, "order": state.get("task_order", 0), "text": clean_reply(state, text) if text else text,
-            "needs_human": needs_human, "handover_reason": handover_reason, "executed": executed}
+            "needs_human": needs_human, "handover_reason": handover_reason, "executed": executed,
+            "task_ids": list(state.get("task_ids") or [])}
 
 
 # Load Context (nodes/input.py) turns checkpointed facts/pending/workflow into models, so nodes read attributes.

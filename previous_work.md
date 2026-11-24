@@ -219,3 +219,11 @@ Matches the flowchart node-for-node, including validation → preprocess retry (
 - **Dev DB `garage`:** catalog tables reset and re-imported from the refined CSV (56 products, 45 ACTIVE / 11 DRAFT), 45 product chunks re-embedded.
 - **Verified (live LLM, direct calls to generate_with_tools):** nonsense queries ("xe máy bay tàu vũ trụ", "tàu ngầm") -> no tool call, short reply; vehicle queries -> search_by_description with 3 products.
 - **Not verified / open:** estimated ratings are heuristics, need a human review; "xe chở hàng nặng" still ranks mid-size trucks (3-4 t) above the 8-9 t trucks; not re-run through POST /chat; pytest not run; startup seed still loads `data/catalog_master.csv` (no summaries).
+
+## 2026-11-24: Product RAG explanation and latency follow-up
+- **Request:** Explain how natural-language product search works, why the end-to-end chat feels slow, and record future development suggestions in the docs.
+- **Documentation:** Added `docs/PRODUCT_RAG.md` covering the Sales tool path, product chunk/index creation, startup hot-load, BM25 and pgvector branches, RRF, catalog hydration, the LLM tool loop, observed timings, and prioritized future work. Linked it from `docs/RAG_GUIDE.md` to distinguish product RAG from knowledge RAG.
+- **Live measurements (dev DB, read-only product search):** cold first search 772ms; startup-style cache + embedding warm-up 1,135ms; first unseen query after warm-up 246ms; repeated same query 15ms. These are single-run timings, not a controlled benchmark.
+- **End-to-end observation:** natural-language product chat took 16.0–16.7s; one trace showed preprocess 3.9s and Sales 11.8s. Sales time includes LLM tool selection and response generation, so it is not product retrieval time.
+- **Future items documented:** per-stage timing spans/tool-call counts; reduce avoidable Sales LLM round trips; wire cache invalidation to product reindexing across workers; assess safer query-cache normalization; build product-specific retrieval evaluation before tuning/reranking.
+- **Not run:** test suite; this was an explanation/documentation task.

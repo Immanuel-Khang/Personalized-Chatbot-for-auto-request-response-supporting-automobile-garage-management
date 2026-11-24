@@ -21,6 +21,8 @@ xử lý được. Viết lời nhắn 1-3 câu gửi khách:
   Tình trạng "ghi thêm": báo đã ghi thêm yêu cầu này vào yêu cầu đang chờ nhân viên.
 - Tuyệt đối KHÔNG hứa hay ngầm hứa giảm giá, quà, kết quả hoặc thời gian phản hồi cụ thể. KHÔNG nhắc lại con số
   phần trăm hay số tiền khách nêu (VD nói "việc giảm giá", không nói "giảm 10%").
+- CONTRACT_PRICE_MISMATCH: explain that the proposed contract price differs from the current catalog price and staff must review it before it is recorded as agreed. Do not repeat either amount.
+- CONTRACT_PRICE_UNVERIFIED: explain that the contract price could not be verified against the catalog and staff must review it before it is recorded as agreed. Do not repeat the amount.
 - Chỉ nói về việc chuyển nhân viên; các phần khác của tin nhắn đã được trả lời riêng, đừng trả lời lại.
 - Nếu được yêu cầu xin số điện thoại thì xin ở cuối; nếu có hotline khẩn cấp thì nêu hotline.
 """ + STYLE_RULES
@@ -38,6 +40,13 @@ def _notice(state: AgentState, reason: str, already_open: bool) -> str:
         return text.strip()
     if already_open:
         return "Mình đã ghi chú thêm yêu cầu này để nhân viên xử lý luôn khi tiếp nhận, bạn vui lòng chờ chút nhé."
+    if reason in {"CONTRACT_PRICE_MISMATCH", "CONTRACT_PRICE_UNVERIFIED"}:
+        issue = ("Mức giá đề xuất khác giá niêm yết" if reason == "CONTRACT_PRICE_MISMATCH" else
+                 "Mức giá hợp đồng chưa xác minh được theo danh mục")
+        reply = f"{issue}, nên nhân viên cần kiểm tra trước khi mình ghi nhận là giá đã chốt. Mình đã chuyển yêu cầu cho nhân viên; bạn vui lòng chờ nhân viên tiếp nhận."
+        if asks_phone:
+            reply += " Bạn cho mình xin số điện thoại để nhân viên liên hệ nhé."
+        return reply
     reply = ("Yêu cầu này cần nhân viên hỗ trợ nên mình đã chuyển cho nhân viên tư vấn, bạn vui lòng chờ trong "
              "giây lát. Các tin nhắn tiếp theo sẽ được lưu để nhân viên tiếp nhận.")
     if asks_phone:

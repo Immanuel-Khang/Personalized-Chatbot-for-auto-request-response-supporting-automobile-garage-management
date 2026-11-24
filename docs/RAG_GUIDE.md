@@ -35,6 +35,8 @@ Câu hỏi khách
 
 > **Về `score`:** `KnowledgeChunk.score` là điểm RRF đã chuẩn hóa về 0..1, chỉ dùng để xếp hạng. Nó **không** phải độ tin cậy, đừng dùng nó để quyết định chuyển người. Việc "không tìm thấy → chuyển người" do ngưỡng bên trong retriever quyết định (mục 3 và 6.1).
 
+> Tìm xe theo nhu cầu tự nhiên (ví dụ “xe bền, hợp đường dài, giá tầm trung”) là **Product RAG** riêng, dùng dữ liệu danh mục và trả về `Product`, không đi qua `KnowledgeService`. Xem [Product RAG: luồng hiện tại, độ trễ và hướng phát triển](PRODUCT_RAG.md).
+
 &nbsp;
 
 ---

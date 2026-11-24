@@ -1,6 +1,6 @@
 """LangGraph assembly (matches the documented architecture):
 input -> preprocess -> policy_guard -> {human_handover | router}
-router -> one specialist directly, or coordinator -> several specialists (parallel, max one writer)
+router -> one specialist directly, or coordinator -> independent tasks in parallel, then dependent tasks
 specialists -> validation -> {preprocess (missing info, once) | compose} -> output_guard
 output_guard -> {respond | human_handover}; human_handover -> respond -> END.
 Save: messages go to the DB in app/conversation.py; workflow state (facts, pending, workflow) is the
@@ -19,7 +19,7 @@ from app.agent.nodes.appointment import appointment
 from app.agent.nodes.compose import compose
 from app.agent.nodes.contract import contract
 from app.agent.nodes.conversation import conversation
-from app.agent.nodes.coordinator import coordinate, coordinator
+from app.agent.nodes.coordinator import coordinate, coordinator, coordinator_resume, dispatch_resumed
 from app.agent.nodes.human_handover import human_handover
 from app.agent.nodes.input import load_context
 from app.agent.nodes.knowledge import knowledge
@@ -44,7 +44,8 @@ def build_graph():
     g = StateGraph(AgentState)
     for name, fn in [
         ("input", load_context), ("preprocess", preprocess), ("policy_guard", policy_guard),
-        ("router", router), ("coordinator", coordinator), *SPECIALISTS.items(),
+        ("router", router), ("coordinator", coordinator), ("coordinator_resume", coordinator_resume),
+        *SPECIALISTS.items(),
         ("validation", validation), ("compose", compose), ("output_guard", output_guard),
         ("human_handover", human_handover), ("respond", respond),
     ]:
@@ -56,9 +57,15 @@ def build_graph():
     g.add_conditional_edges("policy_guard", lambda s: s["route"],
                             {"human": "human_handover", "router": "router"})
     g.add_conditional_edges("router", dispatch, [*SPECIALISTS, "coordinator"])
-    g.add_conditional_edges("coordinator", coordinate, list(SPECIALISTS))
+    g.add_conditional_edges("coordinator", coordinate, [*SPECIALISTS, "validation"])
+    g.add_conditional_edges("coordinator_resume", dispatch_resumed, [*SPECIALISTS, "validation"])
+
+    def after_specialist(state: AgentState) -> str:
+        return "coordinator_resume" if state.get("dependency_phase") == "waiting_prerequisites" else "validation"
+
     for name in SPECIALISTS:
-        g.add_edge(name, "validation")  # runs once all parallel branches of the superstep finish
+        g.add_conditional_edges(name, after_specialist,
+                                {"coordinator_resume": "coordinator_resume", "validation": "validation"})
     g.add_conditional_edges("validation", lambda s: "preprocess" if s.get("route") == "retry" else "compose",
                             {"preprocess": "preprocess", "compose": "compose"})
     g.add_edge("compose", "output_guard")

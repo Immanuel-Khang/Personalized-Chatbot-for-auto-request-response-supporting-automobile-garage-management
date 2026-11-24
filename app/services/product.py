@@ -1,6 +1,8 @@
 """[TRACK A] ProductService: đọc catalog từ DB. SQL-side filtering – không load toàn bộ catalog vào bộ nhớ."""
 import logging
 import re
+import threading
+import time
 from collections import Counter
 
 from sqlalchemy import func, or_
@@ -113,30 +115,76 @@ def _to_product(row: tuple[CatalogProduct, ProductPrice, VehicleSpec | None]) ->
 
 
 class DbProductService:
+    def __init__(self):
+        self._rag_lock = threading.RLock()
+        self._rag_search_cache = None
+
+    def invalidate_rag_search(self) -> None:
+        """Drop process-local retrieval data after the product index is rebuilt."""
+        with self._rag_lock:
+            self._rag_search_cache = None
+
+    def warm_rag_search(self) -> None:
+        """Load the product lexical index and warm the embedding client at application startup."""
+        self._product_rag_state(warm_embedding=True)
+
+    def _product_rag_state(self, warm_embedding: bool = False):
+        from sqlalchemy import text
+        from app.config import settings
+        from app.db.session import engine
+        from app.rag.bm25 import BM25Index
+        from app.rag.factory import build_embedder
+
+        with self._rag_lock:
+            if self._rag_search_cache is None:
+                started = time.perf_counter()
+                with engine.connect() as conn:
+                    docs = conn.execute(text(
+                        "SELECT source, index_text FROM rag_chunks "
+                        "WHERE namespace='products' AND kind='product'"
+                    )).all()
+                if not docs:
+                    return None
+                sources = [d[0] for d in docs]
+                index = BM25Index([d[1] for d in docs])
+                common = {w for w, df in Counter(w for s in index.doc_sets for w in s).items()
+                          if df > 0.6 * len(docs)}
+                embedder = build_embedder()
+                self._rag_search_cache = (sources, index, common, embedder, settings)
+                logger.info("product RAG lexical index loaded: chunks=%d elapsed_ms=%.1f",
+                            len(docs), (time.perf_counter() - started) * 1000)
+
+            sources, index, common, embedder, settings = self._rag_search_cache
+            if warm_embedding and embedder is not None:
+                started = time.perf_counter()
+                try:
+                    embedder.embed_query("xe tải bền, phù hợp chạy đường dài")
+                    logger.info("product RAG embedding warmed: elapsed_ms=%.1f",
+                                (time.perf_counter() - started) * 1000)
+                except Exception:
+                    # The vector branch already degrades to BM25 when embeddings fail.
+                    logger.warning("product RAG embedding warm-up failed; BM25 remains available", exc_info=True)
+            return sources, index, common, embedder, settings
+
     def search_by_rag(self, query: str, limit: int = 3) -> list[Product]:
         """Tìm xe theo mô tả nhu cầu bằng ngôn ngữ tự nhiên (semantic search qua RAG).
         VD: 'xe rẻ và bền', 'tiết kiệm nhiên liệu', 'chở hàng nặng', 'phù hợp chạy đường dài'."""
         from sqlalchemy import text
         from app.config import settings
         from app.db.session import engine
-        from app.rag.bm25 import BM25Index
-        from app.rag.factory import build_embedder
         from app.rag.fusion import rrf
         from app.rag.pgstore import _lit
         from app.rag.text import content_words
 
+        started = time.perf_counter()
         if not query.strip():
             return []
-        with engine.connect() as conn:
-            docs = conn.execute(text("SELECT source, index_text FROM rag_chunks WHERE namespace='products' AND kind='product'")).all()
-        if not docs:
+        rag_state = self._product_rag_state()
+        if rag_state is None:
             return []
+        sources, index, common, embedder, settings = rag_state
 
         # Nhánh từ khóa (BM25, cùng bộ chuẩn hóa tiếng Việt với knowledge RAG): chỉ giữ chunk khớp đủ RAG_MIN_KEYWORD_HITS từ
-        sources = [d[0] for d in docs]
-        index = BM25Index([d[1] for d in docs])
-        # Từ có trong >60% sản phẩm ('xe', 'máy', 'tải'...) không phân biệt được xe nào nên không tính là khớp từ khóa
-        common = {w for w, df in Counter(w for s in index.doc_sets for w in s).items() if df > 0.6 * len(docs)}
         q_words = content_words(query) - common
         need = min(settings.rag_min_keyword_hits, len(q_words))
         bm25 = [sources[i] for i, _s, _h in index.search(query, settings.rag_candidates)
@@ -145,7 +193,7 @@ class DbProductService:
         # Nhánh vector (pgvector): chỉ giữ chunk có cosine >= RAG_MIN_VECTOR_SIM. Lỗi/không có embedder -> chỉ dùng BM25
         vector: list[str] = []
         try:
-            if embedder := build_embedder():
+            if embedder:
                 # Chỉ so vector cùng model: hash và openai nằm ở hai không gian khác nhau, so lẫn là vô nghĩa
                 sql = """SELECT source, 1 - (embedding <=> CAST(:q AS vector)) AS sim FROM rag_chunks
                          WHERE namespace='products' AND kind='product' AND embedding IS NOT NULL
@@ -183,7 +231,9 @@ class DbProductService:
             for row in rows:
                 by_key[row[0].sku or f"id{row[0].id}"] = _to_product(row)
             # Trả theo thứ tự liên quan của RAG, tối đa limit
-            return [by_key[k] for k in ranked if k in by_key][:limit]
+            result = [by_key[k] for k in ranked if k in by_key][:limit]
+        logger.info("product RAG search: elapsed_ms=%.1f results=%d", (time.perf_counter() - started) * 1000, len(result))
+        return result
 
     def search(self, query: str = "", limit: int = 3, fallback: bool = True,
                max_budget_vnd: float | None = None) -> list[Product]:

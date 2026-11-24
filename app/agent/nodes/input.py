@@ -61,7 +61,8 @@ def load_context(state: AgentState) -> dict:
         "active_workflow": _model(ActiveWorkflow, state.get("active_workflow")),
         # Every later LLM call gets the running summary + recent window, never the whole session.
         **windowed_history(state.get("history") or [], state.get("conversation_summary"),
-                           state.get("summarized_messages") or 0),
+                           state.get("summarized_messages") or 0,
+                           state.get("summarized_through_message_id"), state.get("turn")),
         "trace": ["input"],
     }
 

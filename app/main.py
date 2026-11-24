@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import logging
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -8,6 +9,8 @@ from fastapi.staticfiles import StaticFiles
 from app.api import admin, chat
 from app.db.seed import seed_catalog
 from app.db.session import init_db
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -22,6 +25,14 @@ async def lifespan(app: FastAPI):
 
     init_db()
     seed_catalog()
+    # Build the process-local product BM25 index and establish the embedding client
+    # before the first customer request pays that initialization cost.
+    try:
+        from app.services import get_services
+        get_services().product.warm_rag_search()
+    except Exception:
+        # Retrieval can still fall back to its normal lazy initialization on demand.
+        logger.warning("product RAG startup warm-up failed; it will initialize on first search", exc_info=True)
     yield
 
 

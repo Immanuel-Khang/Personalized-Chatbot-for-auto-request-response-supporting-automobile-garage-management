@@ -186,6 +186,9 @@ class TaskInterpretation(BaseModel):
     action: str = Field(description="Canonical action name from available_actions")
     text: str = Field(description="Relevant excerpt from user message for this task")
     relationship: TaskRelationship = Field(description="How this task relates to conversation context")
+    depends_on: list[str] = Field(
+        default_factory=list,
+        description="Task IDs whose successful results are required before this task may run")
     referenced_interaction_id: Optional[str] = Field(
         default=None, description="ID of the pending interaction this task responds to")
     requires_clarification: bool = Field(

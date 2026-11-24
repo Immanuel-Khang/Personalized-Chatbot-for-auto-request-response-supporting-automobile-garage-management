@@ -65,6 +65,10 @@ Bạn là Preprocessing Agent của trợ lý gara ô tô. Phân tích TIN NHẮ
 đọc kết quả của bạn, không đọc lại câu chữ.
 
 1. Task: mỗi yêu cầu riêng biệt là một task, theo thứ tự xuất hiện; chỉ phân tích yêu cầu MỚI, không lặp task cũ.
+   Dùng trường depends_on khi task sau chỉ được thực hiện nếu task trước xác nhận điều kiện cần thiết.
+   Ví dụ "nếu có mẫu xe A thì đặt lịch xem" -> task tìm/kiểm tra mẫu xe là task trước; task đặt lịch có depends_on chứa task_id của task tìm xe.
+   Bắt dependency cho mọi cách nói điều kiện như "nếu có/tìm thấy", "nếu cả hai đều có", "chỉ khi ... thì ..."; task sau phải depends_on tất cả task cung cấp điều kiện, kể cả khi nhiều mẫu xe nằm trong cùng một yêu cầu.
+   Nếu chỉ có hai yêu cầu độc lập trong cùng tin nhắn thì depends_on để rỗng. Không dùng depends_on cho quan hệ với lượt chat trước.
    "Tìm xe số 1 và đặt lịch xem xe" = SALES product_detail + APPOINTMENT book_appointment.
    - Xem xe tại showroom là APPOINTMENT. Thông số/giá của một mẫu trong catalog ("động cơ của FUSO Canter FI170",
      "xe số 2 hộp số mấy cấp") là SALES product_specs; KNOWLEDGE chỉ cho câu hỏi kỹ thuật chung, sửa chữa, an toàn.
@@ -276,11 +280,32 @@ def _resolve_references(state: AgentState, interpretation: ConversationInterpret
     cars the customer can count (the list the bot just presented, or the one before), so a hallucinated name never
     reaches a specialist."""
     known = {*interpretation.presented_cars, *_car_list(state)}
+    current_text = _normalise(state.get("user_text", ""))
     # car_list can be empty although the customer already chose a car (the bot's list was never captured); a car
     # that exists in the catalog under exactly that name is just as safe to pass on as one from the list.
-    tasks = [task.model_copy(update={"car_model": task.car_model if task.car_model in known
-                                     or _is_catalog_car(task.car_model) else None})
-             for task in interpretation.tasks]
+    tasks = []
+    for task in interpretation.tasks:
+        explicit_sales_query = (task.domain == Intent.SALES and task.car_model
+                                and _normalise(task.car_model) in current_text)
+        car_model = task.car_model if (task.car_model in known or _is_catalog_car(task.car_model)
+                                       or explicit_sales_query) else None
+        tasks.append(task.model_copy(update={"car_model": car_model}))
+    return interpretation.model_copy(update={"tasks": tasks})
+
+
+def _validate_task_dependencies(interpretation: ConversationInterpretation) -> ConversationInterpretation:
+    """Keep only backward references to tasks in this turn, producing an acyclic execution order."""
+    seen: set[str] = set()
+    tasks = []
+    for task in interpretation.tasks:
+        dependencies = []
+        for dependency in task.depends_on:
+            if dependency in seen and dependency != task.task_id and dependency not in dependencies:
+                dependencies.append(dependency)
+            else:
+                logger.warning("Discarding invalid task dependency %s -> %s", task.task_id, dependency)
+        tasks.append(task.model_copy(update={"depends_on": dependencies}))
+        seen.add(task.task_id)
     return interpretation.model_copy(update={"tasks": tasks})
 
 
@@ -328,7 +353,8 @@ def _apply_interpretation(state: AgentState, interpretation: ConversationInterpr
         facts["car_list"] = KnownFact(key="car_list", value=list(interpretation.presented_cars),
                                       source=FactSource.INFERRED)
     state = {**state, "known_facts": facts}
-    applied = _resolve_references(state, interpretation)
+    applied = _validate_task_dependencies(interpretation)
+    applied = _resolve_references(state, applied)
     applied = applied.model_copy(update={"slot_updates": _validated_updates(state, applied, rejected, dropped)})
     applied = applied.model_copy(update={"slot_updates": [*applied.slot_updates, *_phone_fallback(state, applied)]})
     for update in applied.slot_updates:

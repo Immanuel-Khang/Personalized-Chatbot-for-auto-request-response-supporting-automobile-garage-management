@@ -6,6 +6,7 @@ the products the bot showed) instead of a typed name. Asking stops: after MAX_AS
 contract goes to staff. Once complete, the signing date is booked by the appointment agent (CONTRACT_SIGN, with
 the car model in the appointment note), so the contract agent never asks for a date itself."""
 import json
+import logging
 import uuid
 from datetime import date
 
@@ -15,6 +16,7 @@ from app.agent.nodes.appointment import appointment
 from app.agent.nodes.compose import STYLE_RULES
 from app.agent.state import AgentState, answer, fact_value, open_pending
 from app.identity import is_full_name
+from app.services import get_services
 from app.contracts.schemas import (
     ActiveWorkflow, FactSource, InteractionKind, InteractionStatus, KnownFact, PendingInteraction, ServiceType,
     WorkflowStatus,
@@ -29,6 +31,7 @@ REQUIRED_FIELDS = {
     "decided_price": "Mức giá chốt hợp đồng (VNĐ)",
 }
 MAX_ASKS = 3  # turns asking for the same missing fields before staff take over
+logger = logging.getLogger(__name__)
 
 CONTRACT_SYSTEM_PROMPT = """\
 Bạn là chuyên viên pháp lý và thủ tục hợp đồng mua xe Foton.
@@ -58,10 +61,26 @@ def _asks(pending: list[PendingInteraction], missing: list[str]) -> int:
     return 1
 
 
+def _catalog_price(model: str | None) -> int | None:
+    """Return the current catalog price only for an exact model-name match."""
+    if not model:
+        return None
+    try:
+        matches = [product for product in get_services().product.find_model(model, limit=5)
+                   if product.name.casefold() == model.casefold()]
+        return matches[0].list_price_vnd if len(matches) == 1 else None
+    except Exception:
+        logger.exception("Could not validate proposed contract price against the catalog")
+        return None
+
+
 def contract(state: AgentState) -> dict:
     facts = dict(state.get("known_facts") or {})
     interpretation = state.get("conversation_interpretation")
-    if not fact_value(facts, "car_model") and (vehicle := _chosen_vehicle(state)):
+    verified_vehicle = state.get("verified_vehicle")
+    if verified_vehicle:
+        facts["car_model"] = KnownFact(key="car_model", value=verified_vehicle, source=FactSource.INFERRED)
+    elif not fact_value(facts, "car_model") and (vehicle := _chosen_vehicle(state)):
         facts["car_model"] = KnownFact(key="car_model", value=vehicle, source=FactSource.INFERRED)
     collected = {key: fact_value(facts, key) for key in REQUIRED_FIELDS if fact_value(facts, key) is not None}
     if not is_full_name(str(collected.get("customer_name") or "")):
@@ -78,9 +97,25 @@ def contract(state: AgentState) -> dict:
     # Contract/price changes need a human. Preprocessing's LLM judges this in context (a keyword list
     # wrongly escalated "Giá chốt là 480 triệu" and names such as "Phí Văn Long").
     if interpretation and interpretation.signals.deal_change:
+        if any(update.key == "decided_price" for update in interpretation.slot_updates):
+            facts.pop("decided_price", None)
+            collected.pop("decided_price", None)
         return {"answers": [answer(state, "contract", needs_human=True, handover_reason="CONTRACT_OR_PRICE_CHANGE")],
-                "active_workflow": workflow.model_copy(update={"status": WorkflowStatus.WAITING_FOR_APPROVAL}),
+                "active_workflow": workflow.model_copy(update={"status": WorkflowStatus.WAITING_FOR_APPROVAL,
+                                                               "collected_facts": collected}),
                 "known_facts": facts, "trace": ["contract"]}
+
+    if (proposed_price := collected.get("decided_price")) is not None:
+        catalog_price = _catalog_price(collected.get("car_model"))
+        if catalog_price is None or proposed_price != catalog_price:
+            # Keep the proposal in the customer's raw message/ticket, never in the accepted contract facts.
+            facts.pop("decided_price", None)
+            collected.pop("decided_price", None)
+            reason = "CONTRACT_PRICE_UNVERIFIED" if catalog_price is None else "CONTRACT_PRICE_MISMATCH"
+            return {"answers": [answer(state, "contract", needs_human=True, handover_reason=reason)],
+                    "active_workflow": workflow.model_copy(update={"status": WorkflowStatus.WAITING_FOR_APPROVAL,
+                                                                   "collected_facts": collected}),
+                    "pending_interactions": expired, "known_facts": facts, "trace": ["contract"]}
 
     message = state.get("task_text") or state.get("user_text", "")
     if missing:

@@ -179,6 +179,7 @@ def appointment(state: AgentState) -> dict:
                          and item.metadata.get("turn") == _turn(state) - 2), None)  # a stale one is never accepted
     approved = confirmation.metadata if confirmation and _accepted(state) else None
     vehicle, detail = _booking_detail(state, facts)
+    vehicle = state.get("verified_vehicle") or vehicle
     # Date and hour both come from the customer's words (date_extraction): the LLM only reads components, the code
     # computes. The customer gives the exact hour too, so staff do not have to call back for it.
     resolved = sync_date_fact(facts) or {}
@@ -361,8 +362,14 @@ def _update(state: AgentState, facts: dict, workflow: ActiveWorkflow | None, min
     looked_up = any((name == "get_appointment_details" and result.get("appointments"))
                     or (name == "check_availability" and result.get("status") == "AVAILABILITY")
                     for name, result in results)
+    interpretation = state.get("conversation_interpretation")
+    task_ids = set(state.get("task_ids") or [])
+    write_actions = {"book_appointment", "reschedule_appointment", "cancel_appointment"}
+    is_write_request = any(task.task_id in task_ids and task.action in write_actions
+                           for task in (interpretation.tasks if interpretation else []))
+    executed = bool(succeeded) if is_write_request else bool(succeeded) or looked_up
     update: dict = {"trace": ["appointment"], "known_facts": facts,
-                    "answers": [answer(state, "appointment", reply, executed=bool(succeeded) or looked_up)]}
+                    "answers": [answer(state, "appointment", reply, executed=executed)]}
 
     if proposal or missing:
         kind = InteractionKind.CONFIRMATION if proposal else InteractionKind.QUESTION

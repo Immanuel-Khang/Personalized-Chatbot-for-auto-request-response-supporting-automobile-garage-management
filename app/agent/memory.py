@@ -1,11 +1,12 @@
 """Conversation memory for LLM calls: running summary + recent window.
 
-handle_message loads the full user/ai history from the DB. Only the last
-``history_window_messages`` (up to ``+ history_summary_batch``) go to the LLM verbatim; older
-messages are folded into a running summary kept in the LangGraph checkpoint. Structured facts
+handle_message reads the checkpoint's summary cursor, then loads only later user/ai messages from
+the DB. Once that unsummarized slice exceeds ``history_window_messages + history_summary_batch``,
+older messages are folded into the running summary and the last ``history_window_messages`` remain
+verbatim. The summary and DB message-ID cursor live in the LangGraph checkpoint. Structured facts
 (known_facts, pending_interactions, active_workflow) are checkpointed separately and are not lost
-when a message leaves the window. The summary travels as a ``{"role": "summary"}`` entry at the
-front of ``state["history"]``; llm.py sends it as a system message.
+when a message leaves the verbatim window. The summary travels as a ``{"role": "summary"}`` entry
+at the front of ``state["history"]``; llm.py sends it as a system message.
 """
 import logging
 
@@ -34,21 +35,26 @@ def summarize(previous: str | None, messages: list[dict]) -> str | None:
     return summary.strip() if summary and summary.strip() else None
 
 
-def windowed_history(history: list[dict], summary: str | None, summarized: int) -> dict:
+def windowed_history(history: list[dict], summary: str | None, summarized: int,
+                     summarized_through_message_id: int | None = None,
+                     turn: int | None = None) -> dict:
     """State update: bounded history for every LLM call, plus the updated summary and fold cursor.
 
-    ``summarized`` counts the leading history messages already folded into ``summary``."""
+    ``summarized`` counts leading messages in this DB slice already folded into ``summary``.
+    The persistent DB cursor is the ID of the last message folded into the summary."""
     window, batch = settings.history_window_messages, settings.history_summary_batch
     if summarized > len(history):  # history shrank (messages deleted): the summary no longer matches
-        summary, summarized = None, 0
+        summary, summarized, summarized_through_message_id = None, 0, None
     if len(history) - summarized > window + batch:
         cut = len(history) - window
         folded = summarize(summary, history[summarized:cut])
         if folded is not None:
             summary, summarized = folded, cut
+            summarized_through_message_id = history[cut - 1].get("id", summarized_through_message_id)
         else:
             logger.warning("History summary failed; sending the last %d messages only", window + batch)
     recent = history[max(summarized, len(history) - window - batch):]
     prefix = [{"role": "summary", "content": summary}] if summary else []
     return {"history": prefix + recent, "conversation_summary": summary, "summarized_messages": summarized,
-            "turn": len(history)}
+            "summarized_through_message_id": summarized_through_message_id,
+            "turn": len(history) if turn is None else turn}

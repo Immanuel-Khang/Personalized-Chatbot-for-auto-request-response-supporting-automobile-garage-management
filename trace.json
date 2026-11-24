@@ -1,41 +1,22 @@
 {
   "preprocess_result": {
     "conversation_interpretation": {
-      "message_summary": "Khách hỏi có mẫu xe dưới 500 triệu không và muốn xem trực tiếp.",
+      "message_summary": "Khách hỏi nhắc lại mẫu xe đã định đến xem, giờ hẹn và thông tin còn thiếu để chốt lịch.",
       "tasks": [
         {
           "task_id": "t1",
-          "domain": "SALES",
-          "action": "SALES search_catalog",
-          "text": "có mẫu xe nào dưới 500 triệu không",
-          "relationship": "NEW_REQUEST",
-          "referenced_interaction_id": null,
-          "requires_clarification": false,
-          "car_model": null,
-          "inquiry_only": false
-        },
-        {
-          "task_id": "t2",
           "domain": "APPOINTMENT",
-          "action": "APPOINTMENT book_appointment",
-          "text": "tôi muốn xem trực tiếp",
-          "relationship": "NEW_REQUEST",
-          "referenced_interaction_id": null,
+          "action": "book_appointment",
+          "text": "tôi định đến xem mẫu xe nào, lúc mấy giờ và còn thiếu thông tin gì để chốt lịch?",
+          "relationship": "ANSWER_TO_QUESTION",
+          "depends_on": [],
+          "referenced_interaction_id": "appointment_3faab54b",
           "requires_clarification": false,
-          "car_model": null,
-          "inquiry_only": false
+          "car_model": "HINO FC9JJTC",
+          "inquiry_only": true
         }
       ],
-      "slot_updates": [
-        {
-          "key": "budget_vnd",
-          "operation": "SET",
-          "value": 500000000,
-          "evidence": "[REDACTED]",
-          "source_message_id": null,
-          "related_task_id": null
-        }
-      ],
+      "slot_updates": [],
       "presented_cars": [],
       "signals": {
         "wants_human": false,
@@ -52,23 +33,68 @@
     "known_facts": {
       "intended_use": {
         "key": "intended_use",
-        "value": "phù hợp vận chuyển đường dài",
+        "value": "chạy đường dài",
         "source": "USER_EXPLICIT",
         "updated_at_message_id": null,
         "confidence": null
       },
-      "budget_vnd": {
-        "key": "budget_vnd",
-        "value": 500000000,
+      "payload_tons": {
+        "key": "payload_tons",
+        "value": 5,
         "source": "USER_EXPLICIT",
         "updated_at_message_id": null,
         "confidence": null
-      }
+      },
+      "car_list": {
+        "key": "car_list",
+        "value": [
+          "FOTON AUMARK-12T (4200)",
+          "HINO FC9JJTC",
+          "ISUZU FRR90NE5"
+        ],
+        "source": "INFERRED",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "service_type": {
+        "key": "service_type",
+        "value": "SHOWROOM_VISIT",
+        "source": "USER_EXPLICIT",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "appointment_when": {
+        "key": "appointment_when",
+        "value": "9 giờ sáng thứ Sáu tuần này",
+        "source": "USER_CORRECTED",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "car_model": {
+        "key": "car_model",
+        "value": "HINO FC9JJTC",
+        "source": "INFERRED",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "appointment_date": {
+        "key": "appointment_date",
+        "value": {
+          "text": "9 giờ sáng thứ Sáu tuần này",
+          "reference": "2026-11-24",
+          "status": "RESOLVED",
+          "date": "2026-11-27",
+          "time_status": "RESOLVED",
+          "time": "09:00"
+        },
+        "source": "APPLICATION_VERIFIED",
+        "updated_at_message_id": null,
+        "confidence": null
+      },
+      "customer_phone": "[REDACTED]"
     },
     "rejected_slots": [],
-    "proposed_slots": [
-      "budget_vnd"
-    ],
+    "proposed_slots": [],
     "dropped_slots": [],
     "trace": [
       "preprocess"

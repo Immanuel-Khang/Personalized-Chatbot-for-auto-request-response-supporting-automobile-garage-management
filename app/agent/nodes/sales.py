@@ -228,9 +228,39 @@ def sales(state: AgentState) -> dict:
         reply = result.get("final_response", "Xin lỗi, mình chưa thể tư vấn được ạ.")
 
     # Prices the reply may quote: the cars the tools returned plus the cars in car_list (checked by the output guard).
-    products = viewed_products + [p for call in result.get("tool_calls", [])
-                                  for p in call.get("result", {}).get("products", [])]
+    tool_products = [p for call in result.get("tool_calls", [])
+                     for p in call.get("result", {}).get("products", [])]
+    price_products = viewed_products + tool_products
     update = {"trace": ["sales"], "answers": [answer(state, "sales", reply)]}
-    if priced := [p["list_price_vnd"] for p in products if "list_price_vnd" in p]:  # browse results carry names only
+    dependency_ids = set(state.get("dependency_task_ids") or [])
+    if dependency_ids:
+        tool_calls = result.get("tool_calls", []) if isinstance(result, dict) else []
+        dependency_products = [product for call in tool_calls
+                               for product in call.get("result", {}).get("products", [])
+                               if isinstance(product, dict) and product.get("name")]
+        called_tools = bool(tool_calls)
+        has_error = bool(result.get("error")) or any(call.get("result", {}).get("error") for call in tool_calls)
+        task_lookup = {task.task_id: task for task in (interpretation.tasks if interpretation else [])}
+        other_requested = {task.car_model.casefold() for task_id, task in task_lookup.items()
+                           if task_id not in dependency_ids and task.car_model}
+        # Independent prerequisite searches may share one Send; retain a separate result per task ID.
+        task_results = []
+        for task_id in dependency_ids:
+            requested = getattr(task_lookup.get(task_id), "car_model", None)
+            exact = [product for product in dependency_products
+                     if requested and product["name"].casefold() == requested.casefold()]
+            candidates = [product for product in dependency_products
+                          if product["name"].casefold() not in other_requested]
+            if has_error or not called_tools:
+                status = "failed"
+            elif requested:
+                status = "found" if exact else "similar" if candidates else "not_found"
+            else:
+                status = "found" if candidates else "not_found"
+            task_results.append({"task_id": task_id, "agent": "sales", "status": status,
+                                 "products": [{"id": product.get("id"), "name": product["name"]}
+                                              for product in (exact or candidates)]})
+        update["task_results"] = task_results
+    if priced := [p["list_price_vnd"] for p in price_products if "list_price_vnd" in p]:  # browse results carry names only
         update["allowed_amounts"] = [fmt_vnd(price) for price in priced]
     return update

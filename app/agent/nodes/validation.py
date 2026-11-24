@@ -36,7 +36,8 @@ def validation(state: AgentState) -> dict:
     attempts = state.get("validation_attempts", 0)
     if (feedback := _missing_info(state)) and attempts < MAX_ATTEMPTS:
         return {**update, "validation_feedback": feedback, "validation_attempts": attempts + 1,
-                "answers": Overwrite([]), "allowed_amounts": Overwrite([]), "route": "retry"}
+                "answers": Overwrite([]), "allowed_amounts": Overwrite([]),
+                "task_results": Overwrite([]), "route": "retry"}
 
     answers = []
     for item in state.get("answers") or []:

@@ -58,7 +58,8 @@ def _fmt_interp(ci: dict | None) -> str:
     if not ci:
         return "  (no interpretation)"
     tasks = ci.get("tasks") or []
-    t_str = "; ".join(f"{t.get('domain')}:{t.get('action')}(car={t.get('car_model')})" for t in tasks) or "(none)"
+    t_str = "; ".join(f"{t.get('domain')}:{t.get('action')}(car={t.get('car_model')}, depends_on={t.get('depends_on', [])})"
+                       for t in tasks) or "(none)"
     presented = ci.get("presented_cars") or []
     lines = [f"  tasks:     {t_str}"]
     if presented:

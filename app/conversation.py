@@ -8,13 +8,15 @@ Phiên = chat_sessions.id (UUID trình duyệt). TODO[PLATFORM]: _locks chỉ đ
 nhiều worker thì đổi sang pg_advisory_xact_lock hoặc SELECT ... FOR UPDATE trên chat_sessions.
 """
 import re
+import logging
 import threading
+import time
 from collections import defaultdict
 from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from app.agent.runner import run_turn
+from app.agent.runner import memory_checkpoint, run_turn
 from app.config import settings
 from app.contracts.schemas import ChatRequest, ChatResponse, ConversationMode, FactSource, KnownFact
 from app.db.models import Appointment, ChatSession, Message
@@ -24,6 +26,7 @@ from app.identity import (customer_profile, get_or_create_session, normalize_pho
 from app.services.handover import open_ticket
 
 _locks: dict[str, threading.Lock] = defaultdict(threading.Lock)  # mỗi phiên 1 khóa
+logger = logging.getLogger(__name__)
 TIMEOUT_NOTICE = ("Hiện nhân viên đang bận nên chưa tiếp nhận được. Bạn có thể gọi hotline {hotline} "
                   "để được hỗ trợ ngay. Các tin nhắn của bạn vẫn được lưu để nhân viên tiếp nhận.")
 PHONE_RE = re.compile(r"(?<!\d)((?:\+84|0)\d{9})(?!\d)")  # search for phone number
@@ -71,15 +74,25 @@ def _fact(value) -> KnownFact | None:
     return KnownFact.model_validate(value) if isinstance(value, dict) else None
 
 
-def _history(db: Session, session_id: str, current_id: int) -> list[dict]:
+def _history_cursor(db: Session, session_id: str, current_id: int, summarized: int) -> int | None:
+    """Upgrade a legacy count-based summary cursor to the exact message ID once."""
+    if summarized <= 0:
+        return None
+    previous = (Message.role == "ai") | ((Message.role == "user") & (Message.id < current_id))
+    return (db.query(Message.id).filter(Message.session_id == session_id, previous)
+            .order_by(Message.id).offset(summarized - 1).limit(1).scalar())
+
+
+def _history(db: Session, session_id: str, current_id: int, after_id: int | None = None) -> list[dict]:
     """Tin user/ai của phiên trước tin hiện tại, theo id (thứ tự ghi DB, xác định). Gọi trong khóa phiên.
     Mọi tin ai đều thuộc lượt đã xong (lượt này chưa ghi trả lời), kể cả tin có id lớn hơn tin hiện tại khi khách
     gửi dồn; tin user id >= current_id là tin hiện tại hoặc tin đang chờ khóa -> bỏ. Tin staff/system không vào LLM."""
-    rows = (db.query(Message.role, Message.content)
+    rows = (db.query(Message.id, Message.role, Message.content)
             .filter(Message.session_id == session_id,
+                    *((Message.id > after_id,) if after_id is not None else ()),
                     (Message.role == "ai") | ((Message.role == "user") & (Message.id < current_id)))
             .order_by(Message.id).all())
-    return [{"role": role, "content": content} for role, content in rows]
+    return [{"id": message_id, "role": role, "content": content} for message_id, role, content in rows]
 
 
 def handle_message(req: ChatRequest) -> ChatResponse:
@@ -113,9 +126,27 @@ def handle_message(req: ChatRequest) -> ChatResponse:
             negotiation_active, mode = session.negotiation_active, session.mode
             profile = customer_profile(db, session)
             customer_id = verified_customer_id(db, session)
-            history = _history(db, session_id, user_msg.id)
+            checkpoint_started = time.perf_counter()
+            memory = memory_checkpoint(session_id)
+            checkpoint_ms = (time.perf_counter() - checkpoint_started) * 1000
+            summary = memory.get("conversation_summary")
+            cutoff_id = memory.get("summarized_through_message_id")
+            legacy_summarized = int(memory.get("summarized_messages") or 0)
+            if cutoff_id is None and legacy_summarized:
+                cutoff_id = _history_cursor(db, session_id, user_msg.id, legacy_summarized)
+                if cutoff_id is None:
+                    # The old count no longer fits this session's rows; discard its stale summary.
+                    summary, legacy_summarized = None, 0
+            history_started = time.perf_counter()
+            history = _history(db, session_id, user_msg.id, cutoff_id)
+            logger.info("conversation memory load: checkpoint_ms=%.1f history_query_ms=%.1f loaded=%d after_message_id=%s",
+                        checkpoint_ms, (time.perf_counter() - history_started) * 1000,
+                        len(history), cutoff_id)
+            previous_turn = memory.get("turn")
+            turn = int(previous_turn) + 2 if previous_turn is not None else legacy_summarized + len(history)
 
-        result = run_turn(session_id, customer_id, req.message, negotiation_active, mode, history, profile)
+        result = run_turn(session_id, customer_id, req.message, negotiation_active, mode, history, profile,
+                          summary, cutoff_id, turn)
 
         with SessionLocal() as db:
             session = db.get(ChatSession, session_id)
