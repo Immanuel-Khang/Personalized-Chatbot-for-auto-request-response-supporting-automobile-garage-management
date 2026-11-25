@@ -1,0 +1,90 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      run_l5:
+        description: "Chạy thêm L5 (LLM thật, tốn tiền, cần secret OPENAI_API_KEY)"
+        type: boolean
+        default: false
+      l5_repeat:
+        description: "Số lần lặp mỗi ca L5"
+        default: "1"
+      l5_groups:
+        description: "Nhóm L5 (để trống = tất cả; vd dependency,policy)"
+        default: ""
+
+jobs:
+  deterministic:
+    # L1-L4 + L3B + L6 (E2E bằng FakeLLM): không gọi LLM thật, chạy mỗi commit/PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: garage
+          POSTGRES_PASSWORD: garage
+          POSTGRES_DB: garage_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U garage -d garage_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"        # khớp dockerfile
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: pytest (không LLM)
+        env:
+          TEST_DATABASE_URL: postgresql+psycopg://garage:garage@127.0.0.1:5433/garage_test?connect_timeout=5
+        run: pytest tests/ -q -p no:cacheprovider --junitxml=reports/junit.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: junit
+          path: reports/junit.xml
+
+  l5:
+    # Chỉ chạy tay (workflow_dispatch, run_l5=true): tốn tiền, kết quả LLM dao động nên không làm cổng chặn PR
+    if: github.event_name == 'workflow_dispatch' && inputs.run_l5
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: garage
+          POSTGRES_PASSWORD: garage
+          POSTGRES_DB: garage_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U garage -d garage_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: L5 (LLM thật)
+        env:
+          TEST_DATABASE_URL: postgresql+psycopg://garage:garage@127.0.0.1:5433/garage_test?connect_timeout=5
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          RUN_LLM_TESTS: "1"
+          L5_REPEAT: ${{ inputs.l5_repeat }}
+          L5_GROUPS: ${{ inputs.l5_groups }}
+        run: pytest tests/test_l5_benchmark.py -m llm -q -p no:cacheprovider
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: l5-report
+          path: reports/l5/

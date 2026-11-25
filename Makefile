@@ -1,4 +1,4 @@
-.PHONY: dev prod down logs clean migrate seed test
+.PHONY: dev prod down logs clean migrate seed test test-e2e test-l5
 
 # Chạy môi trường dev (build lại image và hiển thị log trực tiếp)
 dev:
@@ -35,3 +35,11 @@ seed:
 # Run the test suite (needs Postgres on 127.0.0.1:5433)
 test:
 	LLM_PROVIDER=none pytest tests/ -q
+
+# L6: hành trình E2E (FakeLLM, không tốn tiền, vài giây)
+test-e2e:
+	LLM_PROVIDER=none pytest tests/ -m e2e -q
+
+# L5: benchmark LLM thật (TỐN TIỀN: cần OPENAI_API_KEY; đặt L5_REPEAT, L5_GROUPS, L5_BUDGET_USD nếu cần)
+test-l5:
+	RUN_LLM_TESTS=1 pytest tests/test_l5_benchmark.py -m llm -q
